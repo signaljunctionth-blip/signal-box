@@ -1,0 +1,58 @@
+/* หน้าแรก M0 — ออกแบบแนวนอนเป็นหลัก (844×390, 1180×820, 1280×800) สีทั้งหมดอ่านจาก CSS variable เพื่อรองรับโหมดมืด */
+:root{
+  --bg:#EAF5F3; --paper:#FFFDF8; --ink:#22313E; --muted:#5B6E7A; --line:#D2E2DE;
+  --navy:#2B3A4A; --cream:#FFE6A8; --red:#E9525A; --amber:#F2A33A; --green:#2FA872;
+  --go-ink:#12241C; --link:#1F6F4E;
+  --display:"Mitr","Anuphan",system-ui,sans-serif; --body:"Anuphan","Noto Sans Thai",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F; --link:#7FD6A8;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F; --link:#7FD6A8;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg)}
+body{color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+h1{font-family:var(--display);font-weight:500;line-height:1.2;margin:0;text-wrap:balance}
+p{margin:0;text-wrap:pretty}
+a{color:var(--link)}
+:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+
+.stage{
+  min-height:100%;display:flex;flex-direction:column;justify-content:center;gap:clamp(12px,3vh,28px);
+  max-width:1080px;margin:0 auto;
+  padding:max(clamp(12px,3vh,32px),env(safe-area-inset-top)) max(clamp(16px,4vw,48px),env(safe-area-inset-right)) max(clamp(10px,2.5vh,28px),env(safe-area-inset-bottom)) max(clamp(16px,4vw,48px),env(safe-area-inset-left));
+}
+.hero{display:flex;align-items:center;gap:clamp(18px,4vw,48px);background:var(--paper);border:1.5px solid var(--line);border-radius:28px;padding:clamp(16px,4vh,44px) clamp(20px,4vw,52px)}
+.mascot{flex:none;height:clamp(120px,36vh,260px);width:auto}
+.m-post{fill:var(--muted)} .m-base{fill:var(--line)} .m-head{fill:var(--navy)}
+.m-red{fill:var(--red)} .m-amber{fill:var(--amber)} .m-green{fill:var(--green)}
+.hero-t{display:flex;flex-direction:column;gap:clamp(6px,1.6vh,14px);min-width:0}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;color:var(--muted)}
+h1{font-size:clamp(30px,9vh,60px)}
+.lead{color:var(--muted);max-width:56ch;font-size:clamp(15px,2.2vh,18px)}
+.actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;margin-top:clamp(2px,1vh,10px)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:8px 26px;border-radius:999px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);font-family:var(--display);font-size:17px;text-decoration:none;white-space:nowrap;cursor:pointer}
+.btn.go{background:var(--green);border-color:var(--green);color:var(--go-ink)}
+.btn:active{transform:translateY(1px)}
+.ver{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.foot{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--muted);padding:0 6px}
+.credits summary{font-family:var(--display);cursor:pointer;min-height:40px;display:flex;align-items:center;gap:8px;width:fit-content;padding-right:12px;list-style:none}
+.credits summary::-webkit-details-marker{display:none}
+.credits summary::before{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+.credits[open] summary::before{transform:rotate(45deg)}
+.credits ul{margin:0 0 6px;padding-left:20px}
+.credits a{display:inline-block;padding:9px 6px;margin:-9px 0}
+
+/* ถือเครื่องแนวตั้ง: ยังอ่านได้ เรียงลงมา (เกมจริงจะหมุนเวทีใน M1) */
+@media (orientation:portrait) and (max-width:700px){
+  .hero{flex-direction:column;text-align:center}
+  .hero-t{align-items:center}
+  .mascot{height:clamp(120px,22vh,200px)}
+  h1{font-size:clamp(30px,9vw,48px)}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}

@@ -1,0 +1,13 @@
+node_modules
+.DS_Store
+dist
+test/screenshots
+test-results
+playwright-report
+*.log
+.vite
+.env
+.env.*
+
+# ข้อมูลดิบ: ไฟล์ที่ใหญ่เกิน 5 MB ให้ตั้งชื่อ *.big.json แล้วเก็บแค่ไฟล์ที่แปลงแล้ว
+data/raw/*.big.json

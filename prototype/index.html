@@ -1,0 +1,760 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ห้องสัญญาณ 200 ปี</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+/* Layout: full-screen app with two screens — level map (scrolls) and play (top bar + board that fills the rest; board turns vertical on portrait screens) */
+:root{
+  --bg:#EAF5F3; --paper:#FFFDF8; --ink:#22313E; --muted:#5B6E7A; --line:#D2E2DE;
+  --navy:#2B3A4A; --cream:#FFE6A8; --red:#E9525A; --amber:#F2A33A; --green:#2FA872;
+  --board:#F6FBF9; --track:#8FA3AC; --route:#7FD6A8; --occ:#F59AA0;
+  --t1:#EF7FA9; --t2:#4FA9DE; --t3:#EE9A2E; --exp:#8C7BDB;
+  --display:"Mitr","Anuphan",system-ui,sans-serif; --body:"Anuphan","Noto Sans Thai",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F;
+  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F;
+  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;background:var(--bg)}
+body{color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;overflow:hidden;-webkit-tap-highlight-color:transparent}
+h1,h2,h3{font-family:var(--display);font-weight:500;line-height:1.25;margin:0;text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit}
+.btn{font-family:var(--display);font-size:15px;border-radius:999px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);padding:6px 16px;min-height:42px;cursor:pointer;white-space:nowrap}
+.btn.go{background:var(--navy);border-color:var(--navy);color:#fff}
+:root[data-theme="dark"] .btn.go{background:var(--cream);border-color:var(--cream);color:var(--navy)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.go{background:var(--cream);border-color:var(--cream);color:var(--navy)}}
+.btn:focus-visible,.lv:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.btn.sm{min-height:38px;padding:4px 12px;font-size:14px}
+.btn[aria-pressed="true"]{background:var(--cream);border-color:var(--amber);color:var(--navy)}
+.screen{height:100%}
+.muted{color:var(--muted)}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;color:var(--muted)}
+
+/* level map */
+#home{overflow-y:auto}
+.home{max-width:1040px;margin:0 auto;padding-inline:16px;padding-block:24px 48px;display:flex;flex-direction:column;gap:26px}
+.hero{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.lamp{display:grid;gap:5px;background:var(--navy);padding:8px;border-radius:14px;flex:none}
+.lamp i{width:15px;height:15px;border-radius:50%;display:block;background:#4b5b69}
+.lamp i.r{background:var(--red)} .lamp i.g{background:var(--green)}
+.hero-t{display:flex;flex-direction:column;gap:8px;max-width:62ch;min-width:0;flex:1}
+.hero h1{font-size:clamp(30px,6vw,48px)}
+.chapter{display:flex;flex-direction:column;gap:10px}
+.chapter-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.chapter-h h2{font-size:clamp(19px,3.4vw,23px)}
+.levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:560px){.levels{grid-template-columns:minmax(0,1fr)}}
+.lv{text-align:left;background:var(--paper);border:1.5px solid var(--line);border-radius:16px;padding:12px 14px;cursor:pointer;display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 12px;align-items:center;min-height:76px}
+.lv .no{grid-row:span 2;font-family:var(--display);font-size:22px;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--bg);font-variant-numeric:tabular-nums}
+.lv .nm{font-family:var(--display);font-size:16px;line-height:1.3}
+.lv .st{font-size:14px;color:var(--amber);letter-spacing:.12em}
+.lv .lk{font-size:13px;color:var(--muted)}
+.lv:disabled{cursor:not-allowed;opacity:.5}
+.lv.next{border-color:var(--navy);box-shadow:inset 0 0 0 1.5px var(--navy)}
+details{background:var(--paper);border:1.5px solid var(--line);border-radius:16px;padding:12px 16px}
+summary{font-family:var(--display);cursor:pointer;font-size:17px}
+dl{margin:10px 0 0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 14px;font-size:15px}
+dt{font-family:var(--display);font-weight:500} dd{margin:0;color:var(--muted)}
+footer{font-size:14px;color:var(--muted)}
+a{color:inherit}
+
+/* play */
+#play{display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;padding:8px 12px;border-bottom:1.5px solid var(--line);background:var(--paper)}
+.bar .ttl{display:flex;flex-direction:column;min-width:0;flex:1 1 140px}
+.bar .ttl b{font-family:var(--display);font-weight:500;font-size:16px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .ttl span{font-size:12px;color:var(--muted);line-height:1.2}
+.stats{display:flex;gap:14px;font-family:var(--display);font-variant-numeric:tabular-nums}
+.stats div{display:flex;flex-direction:column;line-height:1.1}
+.stats span{font-size:11px;color:var(--muted)}
+.stats b{font-weight:500;font-size:18px}
+.tools{display:flex;gap:6px;flex-wrap:wrap}
+.board{flex:1;min-height:0;position:relative;display:grid;place-items:center;padding:8px;background:var(--bg)}
+canvas{display:block;border-radius:16px;border:1.5px solid var(--line);background:var(--board);touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:12px;background:color-mix(in srgb,var(--bg) 70%,transparent)}
+.card{background:var(--paper);border:1.5px solid var(--line);border-radius:18px;padding:16px 18px;max-width:480px;width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgb(0 0 0 / .14)}
+.card h3{font-size:clamp(18px,3.6vw,23px)}
+.card p,.card li{font-size:15px}
+.card ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.card .stars{font-size:32px;color:var(--amber);letter-spacing:.15em;line-height:1;text-align:center}
+.card .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.tip{font-size:14px;color:var(--muted);border-top:1.5px dashed var(--line);padding-top:8px}
+.toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);max-width:min(92%,640px);background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:8px 14px;font-size:14px;line-height:1.4;box-shadow:0 6px 18px rgb(0 0 0 / .12);pointer-events:none;transition:opacity .3s}
+.toast.bad{border-color:var(--red)} .toast.good{border-color:var(--green)}
+.toast.hide{opacity:0}
+@media (max-height:480px){.card{max-width:740px;padding:10px 16px;gap:6px}.card p,.card li{font-size:14px}.bar{padding:4px 10px}.btn.sm{min-height:34px;padding:2px 10px}.stats b{font-size:16px}.bar .ttl span{display:none}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<section class="screen" id="home">
+  <div class="home">
+    <div class="hero">
+      <div class="lamp" aria-hidden="true"><i class="r"></i><i></i><i class="g"></i></div>
+      <div class="hero-t">
+        <span class="eyebrow">SIGNAL JUNCTION TH · เกมอาณัติสัญญาณ</span>
+        <h1>ห้องสัญญาณ 200 ปี</h1>
+        <p class="muted">คุณคือเจ้าหน้าที่ห้องสัญญาณ ตั้งประแจ เปิดสัญญาณ และพาขบวนรถเข้าชานชาลาให้ถูก 12 ด่านจากง่ายไปยาก ผ่าน 4 ยุคของระบบอาณัติสัญญาณ</p>
+        <div><button class="btn go" id="b-continue" type="button">เล่นต่อ</button></div>
+      </div>
+    </div>
+    <div id="chapters" style="display:flex;flex-direction:column;gap:22px"></div>
+    <details>
+      <summary>คำศัพท์ในห้องสัญญาณ</summary>
+      <dl>
+        <dt>ประแจ</dt><dd>รางที่ขยับได้ ใช้เปลี่ยนทางให้ขบวนเข้าคนละราง บนแผงคือวงกลม P ทางที่ตั้งอยู่เป็นเส้นทึบ</dd>
+        <dt>สัญญาณเข้า</dt><dd>S1 ด่านแรกก่อนเข้าสถานี บอกว่ารถเข้าได้หรือต้องหยุดรอ</dd>
+        <dt>สัญญาณออก</dt><dd>T1–T3 ปลายชานชาลา ปล่อยรถออกจากสถานี</dd>
+        <dt>อินเตอร์ล็อก</dt><dd>กลไกที่ผูกประแจกับสัญญาณ ไม่ให้เปิดสัญญาณถ้าทางยังไม่ปลอดภัย และล็อกประแจไว้ระหว่างรถผ่าน</dd>
+        <dt>วงจรตอนราง</dt><dd>กระแสไฟฟ้าอ่อน ๆ ในราง ล้อรถทำให้วงจรลัด ระบบจึงรู้ว่าตอนไหนมีรถ</dd>
+        <dt>NX</dt><dd>Entrance–Exit เลือกต้นทางกับปลายทาง แล้วระบบตั้งประแจทั้งเส้นทางให้เอง</dd>
+      </dl>
+    </details>
+    <footer>เกมจากซีรีส์ “200 ปีของอาณัติสัญญาณ” ติดตามที่ TikTok <a href="https://www.tiktok.com/@signal.junction.th" target="_blank" rel="noopener">@signal.junction.th</a> · เกมนี้ไม่ใช่ผลงานทางการของการรถไฟแห่งประเทศไทย เป็นแบบจำลองอย่างง่ายเพื่อการเรียนรู้ ไม่ใช่ขั้นตอนปฏิบัติงานจริง · ฟอนต์ Mitr และ Anuphan ใช้ตาม SIL Open Font License 1.1</footer>
+  </div>
+</section>
+
+<section class="screen" id="play" hidden>
+  <div class="bar">
+    <button class="btn sm" id="b-home" type="button">‹ ด่าน</button>
+    <div class="ttl"><b id="h-title">—</b><span id="h-era">—</span></div>
+    <div class="stats">
+      <div><span>คะแนน</span><b id="h-score">0</b></div>
+      <div><span>ส่งออก</span><b id="h-trains">0/0</b></div>
+    </div>
+    <div class="tools">
+      <button class="btn sm" id="b-pause" type="button">พัก</button>
+      <button class="btn sm" id="b-fast" type="button" aria-pressed="false">×2</button>
+      <button class="btn sm" id="b-help" type="button">วิธีเล่น</button>
+      <button class="btn sm" id="b-full" type="button">เต็มจอ</button>
+    </div>
+  </div>
+  <div class="board" id="board">
+    <canvas id="cv" aria-label="แผงควบคุมสถานี"></canvas>
+    <div class="toast hide" id="msg" role="status" aria-live="polite"></div>
+    <div class="ov" id="ov" hidden></div>
+  </div>
+</section>
+
+<script>
+(() => {
+'use strict';
+const W = 960, H = 480, TL = 72;
+const $ = id => document.getElementById(id);
+const cv = $('cv'), cx = cv.getContext('2d');
+
+/* ================= ผังสถานี ================= */
+function prep(E) {
+  for (const k in E) {
+    const e = E[k]; e.id = k; e.len = 0; e.seg = [];
+    for (let i = 1; i < e.pts.length; i++) {
+      const [x0, y0] = e.pts[i - 1], [x1, y1] = e.pts[i], l = Math.hypot(x1 - x0, y1 - y0);
+      e.seg.push({ x0, y0, x1, y1, l, s0: e.len }); e.len += l;
+    }
+  }
+  return E;
+}
+const LAYOUTS = {
+  A: { // 1 ชานชาลา
+    E: prep({
+      in: { pts: [[-100, 250], [150, 250]], sig: 'S1', next: 'a' },
+      a:  { pts: [[150, 250], [360, 250]], next: 'p1' },
+      p1: { pts: [[360, 250], [640, 250]], sig: 'T1', plat: 1, next: 'out' },
+      out:{ pts: [[640, 250], [1070, 250]], exit: true },
+    }),
+    P: {}, S: { S1: { edge: 'in', lx: 132, ly: 206 }, T1: { edge: 'p1', lx: 660, ly: 208 } },
+    REQ: { S1: { 1: [] }, T1: [] }, plats: [1], inY: 250,
+  },
+  B: { // 2 ชานชาลา
+    E: prep({
+      in: { pts: [[-100, 300], [150, 300]], sig: 'S1', next: 'ap' },
+      ap: { pts: [[150, 300], [190, 300]], next: { pt: 'P1', N: 'c', R: 'b' } },
+      b:  { pts: [[190, 300], [260, 210], [360, 210]], next: 'p1' },
+      c:  { pts: [[190, 300], [360, 300]], next: 'p2' },
+      p1: { pts: [[360, 210], [640, 210]], sig: 'T1', plat: 1, next: 'x1' },
+      p2: { pts: [[360, 300], [640, 300]], sig: 'T2', plat: 2, next: 'x2' },
+      x1: { pts: [[640, 210], [740, 210], [810, 300]], next: { trail: 'P2', as: 'R', to: 'out' } },
+      x2: { pts: [[640, 300], [810, 300]], next: { trail: 'P2', as: 'N', to: 'out' } },
+      out:{ pts: [[810, 300], [1070, 300]], exit: true },
+    }),
+    P: { P1: { x: 190, y: 300, N: 'c', R: 'b', facing: true }, P2: { x: 810, y: 300, N: 'x2', R: 'x1', facing: false } },
+    S: { S1: { edge: 'in', lx: 132, ly: 256 }, T1: { edge: 'p1', lx: 660, ly: 168 }, T2: { edge: 'p2', lx: 660, ly: 258 } },
+    REQ: { S1: { 1: [['P1', 'R']], 2: [['P1', 'N']] }, T1: [['P2', 'R']], T2: [['P2', 'N']] }, plats: [1, 2], inY: 300,
+  },
+  C: { // 3 ชานชาลา
+    E: prep({
+      in: { pts: [[-100, 250], [150, 250]], sig: 'S1', next: 'ap' },
+      ap: { pts: [[150, 250], [190, 250]], next: { pt: 'P1', N: 'a', R: 'b' } },
+      a:  { pts: [[190, 250], [280, 250]], next: { pt: 'P2', N: 'c', R: 'd' } },
+      b:  { pts: [[190, 250], [260, 160], [360, 160]], next: 'p1' },
+      c:  { pts: [[280, 250], [360, 250]], next: 'p2' },
+      d:  { pts: [[280, 250], [350, 340], [360, 340]], next: 'p3' },
+      p1: { pts: [[360, 160], [640, 160]], sig: 'T1', plat: 1, next: 'x1' },
+      p2: { pts: [[360, 250], [640, 250]], sig: 'T2', plat: 2, next: 'x2' },
+      p3: { pts: [[360, 340], [640, 340]], sig: 'T3', plat: 3, next: 'x3' },
+      x1: { pts: [[640, 160], [740, 160], [810, 250]], next: { trail: 'P4', as: 'R', to: 'out' } },
+      x2: { pts: [[640, 250], [720, 250]], next: { trail: 'P3', as: 'N', to: 'm' } },
+      x3: { pts: [[640, 340], [660, 340], [720, 250]], next: { trail: 'P3', as: 'R', to: 'm' } },
+      m:  { pts: [[720, 250], [810, 250]], next: { trail: 'P4', as: 'N', to: 'out' } },
+      out:{ pts: [[810, 250], [1070, 250]], exit: true },
+    }),
+    P: {
+      P1: { x: 190, y: 250, N: 'a', R: 'b', facing: true }, P2: { x: 280, y: 250, N: 'c', R: 'd', facing: true },
+      P3: { x: 720, y: 250, N: 'x2', R: 'x3', facing: false }, P4: { x: 810, y: 250, N: 'm', R: 'x1', facing: false },
+    },
+    S: { S1: { edge: 'in', lx: 132, ly: 206 }, T1: { edge: 'p1', lx: 660, ly: 118 }, T2: { edge: 'p2', lx: 660, ly: 208 }, T3: { edge: 'p3', lx: 660, ly: 298 } },
+    REQ: { S1: { 1: [['P1', 'R']], 2: [['P1', 'N'], ['P2', 'N']], 3: [['P1', 'N'], ['P2', 'R']] },
+      T1: [['P4', 'R']], T2: [['P3', 'N'], ['P4', 'N']], T3: [['P3', 'R'], ['P4', 'N']] },
+    plats: [1, 2, 3], inY: 250,
+  },
+};
+
+/* ================= ยุคและด่าน ================= */
+const ERAS = [
+  { yr: 'ค.ศ. 1840', name: 'ยุคบุกเบิก', interlock: false, sema: true, tc: false, nx: false,
+    story: 'ทางรถไฟยุคแรกใช้คนให้สัญญาณ ประแจกับสัญญาณเป็นคันโยกแยกกัน ไม่มีอะไรห้ามเจ้าหน้าที่ตั้งทางผิดหรือสลับประแจขณะรถกำลังผ่าน ทุกอย่างขึ้นอยู่กับความจำและความระวังของคน',
+    lesson: 'อุบัติเหตุแบบนี้เกิดขึ้นจริงในยุคแรก และเป็นเหตุผลที่วงการรถไฟคิดค้นอินเตอร์ล็อก' },
+  { yr: 'ค.ศ. 1856', name: 'อินเตอร์ล็อกเครื่องกล', interlock: true, sema: true, tc: false, nx: false,
+    story: 'จอห์น แซกซ์บี (John Saxby) จดสิทธิบัตรกลไกที่ผูกคันโยกประแจกับคันโยกสัญญาณเข้าด้วยกันในปี 1856 ถ้าประแจไม่อยู่ในตำแหน่งที่ถูก สัญญาณจะเปิดไม่ได้ และเมื่อเปิดแล้ว ประแจทั้งเส้นทางจะถูกล็อกจนรถผ่านพ้น' },
+  { yr: 'ค.ศ. 1872–1930', name: 'ไฟสีและวงจรตอนราง', interlock: true, sema: false, tc: true, nx: false,
+    story: 'วิลเลียม โรบินสัน (William Robinson) คิดวงจรไฟฟ้าตอนราง (track circuit) ในปี 1872 ระบบจึงรู้เองว่าตอนไหนมีรถ ต่อมาสัญญาณไฟสีเข้ามาแทนแขนสัญญาณ มองเห็นชัดทั้งกลางวันและกลางคืน รถจึงวิ่งถี่ขึ้นได้' },
+  { yr: 'ค.ศ. 1985–ปัจจุบัน', name: 'อินเตอร์ล็อกคอมพิวเตอร์', interlock: true, sema: false, tc: true, nx: true,
+    story: 'ปี 1985 อังกฤษเปิดใช้ Solid State Interlocking ที่สถานี Leamington Spa คอมพิวเตอร์ตรวจเงื่อนไขความปลอดภัยแทนกลไกเหล็กและรีเลย์ เจ้าหน้าที่เลือกแค่ต้นทางกับปลายทาง (Entrance–Exit) ระบบตั้งประแจและล็อกทั้งเส้นทางให้เอง' },
+];
+// ตารางขบวน: ตัวอักษร 1/2/3 = ชานชาลา, E = ขบวนด่วนผ่าน
+const sched = (pat, gap, start = 1) => [...pat].map((c, i) => [start + i * gap, c === 'E' ? 0 : +c]);
+const LEVELS = [
+  { era: 0, lay: 'A', name: 'ยกแขนให้รถเข้า', speed: 50, hints: true, trains: sched('111', 14),
+    goal: 'แตะแขนสัญญาณ S1 ให้รถเข้าชานชาลา รอรับผู้โดยสาร แล้วแตะ T1 ปล่อยรถออก',
+    tips: ['รอให้รถคันก่อนออกจากชานชาลาก่อน ค่อยให้คันถัดไปเข้า ยุคนี้ไม่มีอะไรกันชนให้'] },
+  { era: 0, lay: 'B', name: 'ประแจตัวแรก', speed: 52, hints: true, trains: sched('2121', 12),
+    goal: 'ดูเลขบนขบวน แล้วสลับประแจ P1 ให้ไปชานชาลานั้นก่อนแตะ S1',
+    tips: ['ขาออก ประแจ P2 ต้องตั้งรับรถจากชานชาลาที่ปล่อยออก ไม่งั้นรถตกราง', 'ห้ามสลับประแจตอนรถกำลังทับอยู่'] },
+  { era: 0, lay: 'C', name: 'สามชานชาลา', speed: 55, trains: sched('21321', 11),
+    goal: 'ส่ง 5 ขบวนเข้า 3 ชานชาลาโดยไม่ชนและไม่ตกราง',
+    tips: ['ประแจ P1 กับ P2 เลือกชานชาลาขาเข้า', 'ประแจ P3 กับ P4 ต้องตั้งรับรถขาออก'] },
+  { era: 1, lay: 'B', name: 'ระบบช่วยกันพลาด', speed: 56, hints: true, trains: sched('12121', 9),
+    goal: 'ตอนนี้ระบบไม่ยอมให้สัญญาณถ้าทางไม่ปลอดภัย และจะบอกเหตุผล',
+    tips: ['ทางที่ล็อกแล้วเป็นแถบสีเขียว ประแจในแถบนี้สลับไม่ได้', 'แตะสัญญาณที่เปิดอยู่อีกครั้งเพื่อยกเลิกทาง'] },
+  { era: 1, lay: 'C', name: 'ตั้งทางให้ครบ', speed: 60, trains: sched('132132', 8),
+    goal: 'ส่ง 6 ขบวน ใช้อินเตอร์ล็อกช่วยตรวจ',
+    tips: ['รถที่รอเกิน 6 วินาทีจะเริ่มเสียคะแนน'] },
+  { era: 1, lay: 'C', name: 'สถานีเริ่มคึกคัก', speed: 64, trains: sched('21312312', 7),
+    goal: 'ขบวนมาถี่ขึ้น ปล่อยรถออกให้ไว ชานชาลาจะว่างรับคันต่อไป',
+    tips: ['ดูแถบ “คันถัดไป” มุมซ้ายล่าง แล้วตั้งประแจรอไว้ก่อน'] },
+  { era: 2, lay: 'C', name: 'แผงไฟบอกตอนราง', speed: 70, trains: sched('31231213', 6.5),
+    goal: 'ตอนรางที่มีรถจะขึ้นสีแดงบนแผง ใช้มันวางแผน',
+    tips: ['สัญญาณไฟสีมองเห็นชัด รถจึงวิ่งเร็วขึ้น'] },
+  { era: 2, lay: 'C', name: 'ขบวนด่วนผ่าน', speed: 72, trains: sched('2E13E21E3', 6),
+    goal: 'ขบวนด่วน (สีม่วง) ไม่จอด เข้าชานชาลาไหนก็ได้ ตั้งทางออกรอไว้ก่อนมันมาถึงจะได้ 150 คะแนน',
+    tips: ['ถ้าขบวนด่วนต้องหยุดรอที่ชานชาลา จะได้แค่ 60 คะแนน'] },
+  { era: 2, lay: 'C', name: 'ห้ามใครรอนาน', speed: 76, maxWait: 30, trains: sched('13E21E32E1', 5.5),
+    goal: 'ถ้ามีขบวนต้องรอเกิน 30 วินาที ผู้โดยสารจะร้องเรียนและแพ้ทันที',
+    tips: ['ให้ความสำคัญกับคันที่รอนานที่สุดก่อน วงแหวนรอบเลขขบวนจะแดงเมื่อเริ่มเสียคะแนน'] },
+  { era: 3, lay: 'C', name: 'แตะต้นทาง แตะปลายทาง', speed: 82, hints: true, trains: sched('2132131232', 5),
+    goal: 'แตะ S1 แล้วแตะชานชาลาปลายทาง ระบบตั้งประแจให้เอง แตะ T1–T3 เพื่อปล่อยรถออก',
+    tips: ['ประแจกดเองไม่ได้แล้ว งานของคุณคือจัดลำดับ'] },
+  { era: 3, lay: 'C', name: 'ด่วนพิเศษ', speed: 86, maxWait: 30, trains: sched('1E23E12E31E2', 4.6),
+    goal: 'ขบวนด่วนปนขบวนธรรมดา 12 ขบวน ห้ามใครรอเกิน 30 วินาที',
+    tips: ['ตั้งทางออกให้ขบวนด่วนตั้งแต่มันยังไม่ถึงชานชาลา'] },
+  { era: 3, lay: 'C', name: 'ชั่วโมงเร่งด่วน', speed: 92, maxWait: 25, trains: sched('213E132E213E321', 4.2),
+    goal: '15 ขบวนในชั่วโมงเร่งด่วน ห้ามใครรอเกิน 25 วินาที',
+    tips: ['ด่านสุดท้าย ใช้ทุกอย่างที่เรียนมา'] },
+];
+
+/* ================= ความคืบหน้า ================= */
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem('sj-signalbox-v2') || '{}'); } catch { return {}; } },
+  set(v) { try { localStorage.setItem('sj-signalbox-v2', JSON.stringify(v)); } catch {} },
+};
+const save = Object.assign({ stars: [] }, store.get());
+const stars = i => save.stars[i] || 0;
+const unlocked = i => i === 0 || stars(i - 1) > 0;
+const nextLevel = () => { for (let i = 0; i < LEVELS.length; i++) if (!stars(i)) return unlocked(i) ? i : Math.max(0, i - 1); return LEVELS.length - 1; };
+const starStr = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+
+/* ================= สถานะเกม ================= */
+let G = null, fast = false, paused = false;
+function newGame(i) {
+  const lv = LEVELS[i], era = ERAS[lv.era], L = LAYOUTS[lv.lay];
+  const P = {}, S = {};
+  for (const k in L.P) P[k] = { ...L.P[k], pos: 'N', lock: null };
+  for (const k in L.S) S[k] = { ...L.S[k], aspect: 'R', route: null };
+  return { i, lv, era, L, E: L.E, P, S, trains: [], routes: [], lockOf: {}, time: 0, spawned: 0, done: 0, score: 0,
+    state: 'intro', nxSel: null, nid: 1, max: lv.trains.length * 150 };
+}
+
+/* ================= ข้อความ ================= */
+let toastTimer = 0;
+function msg(text, kind = '') {
+  const m = $('msg'); m.textContent = text; m.className = 'toast ' + kind;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => m.classList.add('hide'), kind === 'bad' ? 4500 : 3000);
+}
+
+/* ================= เรขาคณิต ================= */
+function posAt(e, s) {
+  s = Math.max(0, Math.min(e.len, s));
+  for (const g of e.seg) if (s <= g.s0 + g.l + 1e-6) {
+    const f = (s - g.s0) / g.l;
+    return { x: g.x0 + (g.x1 - g.x0) * f, y: g.y0 + (g.y1 - g.y0) * f };
+  }
+  const g = e.seg[e.seg.length - 1]; return { x: g.x1, y: g.y1 };
+}
+
+/* ================= อินเตอร์ล็อก ================= */
+function walk(sig) {
+  const { E, P, S } = G, edges = [], req = [];
+  let cur = E[S[sig].edge].next;
+  for (let n = 0; n < 12; n++) {
+    edges.push(cur);
+    const e = E[cur];
+    if (e.sig || e.exit) break;
+    const nx = e.next;
+    if (typeof nx === 'string') cur = nx;
+    else if (nx.pt) { const pos = P[nx.pt].pos; req.push([nx.pt, pos]); cur = nx[pos]; }
+    else {
+      req.push([nx.trail, nx.as]);
+      if (P[nx.trail].pos !== nx.as) return { ok: false, edges, req, reason: `ไม่ให้สัญญาณ: ประแจ ${nx.trail} ยังไม่ได้ตั้งรับรถจากทางนี้` };
+      cur = nx.to;
+    }
+  }
+  return { ok: true, edges, req };
+}
+const occEdges = t => { const s = new Set([t.edge]); for (const p of t.trail) s.add(p.e); return s; };
+const edgeOccupied = id => G.trains.some(t => occEdges(t).has(id));
+function nearPoint(p) {
+  for (const t of G.trains) for (const q of t.trail) if (Math.hypot(q.x - p.x, q.y - p.y) < 30) return true;
+  return false;
+}
+function release(r) {
+  for (const e of r.edges) if (G.lockOf[e] === r) delete G.lockOf[e];
+  for (const k in G.P) if (G.P[k].lock === r) G.P[k].lock = null;
+  G.routes = G.routes.filter(x => x !== r);
+}
+function tapSignal(id) {
+  const g = G, s = g.S[id];
+  if (s.aspect === 'G') {
+    if (s.route) release(s.route);
+    s.aspect = 'R'; s.route = null; msg(`ยกเลิกสัญญาณ ${id}`); return;
+  }
+  if (!g.era.interlock) { s.aspect = 'G'; msg(`เปิดสัญญาณ ${id} รถจะวิ่งตามประแจที่ตั้งอยู่`); return; }
+  const w = walk(id);
+  if (!w.ok) return msg(w.reason, 'bad');
+  for (const e of w.edges) {
+    if (g.lockOf[e]) return msg(`ไม่ให้สัญญาณ: เส้นทางทับกับทางของ ${g.lockOf[e].sig} ที่ตั้งไว้แล้ว`, 'bad');
+    if (edgeOccupied(e)) return msg(g.E[e].plat ? `ไม่ให้สัญญาณ: ชานชาลา ${g.E[e].plat} ยังมีรถอยู่` : 'ไม่ให้สัญญาณ: มีรถอยู่ในเส้นทาง', 'bad');
+  }
+  const r = { sig: id, edges: w.edges, passed: false, train: null };
+  for (const e of w.edges) g.lockOf[e] = r;
+  for (const [p] of w.req) g.P[p].lock = r;
+  g.routes.push(r); s.route = r; s.aspect = 'G';
+  const dest = g.E[w.edges[w.edges.length - 1]];
+  msg(dest.plat ? `ตั้งทางเข้าชานชาลา ${dest.plat} และล็อกประแจแล้ว` : `ตั้งทางออกจาก ${id} และล็อกประแจแล้ว`, 'good');
+}
+function tapPoint(k) {
+  const g = G, p = g.P[k];
+  if (g.era.nx) return msg('ยุคนี้คอมพิวเตอร์ตั้งประแจให้ แตะสัญญาณแล้วเลือกปลายทาง');
+  if (g.era.interlock) {
+    if (p.lock) return msg(`ประแจ ${k} ถูกล็อกโดยทางของ ${p.lock.sig} รอรถผ่าน หรือยกเลิกสัญญาณก่อน`, 'bad');
+    if (nearPoint(p)) return msg(`ประแจ ${k} มีรถทับอยู่ สลับไม่ได้`, 'bad');
+  }
+  p.pos = p.pos === 'N' ? 'R' : 'N';
+  if (!g.era.interlock && nearPoint(p)) return fail('ตกราง!', `สลับประแจ ${k} ขณะรถกำลังผ่าน`);
+  msg(`ประแจ ${k} ไปทาง${p.pos === 'N' ? 'ตรง' : 'แยก'}`);
+}
+function autoRoute(sig, req) {
+  const g = G;
+  for (const [k, pos] of req) {
+    const p = g.P[k];
+    if (p.pos === pos) continue;
+    if (p.lock) return msg(`ตั้งทางไม่ได้: ประแจ ${k} ถูกล็อกโดยทางของ ${p.lock.sig}`, 'bad');
+    if (nearPoint(p)) return msg(`ตั้งทางไม่ได้: มีรถทับประแจ ${k}`, 'bad');
+  }
+  for (const [k, pos] of req) g.P[k].pos = pos;
+  tapSignal(sig);
+}
+
+/* ================= ขบวนรถ ================= */
+function spawn(plat) {
+  const E = G.E, t = { id: G.nid++, plat, exp: plat === 0, edge: 'in', s: 0, state: plat === 0 ? 'through' : 'arriving',
+    dwell: 0, wait: 0, stopped: false, delayed: false, trail: [] };
+  const p = posAt(E.in, 0); t.trail.push({ x: p.x, y: p.y, e: 'in' });
+  G.trains.push(t); G.spawned++;
+}
+function stopLimit(t) {
+  const E = G.E, e = E[t.edge]; let lim = Infinity;
+  if (e.sig) {
+    const s = G.S[e.sig];
+    if (s.aspect === 'R' || (e.plat && t.state === 'arriving')) lim = e.len - 6;
+  }
+  if (e.plat && t.state === 'dwell') lim = t.s;
+  if (t.edge === 'in') for (const o of G.trains) {
+    if (o === t) continue;
+    if (o.edge === 'in' && o.s > t.s) lim = Math.min(lim, o.s - TL - 14);
+    if (o.edge === E.in.next) lim = Math.min(lim, E.in.len + o.s - TL - 14);
+  }
+  return lim;
+}
+function passEdge(t) {
+  const g = G, e = g.E[t.edge];
+  if (e.sig) {
+    const s = g.S[e.sig]; s.aspect = 'R';
+    if (s.route) { s.route.passed = true; s.route.train = t; s.route = null; }
+    if (e.plat) t.state = 'leaving';
+  }
+  if (e.exit) {
+    g.trains = g.trains.filter(x => x !== t); g.done++;
+    if (t.exp) { const pts = t.delayed ? 60 : 150; g.score += pts; msg(t.delayed ? `ขบวนด่วน ${t.id} ผ่านไปแต่ต้องหยุดรอ +60` : `ขบวนด่วน ${t.id} ผ่านไม่ต้องหยุดเลย +150`, t.delayed ? '' : 'good'); }
+    else g.score += 50;
+    return false;
+  }
+  const n = e.next; let nx;
+  if (typeof n === 'string') nx = n;
+  else if (n.pt) nx = n[g.P[n.pt].pos];
+  else {
+    if (g.P[n.trail].pos !== n.as) { fail('ตกราง!', `ขบวนวิ่งฝ่าประแจ ${n.trail} ที่ตั้งไว้คนละทาง`); return false; }
+    nx = n.to;
+  }
+  t.s -= e.len; t.edge = nx; return true;
+}
+function moveTrain(t, dt) {
+  const g = G, lim = stopLimit(t);
+  let ns = t.s + g.lv.speed * dt;
+  if (ns >= lim) { ns = Math.max(t.s, lim); t.stopped = true; } else t.stopped = false;
+  t.s = ns;
+  while (t.s > g.E[t.edge].len) if (!passEdge(t)) return;
+  const p = posAt(g.E[t.edge], t.s), last = t.trail[t.trail.length - 1];
+  if (Math.hypot(p.x - last.x, p.y - last.y) > 0.5) t.trail.push({ x: p.x, y: p.y, e: t.edge });
+  let L = 0;
+  for (let i = t.trail.length - 1; i > 0; i--) {
+    L += Math.hypot(t.trail[i].x - t.trail[i - 1].x, t.trail[i].y - t.trail[i - 1].y);
+    if (L >= TL) { t.trail.splice(0, i - 1); break; }
+  }
+  const e = g.E[t.edge], atEnd = t.stopped && e.plat && t.s >= e.len - 7;
+  if (t.state === 'arriving' && atEnd) {
+    t.state = 'dwell'; t.dwell = 2.5;
+    if (e.plat === t.plat) { g.score += 100; msg(`ขบวน ${t.id} เข้าชานชาลา ${e.plat} ถูกต้อง +100`, 'good'); }
+    else { g.score += 20; msg(`ขบวน ${t.id} ต้องไปชานชาลา ${t.plat} แต่เข้าชานชาลา ${e.plat} ผู้โดยสารงง +20`, 'bad'); }
+  }
+  if (t.state === 'through' && atEnd) { t.state = 'ready'; t.delayed = true; msg(`ขบวนด่วน ${t.id} ต้องหยุดรอ เปิดสัญญาณออกให้เร็ว`, 'bad'); }
+  if (t.state === 'dwell') { t.dwell -= dt; if (t.dwell <= 0) t.state = 'ready'; }
+  const waiting = t.stopped && (t.edge === 'in' || t.state === 'ready');
+  if (waiting) {
+    t.wait += dt;
+    if (t.wait > (t.state === 'ready' ? 4 : 6)) g.score -= 3 * dt;
+    if (g.lv.maxWait && t.wait > g.lv.maxWait) fail('ผู้โดยสารร้องเรียน!', `ขบวน ${t.id} ต้องรอนานเกิน ${g.lv.maxWait} วินาที`);
+  } else t.wait = 0;
+}
+function checkCollisions() {
+  const T = G.trains;
+  for (let i = 0; i < T.length; i++) for (let j = i + 1; j < T.length; j++) {
+    const a = T[i].trail, b = T[j].trail;
+    for (let m = 0; m < a.length; m += 2) for (let n = 0; n < b.length; n += 2)
+      if (Math.hypot(a[m].x - b[n].x, a[m].y - b[n].y) < 10)
+        return fail('รถชนกัน!', `ขบวน ${T[i].id} กับขบวน ${T[j].id} ใช้รางเดียวกันพร้อมกัน`);
+  }
+}
+function step(dt) {
+  const g = G; g.time += dt;
+  const next = g.lv.trains[g.spawned];
+  if (next && g.time >= next[0] && !g.trains.some(t => t.edge === 'in' && t.s < TL + 24)) spawn(next[1]);
+  for (const t of [...g.trains]) { moveTrain(t, dt); if (g.state !== 'play') return; }
+  for (const r of [...g.routes]) if (r.passed) {
+    const occ = g.trains.includes(r.train) ? occEdges(r.train) : new Set();
+    if (!r.edges.slice(0, -1).some(e => occ.has(e))) release(r);
+  }
+  checkCollisions();
+  if (g.state === 'play' && g.spawned === g.lv.trains.length && g.trains.length === 0) win();
+}
+
+/* ================= คำใบ้ ================= */
+function hint() {
+  const g = G;
+  if (!g.lv.hints || g.state !== 'play') return null;
+  const ordered = [...g.trains].sort((a, b) => a.id - b.id);
+  for (const t of ordered) {
+    if (t.state === 'ready') {
+      const sig = 'T' + g.E[t.edge].plat;
+      if (g.S[sig].aspect === 'G') continue;
+      if (!g.era.nx) for (const [k, pos] of g.L.REQ[sig]) if (g.P[k].pos !== pos) return { k, kind: 'p', text: `ตั้ง ${k} รับรถออก` };
+      return { k: sig, kind: 's', text: 'แตะปล่อยรถออก' };
+    }
+  }
+  for (const t of ordered) {
+    if (t.edge === 'in' && t.stopped && g.S.S1.aspect === 'R' && !g.trains.some(o => o !== t && o.edge === 'in' && o.s > t.s)) {
+      const busy = !t.exp && edgeOccupied('p' + t.plat);
+      if (busy) return null;
+      if (g.era.nx) return g.nxSel === 'S1' ? { k: t.plat || 1, kind: 'plat', text: 'แตะชานชาลาปลายทาง' } : { k: 'S1', kind: 's', text: 'แตะ S1 ก่อน' };
+      if (!t.exp) for (const [k, pos] of g.L.REQ.S1[t.plat]) if (g.P[k].pos !== pos) return { k, kind: 'p', text: `สลับ ${k} ไปชานชาลา ${t.plat}` };
+      return { k: 'S1', kind: 's', text: 'แตะให้รถเข้า' };
+    }
+  }
+  return null;
+}
+
+/* ================= การวาด ================= */
+let C = {}, cT = 0, portrait = false, K = 1;
+function colors() {
+  const cs = getComputedStyle(document.documentElement), v = n => cs.getPropertyValue(n).trim();
+  C = { board: v('--board'), track: v('--track'), route: v('--route'), occ: v('--occ'), ink: v('--ink'), muted: v('--muted'),
+    paper: v('--paper'), red: v('--red'), green: v('--green'), amber: v('--amber'), navy: v('--navy'),
+    t: [v('--exp'), v('--t1'), v('--t2'), v('--t3')] };
+}
+const font = (sz, w = 500) => `${w} ${portrait ? Math.round(sz * 1.25) : sz}px Mitr, Anuphan, system-ui, sans-serif`;
+function txt(s, x, y, align = 'center') { // ตัวอักษรตั้งตรงเสมอ แม้แผงหมุน
+  cx.textAlign = align; cx.textBaseline = 'middle';
+  if (!portrait) return cx.fillText(s, x, y);
+  cx.save(); cx.translate(x, y); cx.rotate(-Math.PI / 2); cx.fillText(s, 0, 0); cx.restore();
+}
+function rr(x, y, w, h, r) { cx.beginPath(); cx.roundRect ? cx.roundRect(x, y, w, h, r) : cx.rect(x, y, w, h); }
+function strokeEdge(e, w, col, from = 0, to = e.len) {
+  cx.strokeStyle = col; cx.lineWidth = w; cx.lineCap = 'round'; cx.lineJoin = 'round'; cx.beginPath();
+  const n = Math.max(2, Math.ceil((to - from) / 8));
+  for (let i = 0; i <= n; i++) { const p = posAt(e, from + (to - from) * i / n); i ? cx.lineTo(p.x, p.y) : cx.moveTo(p.x, p.y); }
+  cx.stroke();
+}
+function fit() {
+  const b = $('board'), bw = b.clientWidth - 16, bh = b.clientHeight - 16;
+  portrait = bh > bw * 1.05;
+  const aw = portrait ? H : W, ah = portrait ? W : H;
+  const k = Math.max(0.1, Math.min(bw / aw, bh / ah));
+  const cw = Math.floor(aw * k), ch = Math.floor(ah * k), dpr = Math.min(2.5, window.devicePixelRatio || 1);
+  if (cv.style.width !== cw + 'px' || cv.style.height !== ch + 'px' || cv.width !== Math.round(cw * dpr)) {
+    cv.style.width = cw + 'px'; cv.style.height = ch + 'px'; cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+  }
+  K = cv.width / aw;
+}
+function draw(time) {
+  if (!G) return;
+  if (--cT <= 0) { colors(); cT = 30; }
+  fit();
+  cx.setTransform(1, 0, 0, 1, 0, 0); cx.fillStyle = C.board; cx.fillRect(0, 0, cv.width, cv.height);
+  if (portrait) cx.setTransform(0, K, -K, 0, H * K, 0); else cx.setTransform(K, 0, 0, K, 0, 0);
+  const g = G, E = g.E, blink = Math.floor(time * 3) % 2 === 0, hn = hint();
+
+  // ชานชาลา
+  for (const n of g.L.plats) {
+    const y = E['p' + n].pts[0][1];
+    cx.fillStyle = C.t[n]; cx.globalAlpha = .2; rr(372, y + 14, 256, 24, 8); cx.fill(); cx.globalAlpha = 1;
+    cx.fillStyle = C.ink; cx.font = font(portrait ? 13 : 15);
+    cx.textAlign = 'left'; cx.textBaseline = 'middle'; cx.fillText(`ชานชาลา ${n}`, 384, y + 26);
+    const nxHi = g.era.nx && g.nxSel === 'S1' && blink;
+    if (nxHi || (hn && hn.kind === 'plat' && hn.k === n && blink)) { cx.strokeStyle = C.amber; cx.lineWidth = 3; rr(366, y - 22, 268, 64, 12); cx.stroke(); }
+  }
+  cx.fillStyle = C.muted; cx.font = font(14, 400);
+  txt('ขบวนเข้า', 50, g.L.inY + 34); txt('ออกจากสถานี', 900, g.L.inY + 34);
+
+  // ราง
+  for (const k in E) strokeEdge(E[k], 7, C.track);
+  if (g.era.interlock) for (const k in g.lockOf) strokeEdge(E[k], 7, C.route);
+  if (g.era.tc) for (const k in E) if (edgeOccupied(k)) strokeEdge(E[k], 7, C.occ);
+
+  // ประแจ
+  for (const key in g.P) {
+    const p = g.P[key], on = E[p[p.pos]], off = E[p[p.pos === 'N' ? 'R' : 'N']];
+    const near = (e, a, b) => p.facing ? [a, b] : [e.len - b, e.len - a];
+    let [a, b] = near(off, 4, 26); strokeEdge(off, 9, C.board, a, b);
+    [a, b] = near(on, 0, 34); strokeEdge(on, 7, C.ink, a, b);
+    const ly = p.y + 34;
+    cx.fillStyle = p.lock ? C.route : C.paper; cx.strokeStyle = C.ink; cx.lineWidth = 2;
+    cx.beginPath(); cx.arc(p.x, ly, 16, 0, 7); cx.fill(); cx.stroke();
+    cx.fillStyle = C.ink; cx.font = font(12, 600); txt(key, p.x, ly + 1);
+    if (p.lock) {
+      cx.strokeStyle = C.ink; cx.lineWidth = 1.8; cx.beginPath(); cx.arc(p.x + 18, ly - 16, 4, Math.PI, 0); cx.stroke();
+      cx.fillStyle = C.ink; cx.fillRect(p.x + 13, ly - 16, 10, 8);
+    }
+  }
+
+  // สัญญาณ
+  for (const key in g.S) {
+    const s = g.S[key], e = E[s.edge], endY = e.pts[e.pts.length - 1][1];
+    cx.strokeStyle = C.muted; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(s.lx, s.ly + 16); cx.lineTo(s.lx, endY - 8); cx.stroke();
+    if (g.era.sema) {
+      cx.save(); cx.translate(s.lx, s.ly);
+      cx.fillStyle = C.ink; cx.fillRect(-3, -16, 6, 34);
+      cx.rotate(s.aspect === 'G' ? -0.7 : 0);
+      cx.fillStyle = C.red; rr(2, -5, 30, 10, 3); cx.fill();
+      cx.fillStyle = '#fff'; cx.fillRect(22, -5, 4, 10);
+      cx.restore();
+      cx.fillStyle = s.aspect === 'G' ? C.green : C.red; cx.beginPath(); cx.arc(s.lx - 10, s.ly + 10, 5, 0, 7); cx.fill();
+    } else {
+      cx.fillStyle = C.navy; rr(s.lx - 13, s.ly - 22, 26, 42, 9); cx.fill();
+      cx.fillStyle = s.aspect === 'R' ? C.red : '#41505d'; cx.beginPath(); cx.arc(s.lx, s.ly - 10, 7, 0, 7); cx.fill();
+      cx.fillStyle = s.aspect === 'G' ? C.green : '#41505d'; cx.beginPath(); cx.arc(s.lx, s.ly + 8, 7, 0, 7); cx.fill();
+    }
+    if (g.nxSel === key && blink) { cx.strokeStyle = C.amber; cx.lineWidth = 3; cx.beginPath(); cx.arc(s.lx, s.ly, 28, 0, 7); cx.stroke(); }
+    cx.fillStyle = C.ink; cx.font = font(13, 600); txt(key, s.lx, s.ly - 34);
+  }
+
+  // คำใบ้
+  if (hn && hn.kind !== 'plat') {
+    const at = hn.kind === 's' ? { x: g.S[hn.k].lx, y: g.S[hn.k].ly } : { x: g.P[hn.k].x, y: g.P[hn.k].y + 34 };
+    const r = 26 + (Math.sin(time * 5) + 1) * 4;
+    cx.strokeStyle = C.amber; cx.lineWidth = 3.5; cx.beginPath(); cx.arc(at.x, at.y, r, 0, 7); cx.stroke();
+    cx.font = font(14, 600); const tw = cx.measureText(hn.text).width + 18;
+    const bx = at.x, by = at.y + (hn.kind === 's' ? -64 : 52);
+    cx.fillStyle = C.amber;
+    if (portrait) { cx.save(); cx.translate(bx, by); cx.rotate(-Math.PI / 2); rr(-tw / 2, -14, tw, 28, 14); cx.fill(); cx.restore(); }
+    else { rr(bx - tw / 2, by - 14, tw, 28, 14); cx.fill(); }
+    cx.fillStyle = '#2B3A4A'; txt(hn.text, bx, by + 1);
+  } else if (hn) {
+    cx.fillStyle = C.amber; cx.font = font(14, 600); txt(hn.text, 500, g.E['p' + hn.k].pts[0][1] - 32);
+  }
+
+  // ขบวนรถ
+  for (const t of g.trains) {
+    const tr = t.trail; if (tr.length < 2) continue;
+    const path = () => { cx.beginPath(); tr.forEach((q, i) => i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y)); };
+    cx.strokeStyle = C.t[t.plat]; cx.lineWidth = 18; cx.lineCap = 'round'; cx.lineJoin = 'round'; path(); cx.stroke();
+    cx.strokeStyle = 'rgba(255,255,255,.75)'; cx.lineWidth = 5; cx.setLineDash([8, 7]); path(); cx.stroke(); cx.setLineDash([]);
+    const h = tr[tr.length - 1], h2 = tr[Math.max(0, tr.length - 4)], a = Math.atan2(h.y - h2.y, h.x - h2.x);
+    cx.save(); cx.translate(h.x, h.y); cx.rotate(a);
+    cx.fillStyle = C.navy; cx.beginPath(); cx.arc(-2, -4, 2.4, 0, 7); cx.arc(-2, 4, 2.4, 0, 7); cx.fill(); cx.restore();
+    const bx = h.x - Math.cos(a) * 32, by = h.y - Math.sin(a) * 32 - 24;
+    const late = t.wait > (t.state === 'ready' ? 4 : 6);
+    cx.fillStyle = C.paper; cx.strokeStyle = late ? C.red : C.t[t.plat]; cx.lineWidth = late ? 3.5 : 2.5;
+    if (t.exp) { rr(bx - 20, by - 11, 40, 22, 11); } else { cx.beginPath(); cx.arc(bx, by, 11.5, 0, 7); }
+    cx.fill(); cx.stroke();
+    cx.fillStyle = C.ink; cx.font = font(t.exp ? 12 : 13, 600); txt(t.exp ? 'ด่วน' : String(t.plat), bx, by + 1);
+    cx.font = font(12, 500); cx.fillStyle = t.state === 'ready' ? C.ink : C.muted;
+    if (t.state === 'ready') txt('พร้อมออก', bx, by - 22);
+    if (t.state === 'dwell') txt('รับผู้โดยสาร', bx, by - 22);
+  }
+
+  // คิว
+  const q = g.lv.trains.slice(g.spawned, g.spawned + 4);
+  cx.fillStyle = C.muted; cx.font = font(13, 400);
+  if (q.length) txt('คันถัดไป', 40, portrait ? 398 : 418);
+  q.forEach(([, p], i) => {
+    const qx = 40 + i * 50, qy = 448;
+    cx.fillStyle = C.t[p]; rr(qx - 21, qy - 13, 42, 26, 9); cx.fill();
+    cx.fillStyle = '#fff'; cx.font = font(p ? 14 : 12, 600); txt(p ? String(p) : 'ด่วน', qx, qy + 1);
+  });
+}
+
+/* ================= การแตะ ================= */
+cv.addEventListener('pointerdown', ev => {
+  if (!G || G.state !== 'play' || paused) return;
+  const r = cv.getBoundingClientRect(), sx = (ev.clientX - r.left) / r.width, sy = (ev.clientY - r.top) / r.height;
+  const x = portrait ? sy * W : sx * W, y = portrait ? H - sx * H : sy * H;
+  const g = G, d = (a, b) => Math.hypot(x - a, y - b);
+  let best = null, bd = 44;
+  for (const k in g.S) { const s = g.S[k], dd = d(s.lx, s.ly); if (dd < bd) { bd = dd; best = ['s', k]; } }
+  for (const k in g.P) { const p = g.P[k], dd = Math.min(d(p.x, p.y + 34), d(p.x, p.y) + 6); if (dd < bd) { bd = dd; best = ['p', k]; } }
+  if (best) {
+    if (best[0] === 'p') return tapPoint(best[1]);
+    const k = best[1];
+    if (g.era.nx) {
+      if (g.S[k].aspect === 'G') { g.nxSel = null; return tapSignal(k); }
+      if (k === 'S1') { g.nxSel = 'S1'; return msg('เลือกชานชาลาปลายทาง'); }
+      g.nxSel = null; return autoRoute(k, g.L.REQ[k]);
+    }
+    return tapSignal(k);
+  }
+  if (g.era.nx && g.nxSel === 'S1') for (const n of g.L.plats) {
+    const py = g.E['p' + n].pts[0][1];
+    if (x > 350 && x < 650 && y > py - 34 && y < py + 44) { g.nxSel = null; return autoRoute('S1', g.L.REQ.S1[n]); }
+  }
+  if (g.nxSel) { g.nxSel = null; msg('ยกเลิกการเลือก'); }
+});
+
+/* ================= หน้าจอ ================= */
+const ov = $('ov');
+function card(html) { ov.innerHTML = `<div class="card">${html}</div>`; ov.hidden = false; }
+function renderHome() {
+  const nx = nextLevel();
+  $('chapters').innerHTML = ERAS.map((era, ei) => `
+    <section class="chapter">
+      <div class="chapter-h"><span class="eyebrow">ยุคที่ ${ei + 1} · ${era.yr}</span><h2>${era.name}</h2></div>
+      <div class="levels">${LEVELS.map((l, i) => l.era !== ei ? '' : `
+        <button class="lv${i === nx ? ' next' : ''}" type="button" data-i="${i}" ${unlocked(i) ? '' : 'disabled'}>
+          <span class="no">${i + 1}</span><span class="nm">${l.name}</span>
+          ${unlocked(i) ? `<span class="st" aria-label="${stars(i)} ดาว">${starStr(stars(i))}</span>` : '<span class="lk">ผ่านด่านก่อนหน้าเพื่อปลดล็อก</span>'}
+        </button>`).join('')}</div>
+    </section>`).join('');
+  $('b-continue').textContent = Object.keys(save.stars).length ? `เล่นต่อ ด่าน ${nx + 1}` : 'เริ่มด่านแรก';
+}
+$('chapters').addEventListener('click', e => { const b = e.target.closest('.lv'); if (b && !b.disabled) openLevel(+b.dataset.i); });
+$('b-continue').onclick = () => openLevel(nextLevel());
+function show(screen) { $('home').hidden = screen !== 'home'; $('play').hidden = screen !== 'play'; }
+function introHtml(withStart) {
+  const l = G.lv, era = G.era, firstOfEra = LEVELS.findIndex(x => x.era === l.era) === G.i;
+  return `<span class="eyebrow">ด่าน ${G.i + 1} · ${era.yr} · ${era.name}</span><h3>${l.name}</h3>
+    ${firstOfEra || !withStart ? `<p class="muted">${era.story}</p>` : ''}
+    <p><b>เป้าหมาย:</b> ${l.goal}</p>
+    <ul>${l.tips.map(t => `<li>${t}</li>`).join('')}</ul>
+    <p class="tip">${l.trains.length} ขบวน · ขบวนธรรมดา: เข้าถูกชานชาลา +100 ส่งออก +50 · ขบวนด่วนผ่านไม่ต้องหยุด +150${l.maxWait ? ` · ห้ามรอเกิน ${l.maxWait} วินาที` : ''}</p>
+    <div class="row">${withStart ? '<button class="btn go" type="button" data-act="start">เริ่มเดินรถ</button>' : '<button class="btn go" type="button" data-act="resume">เล่นต่อ</button>'}</div>`;
+}
+function openLevel(i) {
+  G = newGame(i); paused = false; $('b-pause').textContent = 'พัก';
+  $('h-title').textContent = `ด่าน ${i + 1} · ${G.lv.name}`; $('h-era').textContent = `${G.era.yr} · ${G.era.name}`;
+  show('play'); hud(); card(introHtml(true));
+}
+ov.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  const act = a.dataset.act;
+  if (act === 'start') { ov.hidden = true; G.state = 'play'; msg(G.lv.goal); }
+  if (act === 'resume') { ov.hidden = true; paused = false; $('b-pause').textContent = 'พัก'; }
+  if (act === 'retry') openLevel(G.i);
+  if (act === 'next') openLevel(G.i + 1);
+  if (act === 'home') { renderHome(); show('home'); }
+});
+function fail(title, why) {
+  if (G.state !== 'play') return;
+  G.state = 'fail';
+  const lesson = G.era.interlock ? (G.lv.maxWait ? 'ลองปล่อยรถออกให้เร็วขึ้น ชานชาลาจะว่างรับคันต่อไป' : 'อินเตอร์ล็อกกันการตั้งทางขัดกัน แต่คนยังต้องตั้งประแจให้ถูก') : G.era.lesson;
+  card(`<h3>${title}</h3><p>${why}</p><p class="muted">${lesson}</p>
+    <div class="row"><button class="btn" type="button" data-act="home">เลือกด่าน</button><button class="btn go" type="button" data-act="retry">ลองอีกครั้ง</button></div>`);
+}
+function win() {
+  G.state = 'win';
+  const sc = Math.max(0, Math.round(G.score)), r = sc / G.max, st = r >= .8 ? 3 : r >= .55 ? 2 : 1;
+  save.stars[G.i] = Math.max(stars(G.i), st); store.set(save);
+  const last = G.i === LEVELS.length - 1;
+  card(`<div class="stars" aria-label="${st} ดาว">${starStr(st)}</div>
+    <h3 style="text-align:center">ส่งครบ ${G.lv.trains.length} ขบวน · ${sc} คะแนน</h3>
+    <p class="muted" style="text-align:center">${st < 3 ? 'ได้ 3 ดาวเมื่อทำคะแนนถึง 80% ลดเวลารอของขบวนเพื่อเก็บคะแนน' : 'เดินรถได้ลื่นมาก'}${last ? ' · คุณผ่านครบ 4 ยุคของระบบอาณัติสัญญาณแล้ว' : ''}</p>
+    <div class="row"><button class="btn" type="button" data-act="retry">เล่นอีกครั้ง</button>${last ? '<button class="btn go" type="button" data-act="home">กลับหน้าด่าน</button>' : '<button class="btn go" type="button" data-act="next">ด่านถัดไป</button>'}</div>`);
+}
+function hud() {
+  if (!G) return;
+  $('h-score').textContent = Math.max(0, Math.round(G.score));
+  $('h-trains').textContent = `${G.done}/${G.lv.trains.length}`;
+}
+$('b-home').onclick = () => { if (G && G.state === 'play') paused = true; renderHome(); show('home'); };
+$('b-pause').onclick = () => { if (!G || G.state !== 'play') return; paused = !paused; $('b-pause').textContent = paused ? 'เล่นต่อ' : 'พัก'; msg(paused ? 'หยุดเวลาไว้' : 'เดินรถต่อ'); };
+$('b-fast').onclick = () => { fast = !fast; $('b-fast').setAttribute('aria-pressed', fast); };
+$('b-help').onclick = () => { if (!G) return; if (G.state === 'play') { paused = true; $('b-pause').textContent = 'เล่นต่อ'; card(introHtml(false)); } };
+const fsOK = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+if (!fsOK) $('b-full').hidden = true;
+$('b-full').onclick = async () => {
+  try {
+    if (document.fullscreenElement || document.webkitFullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    const el = document.documentElement; await (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+    try { await screen.orientation.lock('landscape'); } catch {}
+  } catch { msg('เบราว์เซอร์นี้ไม่ให้เปิดเต็มจอ ลองเปิดหน้านี้ในแท็บใหม่'); }
+};
+document.addEventListener('fullscreenchange', () => { $('b-full').textContent = document.fullscreenElement ? 'ออกเต็มจอ' : 'เต็มจอ'; });
+document.addEventListener('visibilitychange', () => { if (document.hidden && G && G.state === 'play' && !paused) { paused = true; $('b-pause').textContent = 'เล่นต่อ'; } });
+
+/* ================= วงรอบ ================= */
+let lastT = 0, hudT = 0;
+function frame(ts) {
+  const dt = Math.min(0.05, (ts - lastT) / 1000 || 0); lastT = ts;
+  if (G && G.state === 'play' && !paused) {
+    const n = fast ? 4 : 2;
+    for (let k = 0; k < n; k++) { if (G.state !== 'play') break; step(dt / 2); }
+  }
+  if (!$('play').hidden) { hudT += dt; if (hudT > 0.15) { hudT = 0; hud(); } draw(ts / 1000); }
+  requestAnimationFrame(frame);
+}
+renderHome();
+requestAnimationFrame(frame);
+window.__sjBox = { get G() { return G; }, LEVELS, tapSignal, tapPoint, autoRoute, step, openLevel, edgeOccupied };
+})();
+</script>
