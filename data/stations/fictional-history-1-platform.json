@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "id": "fictional-history-1-platform",
+  "fictional": true,
+  "name_th": "ผังสมมุติ: สถานี 1 ชานชาลา",
+  "name_en": "Fictional station, 1 platform",
+  "verified": { "layout": false, "signalling": false, "notes": "ผังสมมุติของโหมดประวัติศาสตร์ ย้ายมาจากต้นแบบ v2 ไม่ได้อ้างอิงสถานีจริง" },
+  "sources": [],
+  "layout": {
+    "size": [960, 480],
+    "edges": {
+      "in": { "pts": [[-100, 250], [150, 250]], "dir": "E", "sig": "S1", "next": "a" },
+      "a": { "pts": [[150, 250], [360, 250]], "dir": "E", "next": "p1" },
+      "p1": { "pts": [[360, 250], [640, 250]], "dir": "E", "sig": "T1", "plat": 1, "next": "out" },
+      "out": { "pts": [[640, 250], [1070, 250]], "dir": "E", "exit": true }
+    },
+    "points": {},
+    "signals": {
+      "S1": { "edge": "in", "lx": 132, "ly": 206, "dir": "E", "type": "home" },
+      "T1": { "edge": "p1", "lx": 660, "ly": 208, "dir": "E", "type": "starter" }
+    },
+    "platforms": [{ "edge": "p1", "no": 1 }],
+    "entries": ["in"],
+    "exits": ["out"]
+  }
+}

@@ -7,9 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node test/bot-test.js && npm run test:build",
+    "test": "npm run test:sim && npm run test:bot && npm run test:build && npm run test:game",
+    "test:sim": "node test/sim-test.mjs",
     "test:bot": "node test/bot-test.js",
     "test:build": "vite build && node test/build-test.js",
+    "test:game": "node test/game-bot-test.js",
     "fonts": "node tools/sync-fonts.mjs"
   },
   "devDependencies": {

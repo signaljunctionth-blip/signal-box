@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#EAF5F3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#13201F" media="(prefers-color-scheme: dark)">
+<meta name="description" content="โหมดประวัติศาสตร์ 200 ปี: ตั้งประแจ เปิดสัญญาณ พาขบวนรถเข้าชานชาลา 12 ด่าน 4 ยุคของระบบอาณัติสัญญาณ">
+<title>ห้องสัญญาณ 200 ปี</title>
+<link rel="icon" href="data:,">
+<script type="module" src="./src/history.js"></script>
+</head>
+<body>
+<section class="screen" id="home">
+  <div class="home">
+    <div class="hero">
+      <div class="lamp" aria-hidden="true"><i class="r"></i><i></i><i class="g"></i></div>
+      <div class="hero-t">
+        <span class="eyebrow">SIGNAL JUNCTION TH · เกมอาณัติสัญญาณ</span>
+        <h1>ห้องสัญญาณ 200 ปี</h1>
+        <p class="muted">คุณคือเจ้าหน้าที่ห้องสัญญาณ ตั้งประแจ เปิดสัญญาณ และพาขบวนรถเข้าชานชาลาให้ถูก 12 ด่านจากง่ายไปยาก ผ่าน 4 ยุคของระบบอาณัติสัญญาณ</p>
+        <div><button class="btn go" id="b-continue" type="button">เล่นต่อ</button></div>
+      </div>
+    </div>
+    <div id="chapters" style="display:flex;flex-direction:column;gap:22px"></div>
+    <details>
+      <summary>คำศัพท์ในห้องสัญญาณ</summary>
+      <dl>
+        <dt>ประแจ</dt><dd>รางที่ขยับได้ ใช้เปลี่ยนทางให้ขบวนเข้าคนละราง บนแผงคือวงกลม P ทางที่ตั้งอยู่เป็นเส้นทึบ</dd>
+        <dt>สัญญาณเข้า</dt><dd>S1 ด่านแรกก่อนเข้าสถานี บอกว่ารถเข้าได้หรือต้องหยุดรอ</dd>
+        <dt>สัญญาณออก</dt><dd>T1–T3 ปลายชานชาลา ปล่อยรถออกจากสถานี</dd>
+        <dt>อินเตอร์ล็อก</dt><dd>กลไกที่ผูกประแจกับสัญญาณ ไม่ให้เปิดสัญญาณถ้าทางยังไม่ปลอดภัย และล็อกประแจไว้ระหว่างรถผ่าน</dd>
+        <dt>วงจรตอนราง</dt><dd>กระแสไฟฟ้าอ่อน ๆ ในราง ล้อรถทำให้วงจรลัด ระบบจึงรู้ว่าตอนไหนมีรถ</dd>
+        <dt>NX</dt><dd>Entrance–Exit เลือกต้นทางกับปลายทาง แล้วระบบตั้งประแจทั้งเส้นทางให้เอง</dd>
+      </dl>
+    </details>
+    <footer><a href="./">กลับหน้าแรก</a> · เกมจากซีรีส์ “200 ปีของอาณัติสัญญาณ” ติดตามที่ TikTok <a href="https://www.tiktok.com/@signal.junction.th" target="_blank" rel="noopener">@signal.junction.th</a> · เกมนี้ไม่ใช่ผลงานทางการของการรถไฟแห่งประเทศไทย เป็นแบบจำลองอย่างง่ายเพื่อการเรียนรู้ ไม่ใช่ขั้นตอนปฏิบัติงานจริง · ฟอนต์ Mitr และ Anuphan ใช้ตาม SIL Open Font License 1.1</footer>
+  </div>
+</section>
+
+<section class="screen" id="play" hidden>
+  <div class="bar">
+    <button class="btn sm" id="b-home" type="button">‹ ด่าน</button>
+    <div class="ttl"><b id="h-title">—</b><span id="h-era">—</span></div>
+    <div class="stats">
+      <div><span>คะแนน</span><b id="h-score">0</b></div>
+      <div><span>ส่งออก</span><b id="h-trains">0/0</b></div>
+    </div>
+    <div class="tools">
+      <button class="btn sm" id="b-pause" type="button">พัก</button>
+      <button class="btn sm" id="b-fast" type="button" aria-pressed="false">×2</button>
+      <button class="btn sm" id="b-help" type="button">วิธีเล่น</button>
+      <button class="btn sm" id="b-full" type="button">เต็มจอ</button>
+    </div>
+  </div>
+  <div class="board" id="board">
+    <canvas id="cv" aria-label="แผงควบคุมสถานี"></canvas>
+    <div class="toast hide" id="msg" role="status" aria-live="polite"></div>
+    <div class="ov" id="ov" hidden></div>
+  </div>
+</section>
+</body>
+</html>
