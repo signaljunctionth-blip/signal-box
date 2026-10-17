@@ -1,0 +1,35 @@
+{
+  "schema": 2,
+  "id": "fictional-terminus-2-tracks",
+  "fictional": true,
+  "upDir": "E",
+  "name_th": "ผังสมมุติ: สถานีปลายทาง 2 ทางตัน",
+  "name_en": "Fictional terminus, 2 dead-end tracks",
+  "verified": {"layout": false, "signalling": false, "notes": "ผังสมมุติสำหรับทดสอบเอนจิน ไม่ได้อ้างอิงสถานีจริง"},
+  "sources": [],
+  "layout": {
+    "size": [960, 480],
+    "tracks": {
+      "bw": {"pts": [[-100, 300], [150, 300]]},
+      "ap": {"pts": [[150, 300], [190, 300]]},
+      "b": {"pts": [[190, 300], [260, 210], [360, 210]]},
+      "c": {"pts": [[190, 300], [360, 300]]},
+      "k1": {"pts": [[360, 210], [700, 210]]},
+      "k2": {"pts": [[360, 300], [700, 300]]}
+    },
+    "points": {
+      "P1": {"x": 190, "y": 300, "N": "c", "R": "b"}
+    },
+    "signals": {
+      "S1": {"track": "bw", "dir": "E", "type": "home"},
+      "U1": {"track": "k1", "dir": "W", "type": "starter"},
+      "U2": {"track": "k2", "dir": "W", "type": "starter"}
+    },
+    "platforms": [{"track": "k1", "no": 1}, {"track": "k2", "no": 2}],
+    "roles": {"main": "k2", "loop1": "k1"},
+    "portals": {
+      "W": {"track": "bw", "label_th": "ซ้าย"}
+    },
+    "buffers": ["k1", "k2"]
+  }
+}

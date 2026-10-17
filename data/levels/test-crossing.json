@@ -1,0 +1,314 @@
+{
+  "schema": 2,
+  "id": "test-crossing",
+  "kind": "test",
+  "name_th": "ชุดด่านทดสอบเอนจิน: รถสวนทาง ปลายทาง ชุมทาง",
+  "signalling_note_th": "ผังและระบบสัญญาณสมมุติ ใช้ทดสอบเอนจินเท่านั้น",
+  "eras": [
+    {
+      "name": "ไม่มีอินเตอร์ล็อก",
+      "interlock": false,
+      "sema": true,
+      "tc": false,
+      "nx": false,
+      "lesson": "ที่นี่ยังไม่มีอะไรห้ามคุณพลาด สถานีที่มีอินเตอร์ล็อกจะช่วยกันไว้ให้"
+    },
+    {
+      "name": "อินเตอร์ล็อกกล",
+      "interlock": true,
+      "sema": true,
+      "tc": false,
+      "nx": false
+    },
+    {
+      "name": "ไฟสีและวงจรตอนราง",
+      "interlock": true,
+      "sema": false,
+      "tc": true,
+      "nx": false
+    },
+    {
+      "name": "แผงตั้งทางต้นทาง-ปลายทาง",
+      "interlock": true,
+      "sema": false,
+      "tc": true,
+      "nx": true
+    }
+  ],
+  "stations": [
+    {
+      "station": "fictional-crossing-1-loop",
+      "tier": 1,
+      "needStars": 0
+    },
+    {
+      "station": "fictional-terminus-2-tracks",
+      "tier": 2,
+      "needStars": 0
+    },
+    {
+      "station": "fictional-junction-3-legs",
+      "tier": 4,
+      "needStars": 6
+    }
+  ],
+  "levels": [
+    {
+      "id": "x-1",
+      "station": "fictional-crossing-1-loop",
+      "era": 2,
+      "name": "หลีกขบวนครั้งแรก",
+      "teaches": "รับขบวนเข้าทีละขบวน แล้วปล่อยสวนกัน",
+      "speed": 60,
+      "hints": true,
+      "waitGrace": {
+        "entry": 20,
+        "ready": 12
+      },
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        },
+        {
+          "at": 3,
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        }
+      ],
+      "goal": "รับขบวน 1 เข้าทางหลีก รอให้จอดสนิท แล้วรับขบวน 2 ที่สวนมาเข้าทางประธาน",
+      "tips": [
+        "ในเกมนี้รับขบวนเข้าทีละขบวน",
+        "ขบวนที่รอหน้าสถานียังอยู่ในตอนทางเดี่ยว รถอีกทิศจะออกไปหาไม่ได้"
+      ]
+    },
+    {
+      "id": "x-2",
+      "station": "fictional-crossing-1-loop",
+      "era": 1,
+      "name": "หลบให้ขบวนด่วนผ่าน",
+      "teaches": "ขบวนจอดรอในทางหลีก ขบวนด่วนใช้ทางประธาน",
+      "speed": 60,
+      "waitGrace": 20,
+      "trains": [
+        {
+          "at": 1,
+          "from": "E",
+          "to": "W",
+          "track": "loop1",
+          "dwell": 8
+        },
+        {
+          "at": 10,
+          "from": "W",
+          "to": "E",
+          "track": "main",
+          "type": "express",
+          "stop": false
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        }
+      ],
+      "goal": "ให้ขบวนด่วนผ่านทางประธานโดยไม่ต้องหยุด",
+      "tips": [
+        "เปิดทางออกให้ขบวนด่วนก่อนเปิดทางเข้า"
+      ]
+    },
+    {
+      "id": "x-3",
+      "station": "fictional-crossing-1-loop",
+      "era": 0,
+      "name": "รถมาได้สองทาง",
+      "teaches": "สัญญาณมีผลกับขบวนทิศเดียวกันเท่านั้น",
+      "speed": 50,
+      "hints": true,
+      "waitGrace": 12,
+      "pointsLocked": true,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        }
+      ],
+      "goal": "รับและปล่อยขบวนจากทั้งสองฝั่ง ทีละขบวน",
+      "tips": [
+        "สัญญาณแต่ละตัวคุมรถทิศเดียว รถอีกทิศไม่สนใจ"
+      ]
+    },
+    {
+      "id": "x-4",
+      "station": "fictional-crossing-1-loop",
+      "era": 0,
+      "name": "สวนกันโดยไม่มีอะไรช่วย",
+      "teaches": "ประแจต้องตั้งให้ถูกทั้งขาเข้าและขาออก",
+      "speed": 52,
+      "waitGrace": 20,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        },
+        {
+          "at": 3,
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        }
+      ],
+      "goal": "ให้สองขบวนสวนกันที่สถานีโดยไม่ชนและไม่ฝ่าประแจ",
+      "tips": [
+        "ขาออกก็ต้องสับประแจรับ ไม่งั้นรถฝ่าประแจ"
+      ]
+    },
+    {
+      "id": "t-1",
+      "station": "fictional-terminus-2-tracks",
+      "era": 1,
+      "name": "สุดสาย รถกลับหัว",
+      "teaches": "สถานีปลายทาง รถออกกลับฝั่งที่เข้ามา",
+      "speed": 56,
+      "hints": true,
+      "waitGrace": 16,
+      "trains": [
+        {
+          "at": 0,
+          "origin": "loop1",
+          "to": "W",
+          "dwell": 5
+        },
+        {
+          "at": 1,
+          "from": "W",
+          "to": "W",
+          "track": "main",
+          "dwell": 6
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "W",
+          "track": "loop1",
+          "dwell": 6
+        }
+      ],
+      "goal": "ปล่อยขบวนต้นทางออก รับขบวนใหม่เข้าจอด แล้วปล่อยกลับไปทางเดิม",
+      "tips": [
+        "ขบวนที่กำลังมายึดตอนอยู่ รถที่จอดรอจะออกได้เมื่อคันนั้นเข้ามาพ้น"
+      ]
+    },
+    {
+      "id": "j-1",
+      "station": "fictional-junction-3-legs",
+      "era": 3,
+      "name": "ชุมทางสามขา",
+      "teaches": "แตะสัญญาณ แล้วแตะปลายทาง",
+      "speed": 72,
+      "hints": true,
+      "waitGrace": 14,
+      "trains": [
+        {
+          "at": 1,
+          "from": "A",
+          "to": "B",
+          "track": "t1"
+        },
+        {
+          "at": 4,
+          "from": "C",
+          "to": "A",
+          "track": "t3"
+        },
+        {
+          "at": 30,
+          "from": "A",
+          "to": "C",
+          "track": "t1",
+          "type": "express"
+        },
+        {
+          "at": 34,
+          "from": "B",
+          "to": "A",
+          "track": "t3"
+        }
+      ],
+      "goal": "ส่งขบวนจากแต่ละขาไปยังขาที่ตารางกำหนด",
+      "tips": [
+        "ขาออก แตะสัญญาณออกแล้วแตะป้ายขาที่ขบวนจะไป"
+      ]
+    },
+    {
+      "id": "j-2",
+      "station": "fictional-junction-3-legs",
+      "era": 2,
+      "name": "ชุมทางสับประแจเอง",
+      "teaches": "ประแจ P3 เลือกขาออก",
+      "speed": 64,
+      "waitGrace": 16,
+      "trains": [
+        {
+          "at": 1,
+          "from": "A",
+          "to": "C",
+          "track": "t3"
+        },
+        {
+          "at": 3,
+          "from": "B",
+          "to": "A",
+          "track": "t1"
+        },
+        {
+          "at": 40,
+          "from": "C",
+          "to": "A",
+          "track": "t1",
+          "type": "express"
+        }
+      ],
+      "goal": "ส่งขบวนไปให้ถูกขา",
+      "tips": [
+        "ดูป้ายปลายทางบนขบวน"
+      ]
+    }
+  ]
+}

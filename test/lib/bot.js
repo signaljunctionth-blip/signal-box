@@ -34,4 +34,22 @@ function playAll(B, from = 0, to = B.LEVELS.length, maxSteps = 8000) {
 // ผลของต้นแบบ v2 (วัดจาก prototype/index.html ด้วย test/bot-test.js) ห้ามแก้ให้เทสต์ผ่าน
 const PROTOTYPE_PCT = [100, 100, 100, 100, 100, 100, 100, 76, 79, 100, 79, 86];
 
-module.exports = { playAll, PROTOTYPE_PCT };
+// บอทตัวที่สอง: เล่นตามคำใบ้ของเอนจิน (sim.nextTarget) ใช้ได้กับทุกผัง รวมผังสองทิศ ปลายทาง และชุมทาง
+// sim = โมดูล src/sim/index.js, pack = ชุดด่าน; แตะได้ก้าวละไม่เกิน 6 ครั้ง (ก้าวละ dt วินาที)
+function playHints(sim, pack, { events = null, dt = 0.05, maxSteps = 12000, from = 0, to = pack.levels.length } = {}) {
+  const out = [];
+  for (let i = from; i < to; i++) {
+    const codes = [], g = sim.createGame(pack, i, { onEvent: ev => { if (events) events.push(ev); if (ev.type === 'msg' && ev.code) codes.push(ev.code); } });
+    sim.startGame(g);
+    let steps = 0, taps = 0;
+    for (; steps < maxSteps && g.state === 'play'; steps++) {
+      for (let n = 0; n < 6 && g.state === 'play'; n++) { const t = sim.nextTarget(g); if (!t) break; sim.press(g, t); taps++; }
+      sim.step(g, dt);
+    }
+    out.push({ level: i + 1, id: g.lv.id || String(i + 1), state: g.state, code: g.result && g.result.code || '', trains: `${g.done}/${g.lv.sched.length}`,
+      pct: Math.round(100 * g.score / g.max), score: g.score, time: +g.time.toFixed(2), taps, refused: codes.length });
+  }
+  return out;
+}
+
+module.exports = { playAll, playHints, PROTOTYPE_PCT };

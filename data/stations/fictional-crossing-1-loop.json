@@ -1,0 +1,43 @@
+{
+  "schema": 2,
+  "id": "fictional-crossing-1-loop",
+  "fictional": true,
+  "upDir": "E",
+  "name_th": "ผังสมมุติ: ทางเดี่ยว 1 ทางหลีก สองทิศ",
+  "name_en": "Fictional single-line crossing station, 1 loop",
+  "verified": {"layout": false, "signalling": false, "notes": "ผังสมมุติสำหรับทดสอบเอนจิน ไม่ได้อ้างอิงสถานีจริง"},
+  "sources": [],
+  "layout": {
+    "size": [960, 480],
+    "tracks": {
+      "bw": {"pts": [[-100, 300], [150, 300]]},
+      "ap": {"pts": [[150, 300], [190, 300]]},
+      "b": {"pts": [[190, 300], [260, 210], [360, 210]]},
+      "c": {"pts": [[190, 300], [360, 300]]},
+      "k1": {"pts": [[360, 210], [640, 210]]},
+      "k2": {"pts": [[360, 300], [640, 300]]},
+      "x1": {"pts": [[640, 210], [740, 210], [810, 300]]},
+      "x2": {"pts": [[640, 300], [810, 300]]},
+      "bp": {"pts": [[810, 300], [850, 300]]},
+      "be": {"pts": [[850, 300], [1070, 300]]}
+    },
+    "points": {
+      "P1": {"x": 190, "y": 300, "N": "c", "R": "b"},
+      "P2": {"x": 810, "y": 300, "N": "x2", "R": "x1"}
+    },
+    "signals": {
+      "S1": {"track": "bw", "dir": "E", "type": "home"},
+      "S2": {"track": "be", "dir": "W", "type": "home"},
+      "T1": {"track": "k1", "dir": "E", "type": "starter"},
+      "T2": {"track": "k2", "dir": "E", "type": "starter"},
+      "U1": {"track": "k1", "dir": "W", "type": "starter"},
+      "U2": {"track": "k2", "dir": "W", "type": "starter"}
+    },
+    "platforms": [{"track": "k1", "no": 1}, {"track": "k2", "no": 2}],
+    "roles": {"main": "k2", "loop1": "k1"},
+    "portals": {
+      "W": {"track": "bw", "label_th": "ซ้าย"},
+      "E": {"track": "be", "label_th": "ขวา"}
+    }
+  }
+}

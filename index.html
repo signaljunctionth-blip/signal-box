@@ -6,44 +6,57 @@
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#EAF5F3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#13201F" media="(prefers-color-scheme: dark)">
-<meta name="description" content="เกมเว็บสอนระบบอาณัติสัญญาณรถไฟ จากสถานีเล็กบนทางเดี่ยวสู่ศูนย์ควบคุม">
-<title>ห้องสัญญาณ 200 ปี</title>
+<meta name="description" content="Signal Junction เกมเว็บสอนระบบอาณัติสัญญาณรถไฟ จากสถานีเล็กบนทางเดี่ยวสู่ศูนย์ควบคุม">
+<title>Signal Junction</title>
 <link rel="icon" href="data:,">
 <script type="module" src="./src/main.js"></script>
 </head>
 <body>
-<main class="stage">
-  <section class="hero" aria-labelledby="title">
-    <svg class="mascot" viewBox="0 0 96 160" role="img" aria-label="น้องเสาสัญญาณ">
-      <rect class="m-post" x="43" y="96" width="10" height="52" rx="3"/>
-      <rect class="m-base" x="26" y="144" width="44" height="10" rx="5"/>
-      <rect class="m-head" x="22" y="6" width="52" height="98" rx="26"/>
-      <circle class="m-red" cx="48" cy="32" r="11"/>
-      <circle class="m-amber" cx="48" cy="56" r="11"/>
-      <circle class="m-green" cx="48" cy="80" r="11"/>
-    </svg>
-    <div class="hero-t">
-      <span class="eyebrow">SIGNAL JUNCTION TH · เกมอาณัติสัญญาณ</span>
-      <h1 id="title">ห้องสัญญาณ 200 ปี</h1>
-      <p class="lead">เริ่มจากสถานีเล็กบนทางเดี่ยว แล้วเติบโตเป็นชุมทางจนถึงศูนย์ควบคุม เกมเต็มกำลังสร้างอยู่ ระหว่างนี้ลองเล่นต้นแบบ 12 ด่านได้เลย</p>
-      <div class="actions">
-        <a class="btn go" id="b-proto" href="./prototype/">เล่นต้นแบบ 12 ด่าน</a>
-        <a class="btn" id="b-history" href="./history.html">โหมดประวัติศาสตร์ 200 ปี</a>
-        <span class="ver" id="ver"></span>
+<!-- เวทีแนวนอนเดียวทุกจอ: ถือเครื่องแนวตั้ง src/ui/stage.js หมุนทั้งเวที 90° ที่ element นี้ชั้นเดียว -->
+<div class="stage" id="stage">
+  <main class="screen home" id="s-home">
+    <section class="hero" aria-labelledby="title">
+      <svg class="mascot" viewBox="0 0 96 160" role="img" aria-label="น้องเสาสัญญาณ">
+        <rect class="m-post" x="43" y="96" width="10" height="52" rx="3"/>
+        <rect class="m-base" x="26" y="144" width="44" height="10" rx="5"/>
+        <rect class="m-head" x="22" y="6" width="52" height="98" rx="26"/>
+        <circle class="m-red" cx="48" cy="32" r="11"/>
+        <circle class="m-amber" cx="48" cy="56" r="11"/>
+        <circle class="m-green" cx="48" cy="80" r="11"/>
+      </svg>
+      <div class="hero-t">
+        <h1 id="title">Signal Junction</h1>
+        <p class="lead">เกมคุมสัญญาณรถไฟ จากสถานีเล็กบนทางเดี่ยวสู่ชุมทาง</p>
+        <a class="btn go big" id="b-map" href="#map">เริ่มเล่น</a>
+        <div class="more">
+          <a class="btn sm quiet" id="b-proto" href="./prototype/">เกมเวอร์ชันเดิม ห้องสัญญาณ 200 ปี</a>
+          <!-- เครดิตเต็มพับไว้ เปิดแล้วเป็นแผ่นทับหน้าแรก (หน้าแรกจึงไม่ต้องเลื่อน) -->
+          <details class="credits">
+            <summary class="btn sm quiet">เครดิต</summary>
+            <div class="credits-panel" role="group" aria-labelledby="credits-title">
+              <div class="credits-h"><h2 id="credits-title">เครดิตและแหล่งข้อมูล</h2><button class="iconbtn" type="button" data-act="close-credits" aria-label="ปิดเครดิต"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+              <ul>
+                <li>ฟอนต์ Mitr และ Anuphan โดย Cadson Demak ใช้ตาม SIL Open Font License 1.1 (<a href="./prototype/fonts/OFL-Mitr.txt">Mitr</a>, <a href="./prototype/fonts/OFL-Anuphan.txt">Anuphan</a>)</li>
+                <li>ข้อมูลแผนที่และผังราง <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© ผู้ร่วมพัฒนา OpenStreetMap</a> ใช้ตาม <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">Open Database License 1.0</a></li>
+                <li>ไฟล์ข้อมูลที่เราแปลงแล้วและสคริปต์ที่ใช้แปลง ดาวน์โหลดได้ฟรีที่ <a href="https://github.com/signaljunctionth-blip/signal-junction/tree/main/data" target="_blank" rel="noopener">github.com/signaljunctionth-blip/signal-junction</a></li>
+                <li>เส้นขอบประเทศและจังหวัด: Made with <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a> (สาธารณสมบัติ) เส้นขอบเป็นแนวโดยประมาณตาม Natural Earth ไม่ใช่เส้นเขตแดนทางการ</li>
+                <li>เครื่องมือสร้างเว็บ: Vite (MIT)</li>
+              </ul>
+              <p class="fine">เกมนี้ไม่ใช่ผลงานทางการของการรถไฟแห่งประเทศไทย ผังสถานีจำลองจากข้อมูลสาธารณะ อาจไม่ตรงกับสภาพจริง และไม่ใช่ขั้นตอนปฏิบัติงานจริง</p>
+              <div class="extra">
+                <a class="btn sm" id="b-history" href="./history.html">โหมดประวัติศาสตร์ 200 ปี</a>
+                <button class="btn sm" id="b-full" type="button" hidden>เต็มจอ</button>
+                <span class="ver" id="ver"></span>
+              </div>
+            </div>
+          </details>
+        </div>
       </div>
-    </div>
-  </section>
-  <footer class="foot">
-    <p class="disclaimer" id="disclaimer">เกมนี้ไม่ใช่ผลงานทางการของการรถไฟแห่งประเทศไทย ผังสถานีจำลองจากข้อมูลสาธารณะ อาจไม่ตรงกับสภาพจริง และไม่ใช่ขั้นตอนปฏิบัติงานจริง</p>
-    <details class="credits">
-      <summary>เครดิตและแหล่งข้อมูล</summary>
-      <ul>
-        <li>ฟอนต์ Mitr และ Anuphan โดย Cadson Demak ใช้ตาม SIL Open Font License 1.1 (<a href="./prototype/fonts/OFL-Mitr.txt">Mitr</a>, <a href="./prototype/fonts/OFL-Anuphan.txt">Anuphan</a>)</li>
-        <li>ข้อมูลแผนที่และผังราง (เมื่อเพิ่มแล้ว) <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© ผู้ร่วมพัฒนา OpenStreetMap</a> ใช้ตาม ODbL 1.0</li>
-        <li>เครื่องมือสร้างเว็บ: Vite (MIT)</li>
-      </ul>
-    </details>
-  </footer>
-</main>
+    </section>
+    <p class="disclaimer" id="disclaimer">เกมนี้ไม่ใช่ผลงานทางการของการรถไฟแห่งประเทศไทย และไม่ใช่ขั้นตอนปฏิบัติงานจริง</p>
+  </main>
+  <section class="screen map" id="s-map" aria-label="แผนที่ประเทศไทย" hidden></section>
+  <section class="screen play" id="s-play" aria-label="เล่นภารกิจ" hidden></section>
+</div>
 </body>
 </html>

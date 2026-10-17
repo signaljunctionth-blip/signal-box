@@ -69,7 +69,7 @@ const server = http.createServer((req, res) => {
       p.on('response', r => { if (r.status() >= 400) fail(`${name}: HTTP ${r.status()}: ${r.url()}`); });
       await p.goto(origin + SUB + page, { waitUntil: 'load' });
       const t = await p.title();
-      if (t !== 'ห้องสัญญาณ 200 ปี') fail(`${name}: ชื่อหน้าอ่านไม่ออกหรือไม่ถูก (ลืม <meta charset="utf-8"> หรือเปล่า): ${t}`);
+      if (t !== (page === '' ? 'Signal Junction' : 'ห้องสัญญาณ 200 ปี')) fail(`${name}: ชื่อหน้าอ่านไม่ออกหรือไม่ถูก (ลืม <meta charset="utf-8"> หรือเปล่า): ${t}`);
       const fonts = await p.evaluate(async () => {
         await Promise.all([document.fonts.load('500 20px Mitr', 'ห้อง A'), document.fonts.load('400 16px Anuphan', 'ห้อง A')]);
         await document.fonts.ready;
@@ -78,14 +78,14 @@ const server = http.createServer((req, res) => {
       if (!fonts.mitr || !fonts.anuphan || fonts.loaded < 4) fail(`${name}: ฟอนต์ที่ฝังโหลดไม่ครบ ${JSON.stringify(fonts)}`);
       if (page === '') {
         const title = await p.textContent('h1');
-        if (title.trim() !== 'ห้องสัญญาณ 200 ปี') fail(`${name}: ชื่อเกมไม่ถูก: ${title}`);
+        if (title.trim() !== 'Signal Junction') fail(`${name}: ชื่อเกมไม่ถูก: ${title}`);
         const href = await p.getAttribute('#b-proto', 'href');
         if (href !== './prototype/') fail(`${name}: ลิงก์ต้นแบบไม่ใช่ path relative: ${href}`);
         if (!(await p.textContent('#disclaimer')).includes('ไม่ใช่ผลงานทางการของการรถไฟแห่งประเทศไทย')) fail(`${name}: ไม่มีข้อความปฏิเสธความเป็นทางการ`);
         const hrefH = await p.getAttribute('#b-history', 'href');
         if (hrefH !== './history.html') fail(`${name}: ลิงก์โหมดประวัติศาสตร์ไม่ใช่ path relative: ${hrefH}`);
         if ((await p.textContent('#b-history')).trim() !== 'โหมดประวัติศาสตร์ 200 ปี') fail(`${name}: ไม่พบปุ่ม "โหมดประวัติศาสตร์ 200 ปี"`);
-        await Promise.all([p.waitForURL(origin + SUB + 'history.html'), p.click('#b-history')]);
+        await p.click('.credits summary'); await Promise.all([p.waitForURL(origin + SUB + 'history.html'), p.click('#b-history')]);
         if (!(await p.evaluate(() => !!(window.__sjBox && window.__sjBox.LEVELS.length === 12)))) fail(`${name}: กดปุ่มแล้วไปไม่ถึงเกมโหมดประวัติศาสตร์`);
         await p.goBack({ waitUntil: 'load' });
         await Promise.all([p.waitForURL(origin + SUB + 'prototype/'), p.click('#b-proto')]);

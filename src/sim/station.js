@@ -1,8 +1,11 @@
 // ผังสถานีจาก JSON (data/stations/*.json): ตรวจ (validate) แล้วแปลงเป็นผังที่ตัวจำลองใช้
 // schema อธิบายไว้ที่ data/stations/README.md
+// schema 1 = ผังทิศเดียวแบบต้นแบบ v2 (โหมดประวัติศาสตร์), schema 2 = รางสองทิศ หลายขา ทางตัน (ดู station2.js)
 import { prepEdges } from './geometry.js';
+import { validateLayout2, expandLayout2, checkLayout2 } from './station2.js';
 
-export const STATION_SCHEMA = 1;
+export const STATION_SCHEMA = 2;           // schema ล่าสุดที่ควรใช้เขียนผังใหม่
+export const STATION_SCHEMAS = [1, 2];     // schema ที่ยังโหลดได้
 const DIRS = ['E', 'W'];
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isNum = v => typeof v === 'number' && Number.isFinite(v);
@@ -11,7 +14,7 @@ const isNum = v => typeof v === 'number' && Number.isFinite(v);
 export function validateStation(j) {
   const err = [], bad = (where, what) => err.push(`${where}: ${what}`);
   if (!isObj(j)) return ['ไฟล์ผัง: ต้องเป็นอ็อบเจกต์ JSON'];
-  if (j.schema !== STATION_SCHEMA) bad('schema', `ต้องเป็น ${STATION_SCHEMA} (ได้ ${JSON.stringify(j.schema)})`);
+  if (!STATION_SCHEMAS.includes(j.schema)) bad('schema', `ต้องเป็น ${STATION_SCHEMAS.join(' หรือ ')} (ได้ ${JSON.stringify(j.schema)})`);
   if (typeof j.id !== 'string' || !/^[a-z0-9-]+$/.test(j.id)) bad('id', 'ต้องเป็นตัวพิมพ์เล็ก ตัวเลข และขีดกลาง เช่น "tha-kilen"');
   if (typeof j.fictional !== 'boolean') bad('fictional', 'ต้องเป็น true (ผังสมมุติ) หรือ false (อ้างอิงสถานีจริง)');
   if (!isObj(j.verified) || typeof j.verified.layout !== 'boolean' || typeof j.verified.signalling !== 'boolean') bad('verified', 'ต้องมี { "layout": true/false, "signalling": true/false }');
@@ -20,6 +23,14 @@ export function validateStation(j) {
   const L = j.layout;
   if (!isObj(L)) { bad('layout', 'ไม่พบผัง (ต้องเป็นอ็อบเจกต์)'); return err; }
   if (L.size !== undefined && !(Array.isArray(L.size) && L.size.length === 2 && L.size.every(n => isNum(n) && n > 0))) bad('layout.size', 'ต้องเป็น [กว้าง, สูง] ที่มากกว่า 0');
+  if (j.schema === 2) {
+    if (j.upDir !== 'E' && j.upDir !== 'W') bad('upDir', 'ต้องเป็น "E" หรือ "W": ทิศของผังที่เป็นเที่ยวขึ้น (วิ่งออกจากกรุงเทพ) ผังสมมุติกำหนดเองได้');
+    if (L.edges !== undefined) bad('layout.edges', 'schema 2 ใช้ layout.tracks (รางสองทิศ) ไม่ใช้ edges');
+    const n = err.length;
+    validateLayout2(L, bad);
+    if (err.length === n) checkLayout2(expandLayout2(L), bad);
+    return err;
+  }
 
   const E = L.edges, P = isObj(L.points) ? L.points : {}, S = isObj(L.signals) ? L.signals : {};
   if (!isObj(E) || !Object.keys(E).length) { bad('layout.edges', 'ต้องมีขอบรางอย่างน้อย 1 เส้น'); return err; }
@@ -144,7 +155,7 @@ function routesFrom(E, sig, sigEdge) {
   const visit = (cur, edges, req) => {
     edges = [...edges, cur];
     const e = E[cur];
-    if (e.sig || e.exit) out.push({ sig, to: cur, plat: e.plat ?? null, exit: !!e.exit, edges, req });
+    if (e.sig || e.exit || !e.next) out.push({ sig, to: cur, plat: e.plat ?? null, exit: !!e.exit, portal: e.portal || null, track: e.track, edges, req });
     else follow(e.next, edges, req);
   };
   follow(E[sigEdge].next, [], []);
@@ -153,11 +164,12 @@ function routesFrom(E, sig, sigEdge) {
 
 // แปลง JSON ที่ตรวจผ่านแล้วเป็นผังที่ตัวจำลองใช้ (ค่าคงที่ตลอดเกม ห้ามแก้ระหว่างเล่น)
 function buildStation(j) {
-  const L = j.layout, src = {};
+  const bidir = j.schema === 2, L = bidir ? expandLayout2(j.layout) : j.layout, src = {};
   for (const k in L.edges) src[k] = { dir: 'E', ...L.edges[k] };
   for (const k in L.signals) src[L.signals[k].edge].sig = k;
-  for (const p of L.platforms) src[p.edge].plat = p.no;
+  for (const p of L.platforms) { src[p.edge].plat = p.no; if (bidir) src[src[p.edge].rev].plat = p.no; }
   const E = prepEdges(src), P = {}, S = {};
+  for (const k in E) if (!E[k].track) E[k].track = k; // schema 1: ขอบราง 1 เส้น = รางกายภาพ 1 เส้น
   for (const k in L.points || {}) P[k] = { ...L.points[k] };
   for (const k in L.signals) S[k] = { dir: E[L.signals[k].edge].dir, ...L.signals[k] };
 
@@ -170,12 +182,27 @@ function buildStation(j) {
     if (routes[k].length && routes[k].every(r => r.plat !== null)) { REQ[k] = {}; for (const r of routes[k]) REQ[k][r.plat] = r.req; }
     else REQ[k] = routes[k].length ? routes[k][0].req : [];
   }
+  // reach[ขอบ] = ขอบรางทั้งหมดที่วิ่งต่อไปถึงได้โดยไม่กลับทิศ (รวมตัวเอง)
+  const reach = {};
+  const reachOf = k => {
+    if (reach[k]) return reach[k];
+    const set = (reach[k] = new Set([k])), n = E[k].next;
+    for (const x of !n ? [] : typeof n === 'string' ? [n] : n.pt ? [n.N, n.R] : [n.to]) for (const y of reachOf(x)) set.add(y);
+    return set;
+  };
+  for (const k in E) reachOf(k);
+  const noPlatform = L.platforms.filter(p => p.noPlatform).map(p => p.no); // ทางจอดที่ไม่มีชานชาลา (ขบวนโดยสารไม่ควรจอด)
+  const roles = { ...(L.roles || {}) }, roleOf = {}, rolePlat = {};
+  for (const r in roles) { roleOf[roles[r]] = r; rolePlat[r] = E[roles[r]].plat; }
   const entry = L.entries[0];
   return {
     id: j.id, name: j.name_th || j.id, fictional: j.fictional, verified: { ...j.verified }, sources: [...j.sources],
+    schema: j.schema, bidir, upDir: j.upDir || null,
     size: L.size ? [...L.size] : [960, 480],
-    E, edgeCount: Object.keys(E).length, P, S, plats, platEdge, platSig, routes, REQ,
+    E, edgeCount: Object.keys(E).length, P, S, plats, platEdge, platSig, routes, REQ, reach,
     entries: [...L.entries], exits: [...L.exits],
+    portals: bidir ? L.portals : {}, buffers: bidir ? L.buffers : [], sections: bidir ? L.sections : {}, sectionOf: bidir ? L.sectionOf : {},
+    roles, roleOf, rolePlat, noPlatform,
     entry, entrySig: E[entry].sig || null, inY: E[entry].pts[0][1],
   };
 }

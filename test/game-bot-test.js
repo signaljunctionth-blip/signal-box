@@ -158,7 +158,7 @@ const FREEZE = [[0, 180], [2, 420], [4, 300], [7, 560], [11, 700]];
       if (end.state !== 'win' || end.done !== 3) fail(`${view.name}: แตะจริงแล้วไม่ชนะด่าน 1 (${end.state}, ${end.done}/3)`);
       if (taps !== 6) fail(`${view.name}: ด่าน 1 ควรแตะ 6 ครั้ง (S1 กับ T1 อย่างละ 3) แต่แตะ ${taps}`);
       if (!/ส่งครบ 3 ขบวน · 450 คะแนน/.test(end.card) || !/★★★/.test(end.card)) fail(`${view.name}: การ์ดชนะไม่ถูก: ${end.card.replace(/\s+/g, ' ').slice(0, 120)}`);
-      if (end.saved !== '{"v":1,"packs":{"history":{"stars":[3]}}}') fail(`${view.name}: เซฟไม่ถูก: ${end.saved}`);
+      if (end.saved !== '{"v":2,"packs":{"history":{"stars":[3],"best":{}}}}') fail(`${view.name}: เซฟไม่ถูก: ${end.saved}`);
       if (end.protoKey !== null) fail(`${view.name}: เกมโมดูลไปแตะ key เซฟของต้นแบบ`);
       await p.click('[data-act="home"], [data-act="next"]'); // ด่านถัดไป
       if ((await p.textContent('#h-title')).trim() !== 'ด่าน 2 · ประแจตัวแรก') fail(`${view.name}: กด "ด่านถัดไป" แล้วไม่เข้าด่าน 2`);

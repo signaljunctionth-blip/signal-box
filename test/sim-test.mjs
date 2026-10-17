@@ -154,7 +154,7 @@ section('ชนกัน ตกราง รอนาน ต้องแพ้')
   run(g, 3); sim.tapSignal(g, 'S1'); run(g, 12); // ขบวนแรก (ชานชาลา 2) เข้าทางตรง
   sim.tapPoint(g, 'P2'); sim.tapSignal(g, 'T2'); run(g, 10);
   const f = events.find(e => e.type === 'fail');
-  ok(g.state === 'fail' && f && f.title === 'ตกราง!' && /ฝ่าประแจ P2/.test(f.why), 'วิ่งฝ่าประแจตามที่ตั้งผิด = ตกราง', JSON.stringify(f));
+  ok(g.state === 'fail' && f && f.title === 'รถฝ่าประแจ!' && f.code === 'RUN_THROUGH' && /ฝ่าประแจ P2/.test(f.why), 'วิ่งฝ่าประแจตามที่ตั้งผิด = รถฝ่าประแจ (แยกจากตกราง ตามที่เจตัดสิน)', JSON.stringify(f));
 }
 {
   const events = [], { g } = play(levelOf(0, 2), events); // ตกราง: สลับประแจใต้ท้องรถ
@@ -180,7 +180,7 @@ section('ชนกัน ตกราง รอนาน ต้องแพ้')
 
 /* ---------- 5) JSON เสีย ---------- */
 section('JSON ผังเสีย ได้ error ที่อ่านรู้เรื่อง และไม่ทำให้เกมพัง');
-const good = () => structuredClone(stationJson.find(s => s.json.layout.platforms.length === 2).json);
+const good = () => structuredClone(stationJson.find(s => s.json.schema === 1 && s.json.layout.platforms.length === 2).json);
 const broken = [
   ['ไม่ใช่อ็อบเจกต์', () => 'สวัสดี', /ต้องเป็นอ็อบเจกต์ JSON/],
   ['null', () => null, /ต้องเป็นอ็อบเจกต์ JSON/],
@@ -218,7 +218,7 @@ ok(sim.loadStation(good()).ok === true, 'ผังที่ไม่ได้แ
 {
   // ผังเสีย 1 ไฟล์: ด่านที่ใช้ผังนั้นถูกปิด ด่านอื่นยังเล่นได้
   const list = stationJson.map(s => ({ name: s.name, json: structuredClone(s.json) }));
-  const victim = list.find(s => s.json.layout.platforms.length === 2); victim.json.layout.edges.b.next = 'zz';
+  const victim = list.find(s => s.json.schema === 1 && s.json.layout.platforms.length === 2); victim.json.layout.edges.b.next = 'zz';
   const r = sim.loadStations(list), p = sim.loadLevelPack(readJson('data/levels/history.json'), r.stations, { [victim.json.id]: r.errors[victim.name] });
   ok(Object.keys(r.errors).length === 1 && Object.keys(r.stations).length === list.length - 1, 'ผังเสีย 1 ไฟล์ ไฟล์อื่นยังโหลดได้');
   ok(p.ok && p.pack.levels.filter(l => l.error).length === 2 && /ไม่พบขอบราง "zz"/.test(p.pack.levels[1].error), 'ด่านที่ใช้ผังเสียมี lv.error บอกสาเหตุ', p.ok ? p.pack.levels[1].error : p.errors.join('|'));
@@ -255,8 +255,9 @@ section('โมดูลเซฟ');
   const code = s.exportCode(), other = createSave(memoryBackend());
   ok(/^SJ1\.[A-Za-z0-9+/=]+$/.test(code) && other.importCode(code) && other.getStars('history', 2) === 2, 'รหัสสำรองเกม: ส่งออกแล้วนำเข้าอีกเครื่องได้');
   ok(other.importCode('SJ1.@@@') === false && other.importCode('xyz') === false && other.importCode(null) === false && other.getStars('history', 2) === 2, 'รหัสเสีย: ปฏิเสธและไม่แตะเซฟเดิม');
-  same(migrate({ stars: [3, , 1] }), { v: 1, packs: { history: { stars: [3, 0, 1] } } }, 'ตัวแปลงเซฟเก่า: รูปแบบของต้นแบบ v2 -> v1');
-  same(migrate({ v: 99, packs: {} }), { v: 1, packs: {} }, 'เซฟจากรุ่นใหม่กว่า = เริ่มเปล่า ไม่พัง');
+  same(migrate({ stars: [3, , 1] }), { v: 2, packs: { history: { stars: [3, 0, 1], best: {} } } }, 'ตัวแปลงเซฟเก่า: รูปแบบของต้นแบบ v2 -> ปัจจุบัน');
+  same(migrate({ v: 1, packs: { history: { stars: [2, 3] } } }), { v: 2, packs: { history: { stars: [2, 3], best: {} } } }, 'ตัวแปลงเซฟเก่า: v1 (ขั้น A) -> v2 ดาวเดิมอยู่ครบ');
+  same(migrate({ v: 99, packs: {} }), { v: 2, packs: {} }, 'เซฟจากรุ่นใหม่กว่า = เริ่มเปล่า ไม่พัง');
   ok(createSave(memoryBackend('{เสีย')).getStars('history', 0) === 0, 'ข้อมูลในที่เก็บเสีย = เริ่มเปล่า ไม่พัง');
   const angry = { read() { throw new Error('quota'); }, write() { throw new Error('quota'); } };
   let threw = null, s2; try { s2 = createSave(angry); s2.setStars('history', 0, 3); } catch (e) { threw = e; }
