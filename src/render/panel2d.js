@@ -128,11 +128,12 @@ export function createPanel(cv, styleEl = document.documentElement) {
       if (g.era.sema) {
         cx.save(); cx.translate(s.x, s.y); if (s.dir === 'W') cx.scale(-1, 1);
         cx.fillStyle = C.ink; cx.fillRect(-3, -16, 6, 34);
-        cx.rotate(a === 'G' ? -0.7 : 0);
+        // ทางเปิด = แขนยกไปทางยอดเสา เสาใต้รางวาดกลับหัว (โคนอยู่ฝั่งราง) แขนจึงเฉียงลงบนจอ
+        cx.rotate(a === 'G' ? (up ? -0.7 : 0.7) : 0);
         cx.fillStyle = C.red; rr(2, -5, 30, 10, 3); cx.fill();
         cx.fillStyle = C.onColor; cx.fillRect(22, -5, 4, 10);
         cx.restore();
-        cx.fillStyle = a === 'G' ? C.green : C.red; cx.beginPath(); cx.arc(s.x + (s.dir === 'W' ? 10 : -10), s.y + 10, 5, 0, 7); cx.fill();
+        cx.fillStyle = a === 'G' ? C.green : C.red; cx.beginPath(); cx.arc(s.x + (s.dir === 'W' ? 10 : -10), s.y + (up ? 10 : -10), 5, 0, 7); cx.fill();
       } else {
         cx.fillStyle = C.navy; rr(s.x - 13, s.y - 22, 26, 42, 9); cx.fill();
         cx.fillStyle = a === 'R' ? C.red : C.lampOff; cx.beginPath(); cx.arc(s.x, s.y - 10, 7, 0, 7); cx.fill();
@@ -148,7 +149,7 @@ export function createPanel(cv, styleEl = document.documentElement) {
     // ขบวน: ตัวรถตามทางที่วิ่งมา หัวลูกศรบอกทิศ ป้ายบอกเลขขบวนและที่ที่ต้องไปต่อ
     // ของที่ป้ายขบวนต้องหลบ (น้ำหนัก = ทับแล้วแย่แค่ไหน): เป้าแตะ (หัวเสา ปุ่มประแจ) 4, ชื่อเสา ป้ายขา ป้ายขบวนอื่น 2, เลขทาง 2, แถบชานชาลา 0.4
     // ยุคหางปลา: แขนสัญญาณยื่นออกข้างเสา 32 หน่วย กว้างกว่ากรอบหัวเสาปกติ
-    const head = s => (g.era.sema ? { x: s.x - (s.dir === 'W' ? 36 : 16), y: s.y - 24, w: 52, h: 46, k: 4 } : { ...s.boxes[0], k: 4 });
+    const head = s => (g.era.sema ? { x: s.x - (s.dir === 'W' ? 36 : 16), y: s.y - 24, w: 52, h: 50, k: 4 } : { ...s.boxes[0], k: 4 });
     const blocked = [...Object.values(G.signals).flatMap(s => [head(s), { ...s.boxes[1], k: 2 }]), ...Object.values(G.points).map(p => ({ x: p.kx - 19, y: p.ky - 19, w: 38, h: 38, k: 4 })), ...portalBoxes.map(b => ({ ...b, k: 2 })),
       ...Object.values(G.plats).map(p => ({ x: p.sx, y: p.y + 15, w: L.noPlatform && L.noPlatform.includes(p.no) ? 170 : 78, h: 22, k: 2 })), // เลขทาง
       ...Object.values(G.plats).filter(p => !(L.noPlatform && L.noPlatform.includes(p.no))).map(p => ({ x: p.sx, y: p.y + 14, w: p.sw, h: 24, k: 0.4 }))];
