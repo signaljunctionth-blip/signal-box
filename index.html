@@ -15,6 +15,8 @@
 <!-- เวทีแนวนอนเดียวทุกจอ: ถือเครื่องแนวตั้ง src/ui/stage.js หมุนทั้งเวที 90° ที่ element นี้ชั้นเดียว -->
 <div class="stage" id="stage">
   <main class="screen home" id="s-home">
+    <!-- ปุ่มเต็มจอมุมขวาบน (ซ่อนไว้ก่อน career-app.js เปิดเมื่อเบราว์เซอร์รองรับ) -->
+    <button class="iconbtn fs-btn home-fs" id="b-full" type="button" data-act="full" aria-label="เต็มจอ" aria-pressed="false" hidden><svg class="ic-fs-in" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><svg class="ic-fs-out" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg></button>
     <section class="hero" aria-labelledby="title">
       <svg class="mascot" viewBox="0 0 96 160" role="img" aria-label="น้องเสาสัญญาณ">
         <rect class="m-post" x="43" y="96" width="10" height="52" rx="3"/>
@@ -33,21 +35,21 @@
           <!-- เครดิตเต็มพับไว้ เปิดแล้วเป็นแผ่นทับหน้าแรก (หน้าแรกจึงไม่ต้องเลื่อน) -->
           <details class="credits">
             <summary class="btn sm quiet">เครดิต</summary>
-            <div class="credits-panel" role="group" aria-labelledby="credits-title">
+            <div class="credits-panel scroll-cue" role="group" aria-labelledby="credits-title">
               <div class="credits-h"><h2 id="credits-title">เครดิตและแหล่งข้อมูล</h2><button class="iconbtn" type="button" data-act="close-credits" aria-label="ปิดเครดิต"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+              <!-- ปุ่มรองอยู่บนสุดใต้หัวแผ่น เห็นได้โดยไม่ต้องเลื่อนแม้จอเตี้ย -->
+              <div class="extra">
+                <a class="btn sm" id="b-history" href="./history.html">โหมดประวัติศาสตร์ 200 ปี</a>
+                <span class="ver" id="ver"></span>
+              </div>
               <ul>
                 <li>ฟอนต์ Mitr และ Anuphan โดย Cadson Demak ใช้ตาม SIL Open Font License 1.1 (<a href="./prototype/fonts/OFL-Mitr.txt">Mitr</a>, <a href="./prototype/fonts/OFL-Anuphan.txt">Anuphan</a>)</li>
                 <li>ข้อมูลแผนที่และผังราง <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© ผู้ร่วมพัฒนา OpenStreetMap</a> ใช้ตาม <a href="https://opendatacommons.org/licenses/odbl/1-0/" target="_blank" rel="noopener">Open Database License 1.0</a></li>
-                <li>ไฟล์ข้อมูลที่เราแปลงแล้วและสคริปต์ที่ใช้แปลง ดาวน์โหลดได้ฟรีที่ <a href="https://github.com/signaljunctionth-blip/signal-junction/tree/main/data" target="_blank" rel="noopener">github.com/signaljunctionth-blip/signal-junction</a></li>
+                <li>ไฟล์ข้อมูลที่แปลงแล้วและสคริปต์แปลง ฟรีบน GitHub: <a href="https://github.com/signaljunctionth-blip/signal-junction/tree/main/data" target="_blank" rel="noopener">ไฟล์ข้อมูล data/</a> <a href="https://github.com/signaljunctionth-blip/signal-junction/tree/main/tools" target="_blank" rel="noopener">สคริปต์แปลง tools/</a></li>
                 <li>เส้นขอบประเทศและจังหวัด: Made with <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener">Natural Earth</a> (สาธารณสมบัติ) เส้นขอบเป็นแนวโดยประมาณตาม Natural Earth ไม่ใช่เส้นเขตแดนทางการ</li>
                 <li>เครื่องมือสร้างเว็บ: Vite (MIT)</li>
               </ul>
               <p class="fine">เกมนี้ไม่ใช่ผลงานทางการของการรถไฟแห่งประเทศไทย ผังสถานีจำลองจากข้อมูลสาธารณะ อาจไม่ตรงกับสภาพจริง และไม่ใช่ขั้นตอนปฏิบัติงานจริง</p>
-              <div class="extra">
-                <a class="btn sm" id="b-history" href="./history.html">โหมดประวัติศาสตร์ 200 ปี</a>
-                <button class="btn sm" id="b-full" type="button" hidden>เต็มจอ</button>
-                <span class="ver" id="ver"></span>
-              </div>
             </div>
           </details>
         </div>

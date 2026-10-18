@@ -146,10 +146,20 @@ export function createPanel(cv, styleEl = document.documentElement) {
     if (!L.bidir) { cx.fillStyle = C.muted; cx.font = font(14, 400); txt('ขบวนเข้า', 50, L.inY + 34); txt('ออกจากสถานี', G.W - 60, L.inY + 34); }
 
     // ขบวน: ตัวรถตามทางที่วิ่งมา หัวลูกศรบอกทิศ ป้ายบอกเลขขบวนและที่ที่ต้องไปต่อ
-    // ของที่ป้ายขบวนต้องหลบ: หัวเสาและชื่อเสา ปุ่มประแจ ป้ายขา และป้ายของขบวนที่วางไปแล้ว
-    const blocked = [...Object.values(G.signals).flatMap(s => s.boxes), ...Object.values(G.points).map(p => ({ x: p.kx - 19, y: p.ky - 19, w: 38, h: 38 })), ...portalBoxes,
-      ...Object.values(G.plats).map(p => ({ x: p.sx, y: p.y + 15, w: L.noPlatform && L.noPlatform.includes(p.no) ? 170 : 78, h: 22 }))]; // เลขทาง
-    const over = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+    // ของที่ป้ายขบวนต้องหลบ (น้ำหนัก = ทับแล้วแย่แค่ไหน): เป้าแตะ (หัวเสา ปุ่มประแจ) 4, ชื่อเสา ป้ายขา ป้ายขบวนอื่น 2, เลขทาง 2, แถบชานชาลา 0.4
+    // ยุคหางปลา: แขนสัญญาณยื่นออกข้างเสา 32 หน่วย กว้างกว่ากรอบหัวเสาปกติ
+    const head = s => (g.era.sema ? { x: s.x - (s.dir === 'W' ? 36 : 16), y: s.y - 24, w: 52, h: 46, k: 4 } : { ...s.boxes[0], k: 4 });
+    const blocked = [...Object.values(G.signals).flatMap(s => [head(s), { ...s.boxes[1], k: 2 }]), ...Object.values(G.points).map(p => ({ x: p.kx - 19, y: p.ky - 19, w: 38, h: 38, k: 4 })), ...portalBoxes.map(b => ({ ...b, k: 2 })),
+      ...Object.values(G.plats).map(p => ({ x: p.sx, y: p.y + 15, w: L.noPlatform && L.noPlatform.includes(p.no) ? 170 : 78, h: 22, k: 2 })), // เลขทาง
+      ...Object.values(G.plats).filter(p => !(L.noPlatform && L.noPlatform.includes(p.no))).map(p => ({ x: p.sx, y: p.y + 14, w: p.sw, h: 24, k: 0.4 }))];
+    // ป้ายคำใบ้วาดทับทุกอย่างตอนท้าย: ป้ายขบวนต้องหลบด้วย (กรอบเดียวกับที่วาดจริงด้านล่าง)
+    const bubbleBox = ([s, x, y]) => { cx.font = font(14, 600); const w = cx.measureText(s).width + 18, hh = fs(14) + 12; const bx = Math.max(G.view.x0 + w / 2 + 4, Math.min(G.view.x1 - w / 2 - 4, x)), by = Math.max(G.view.y0 + hh / 2 + 2, Math.min(G.view.y1 - hh / 2 - 2, y)); return { x: bx - w / 2, y: by - hh / 2, w, h: hh }; };
+    for (const bb of bubbles) blocked.push({ ...bubbleBox(bb), k: 3 });
+    const over = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y)) * (b.k || 1);
+    // จุดลองวางป้าย: เหนือ/ใต้ขบวน ไล่ห่างออกไปตามแนวขบวน เรียงจากใกล้ไปไกล (ใกล้ขบวนดีกว่าถ้าทับเท่ากัน)
+    const SPOTS = [];
+    for (const dy of [27, 50, 73]) for (const dx of [0, 46, 92, 138, 184]) for (const sy of [-1, 1]) for (const sx of dx ? [-1, 1] : [1]) SPOTS.push([sx * dx, sy * dy, Math.hypot(dx, dy - 27)]);
+    SPOTS.sort((a, b) => a[2] - b[2]);
     for (const t of g.trains) {
       const tr = t.trail; if (tr.length < 2) continue;
       const info = trainInfo(g, t), col = trainColor(t.plat);
@@ -166,29 +176,30 @@ export function createPanel(cv, styleEl = document.documentElement) {
       // ป้ายอยู่เหนือขบวน ถ้าตรงนั้นทับของที่ต้องแตะหรือป้ายอื่น ลองใต้ขบวน แล้วเลื่อนไปตามแนวขบวน เลือกที่ที่ทับน้อยที่สุด
       cx.font = font(12.5, 600); const bw = cx.measureText(text).width + 18, bh = fs(12.5) + 10;
       let bx = mid.x, by = mid.y - 27, bestScore = Infinity;
-      for (const [dx, dy] of [[0, -27], [0, 27], [-46, -27], [46, -27], [-46, 27], [46, 27], [-92, -27], [92, -27], [-92, 27], [92, 27], [0, -50], [0, 50]]) {
+      for (const [dx, dy, dist] of SPOTS) {
         const x = Math.max(G.view.x0 + bw / 2 + 2, Math.min(G.view.x1 - bw / 2 - 2, mid.x + dx)), y = mid.y + dy;
         if (y - bh / 2 < G.view.y0 || y + bh / 2 > G.view.y1) continue;
-        const r = { x: x - bw / 2 - 3, y: y - bh / 2 - 3, w: bw + 6, h: bh + 6 }, score = blocked.reduce((n, b) => n + over(r, b), 0);
-        if (score < bestScore - 0.5) { bestScore = score; bx = x; by = y; }
-        if (score === 0) break;
+        // ทับของ (พื้นที่ × น้ำหนัก) สำคัญกว่าระยะ: ระยะเป็นแค่ตัวตัดสินเมื่อทับพอ ๆ กัน
+        const r = { x: x - bw / 2 - 3, y: y - bh / 2 - 3, w: bw + 6, h: bh + 6 }, score = blocked.reduce((n, b) => n + over(r, b), 0) + dist * 0.5;
+        if (score < bestScore) { bestScore = score; bx = x; by = y; }
       }
-      blocked.push({ x: bx - bw / 2, y: by - bh / 2, w: bw, h: bh });
+      blocked.push({ x: bx - bw / 2, y: by - bh / 2, w: bw, h: bh, k: 2 });
       tag(text, bx, by, { bg: C.paper, fg: C.ink, border: info.late ? C.red : col, size: 12.5, weight: 600, pad: 9 });
       if (info.late) { cx.strokeStyle = C.red; cx.lineWidth = 3; cx.beginPath(); cx.arc(h.x, h.y, 13, 0, 7); cx.stroke(); }
     }
 
     // คำใบ้: ข้อความอยู่บนสุด ไม่ให้หลุดกรอบ
-    for (const [s, x, y] of bubbles) {
-      cx.font = font(14, 600); const w = cx.measureText(s).width + 18, hh = fs(14) + 12;
-      const bx = Math.max(G.view.x0 + w / 2 + 4, Math.min(G.view.x1 - w / 2 - 4, x)), by = Math.max(G.view.y0 + hh / 2 + 2, Math.min(G.view.y1 - hh / 2 - 2, y));
-      tag(s, bx, by, { bg: C.amber, fg: C.onAmber, border: null, size: 14, weight: 600, pad: 9, h: hh });
+    for (const bb of bubbles) {
+      const r = bubbleBox(bb);
+      tag(bb[0], r.x + r.w / 2, r.y + r.h / 2, { bg: C.amber, fg: C.onAmber, border: null, size: 14, weight: 600, pad: 9, h: r.h });
     }
   }
   function ring(x, y, r) { cx.strokeStyle = C.amber; cx.lineWidth = 3.5; cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.stroke(); }
 
   return {
     draw, refreshColors,
+    // คิดมาตราส่วนใหม่โดยไม่วาด (ใช้ก่อนแปลงจุดแตะ เมื่อขนาดกล่องเปลี่ยนแต่ยังไม่ถึงเฟรมวาดถัดไป เช่น เพิ่งหมุนเครื่อง)
+    fitTo: (L, size) => fit(panelGeom(L), size.w, size.h),
     // จุดในกล่อง canvas (px ของ CSS นับจากมุมซ้ายบนของ canvas ในพิกัดเวที) <-> พิกัดของแผง
     toBoard: (x, y) => ({ x: (x - ox) / K, y: (y - oy) / K }),
     toLocal: (x, y) => ({ x: x * K + ox, y: y * K + oy }),
