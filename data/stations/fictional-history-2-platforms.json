@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "id": "fictional-history-2-platforms",
+  "fictional": true,
+  "name_th": "ผังสมมุติ: สถานี 2 ชานชาลา",
+  "name_en": "Fictional station, 2 platforms",
+  "verified": { "layout": false, "signalling": false, "notes": "ผังสมมุติของโหมดประวัติศาสตร์ ย้ายมาจากต้นแบบ v2 ไม่ได้อ้างอิงสถานีจริง" },
+  "sources": [],
+  "layout": {
+    "size": [960, 480],
+    "edges": {
+      "in": { "pts": [[-100, 300], [150, 300]], "dir": "E", "sig": "S1", "next": "ap" },
+      "ap": { "pts": [[150, 300], [190, 300]], "dir": "E", "next": { "pt": "P1", "N": "c", "R": "b" } },
+      "b": { "pts": [[190, 300], [260, 210], [360, 210]], "dir": "E", "next": "p1" },
+      "c": { "pts": [[190, 300], [360, 300]], "dir": "E", "next": "p2" },
+      "p1": { "pts": [[360, 210], [640, 210]], "dir": "E", "sig": "T1", "plat": 1, "next": "x1" },
+      "p2": { "pts": [[360, 300], [640, 300]], "dir": "E", "sig": "T2", "plat": 2, "next": "x2" },
+      "x1": { "pts": [[640, 210], [740, 210], [810, 300]], "dir": "E", "next": { "trail": "P2", "as": "R", "to": "out" } },
+      "x2": { "pts": [[640, 300], [810, 300]], "dir": "E", "next": { "trail": "P2", "as": "N", "to": "out" } },
+      "out": { "pts": [[810, 300], [1070, 300]], "dir": "E", "exit": true }
+    },
+    "points": {
+      "P1": { "x": 190, "y": 300, "N": "c", "R": "b", "facing": true },
+      "P2": { "x": 810, "y": 300, "N": "x2", "R": "x1", "facing": false }
+    },
+    "signals": {
+      "S1": { "edge": "in", "lx": 132, "ly": 256, "dir": "E", "type": "home" },
+      "T1": { "edge": "p1", "lx": 660, "ly": 168, "dir": "E", "type": "starter" },
+      "T2": { "edge": "p2", "lx": 660, "ly": 258, "dir": "E", "type": "starter" }
+    },
+    "platforms": [{ "edge": "p1", "no": 1 }, { "edge": "p2", "no": 2 }],
+    "entries": ["in"],
+    "exits": ["out"]
+  }
+}

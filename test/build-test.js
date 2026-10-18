@@ -1,5 +1,5 @@
 // ตรวจผลลัพธ์ build ใน dist/ (รันหลัง vite build — ใช้: npm run test:build)
-// 1) มี dist/index.html และ dist/prototype/index.html
+// 1) มี dist/index.html, dist/history.html (เกมเวอร์ชันโมดูล) และ dist/prototype/index.html
 // 2) ไม่มี URL แบบ absolute ขึ้นต้นด้วย "/" (จะพังเมื่อวางในโฟลเดอร์ย่อย เช่น GitHub Pages /ชื่อ-repo/)
 // 3) ไม่มีการอ้าง Google Fonts หรือโหลดไฟล์จากโดเมนภายนอก
 // 4) เปิดจริงจากโฟลเดอร์ย่อยด้วย Playwright: ไม่มี error ไม่มีคำขอล้มเหลว ไม่มีคำขอออกนอกเครื่อง ฟอนต์ที่ฝังโหลดได้
@@ -15,7 +15,7 @@ const fail = (m) => fails.push(m);
 const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap(e =>
   e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
 
-for (const f of ['index.html', 'prototype/index.html', 'prototype/fonts/fonts.css', 'prototype/fonts/OFL-Mitr.txt', 'prototype/fonts/OFL-Anuphan.txt']) {
+for (const f of ['index.html', 'history.html', 'prototype/index.html', 'prototype/fonts/fonts.css', 'prototype/fonts/OFL-Mitr.txt', 'prototype/fonts/OFL-Anuphan.txt']) {
   if (!fs.existsSync(path.join(dist, f))) fail(`ไม่พบ dist/${f}`);
 }
 if (fails.length) { console.error(fails.join('\n')); console.error('✗ build ไม่ครบ (รัน npm run build ก่อน)'); process.exit(1); }
@@ -59,7 +59,7 @@ const server = http.createServer((req, res) => {
   const origin = `http://127.0.0.1:${server.address().port}`;
   const b = await chromium.launch();
   try {
-    for (const page of ['', 'prototype/']) {
+    for (const page of ['', 'history.html', 'prototype/']) {
       const p = await b.newPage({ viewport: { width: 844, height: 390 } });
       const name = 'dist/' + page;
       p.on('pageerror', e => fail(`${name}: page error: ${e.message}`));
@@ -69,7 +69,7 @@ const server = http.createServer((req, res) => {
       p.on('response', r => { if (r.status() >= 400) fail(`${name}: HTTP ${r.status()}: ${r.url()}`); });
       await p.goto(origin + SUB + page, { waitUntil: 'load' });
       const t = await p.title();
-      if (t !== 'ห้องสัญญาณ 200 ปี') fail(`${name}: ชื่อหน้าอ่านไม่ออกหรือไม่ถูก (ลืม <meta charset="utf-8"> หรือเปล่า): ${t}`);
+      if (t !== (page === '' ? 'Signal Junction' : 'ห้องสัญญาณ 200 ปี')) fail(`${name}: ชื่อหน้าอ่านไม่ออกหรือไม่ถูก (ลืม <meta charset="utf-8"> หรือเปล่า): ${t}`);
       const fonts = await p.evaluate(async () => {
         await Promise.all([document.fonts.load('500 20px Mitr', 'ห้อง A'), document.fonts.load('400 16px Anuphan', 'ห้อง A')]);
         await document.fonts.ready;
@@ -78,14 +78,20 @@ const server = http.createServer((req, res) => {
       if (!fonts.mitr || !fonts.anuphan || fonts.loaded < 4) fail(`${name}: ฟอนต์ที่ฝังโหลดไม่ครบ ${JSON.stringify(fonts)}`);
       if (page === '') {
         const title = await p.textContent('h1');
-        if (title.trim() !== 'ห้องสัญญาณ 200 ปี') fail(`${name}: ชื่อเกมไม่ถูก: ${title}`);
+        if (title.trim() !== 'Signal Junction') fail(`${name}: ชื่อเกมไม่ถูก: ${title}`);
         const href = await p.getAttribute('#b-proto', 'href');
         if (href !== './prototype/') fail(`${name}: ลิงก์ต้นแบบไม่ใช่ path relative: ${href}`);
         if (!(await p.textContent('#disclaimer')).includes('ไม่ใช่ผลงานทางการของการรถไฟแห่งประเทศไทย')) fail(`${name}: ไม่มีข้อความปฏิเสธความเป็นทางการ`);
+        const hrefH = await p.getAttribute('#b-history', 'href');
+        if (hrefH !== './history.html') fail(`${name}: ลิงก์โหมดประวัติศาสตร์ไม่ใช่ path relative: ${hrefH}`);
+        if ((await p.textContent('#b-history')).trim() !== 'โหมดประวัติศาสตร์ 200 ปี') fail(`${name}: ไม่พบปุ่ม "โหมดประวัติศาสตร์ 200 ปี"`);
+        await p.click('.credits summary'); await Promise.all([p.waitForURL(origin + SUB + 'history.html'), p.click('#b-history')]);
+        if (!(await p.evaluate(() => !!(window.__sjBox && window.__sjBox.LEVELS.length === 12)))) fail(`${name}: กดปุ่มแล้วไปไม่ถึงเกมโหมดประวัติศาสตร์`);
+        await p.goBack({ waitUntil: 'load' });
         await Promise.all([p.waitForURL(origin + SUB + 'prototype/'), p.click('#b-proto')]);
         if (!(await p.evaluate(() => !!window.__sjBox))) fail(`${name}: กดปุ่มแล้วไปไม่ถึงต้นแบบ`);
       } else if (!(await p.evaluate(() => !!(window.__sjBox && window.__sjBox.LEVELS.length === 12)))) {
-        fail(`${name}: ต้นแบบไม่ทำงาน (ไม่พบ __sjBox หรือไม่ครบ 12 ด่าน)`);
+        fail(`${name}: ${page === 'history.html' ? 'เกมโหมดประวัติศาสตร์' : 'ต้นแบบ'}ไม่ทำงาน (ไม่พบ __sjBox หรือไม่ครบ 12 ด่าน)`);
       }
       await p.waitForTimeout(300);
       await p.close();

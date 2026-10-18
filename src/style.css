@@ -1,58 +1,102 @@
-/* หน้าแรก M0 — ออกแบบแนวนอนเป็นหลัก (844×390, 1180×820, 1280×800) สีทั้งหมดอ่านจาก CSS variable เพื่อรองรับโหมดมืด */
+/* ฐานของเกมใหม่: ตัวแปรสี เวทีแนวนอน ปุ่ม และหน้าแรก (หน้าแผนที่อยู่ใน ui/map.css)
+   - ออกแบบแนวนอนแบบเดียว (844×390, 1180×820, 1280×800) ถือเครื่องแนวตั้ง ui/stage.js หมุน .stage 90° ชั้นเดียว
+   - ขนาดที่อิงจอใช้หน่วย cqw/cqh ของ .stage (ห้ามใช้ vw/vh และ @media ตามขนาดจอ เพราะตอนหมุนแล้วจะสลับแกน) ใช้ @container แทน
+   - ขอบปลอดภัยใช้ --sa-t/r/b/l (สลับด้านให้แล้วเมื่อหมุน) สีทั้งหมดอ่านจาก CSS variable เพื่อรองรับโหมดมืด รวมสีบน canvas */
 :root{
   --bg:#EAF5F3; --paper:#FFFDF8; --ink:#22313E; --muted:#5B6E7A; --line:#D2E2DE;
   --navy:#2B3A4A; --cream:#FFE6A8; --red:#E9525A; --amber:#F2A33A; --green:#2FA872;
-  --go-ink:#12241C; --link:#1F6F4E;
+  --go-ink:#12241C; --link:#1F6F4E; --star:#E0902A; --shadow:0 2px 10px rgba(34,49,62,.12);
+  --map-sea:#DCEEF0; --map-land:#FFFDF8; --map-coast:#9DBDB8; --map-prov:#E3EBE6; --map-ink:#22313E; --map-faint:#A9B8BC;
+  --ln-northeast:#EE9A2E; --ln-north:#8C7BDB; --ln-south:#4FA9DE; --ln-maeklong:#EF7FA9; --ln-east:#E9525A; --ln-west:#2FA872; --ln-other:#9AA8AD;
+  --mk-done-bg:#2B3A4A; --mk-done-ink:#FFE6A8; --mk-lock-bg:#EEF2F0;
+  --board:#F6FBF9; --track:#8FA3AC; --route:#7FD6A8; --occ:#F59AA0; --t1:#EF7FA9; --t2:#4FA9DE; --t3:#EE9A2E; --exp:#8C7BDB;
+  --lamp-off:#41505d; --on-color:#fff; --on-amber:#2B3A4A; --train-stripe:rgba(255,255,255,.75);
   --display:"Mitr","Anuphan",system-ui,sans-serif; --body:"Anuphan","Noto Sans Thai",system-ui,sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F; --link:#7FD6A8;
+  --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F; --link:#7FD6A8; --star:#F2B24A; --shadow:0 2px 10px rgba(0,0,0,.4);
+  --map-sea:#0F1A1B; --map-land:#1E2E30; --map-coast:#4A6462; --map-prov:#283A3C; --map-ink:#E9F1EF; --map-faint:#56696B;
+  --ln-northeast:#F5B45C; --ln-north:#A99BEA; --ln-south:#6FBDEB; --ln-maeklong:#F49ABB; --ln-east:#F0787F; --ln-west:#4FC08E;
+  --ln-other:#6F8388; --mk-done-bg:#FFE6A8; --mk-done-ink:#2B3A4A; --mk-lock-bg:#233436;
+  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B;
   color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F; --link:#7FD6A8;
+  --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F; --link:#7FD6A8; --star:#F2B24A; --shadow:0 2px 10px rgba(0,0,0,.4);
+  --map-sea:#0F1A1B; --map-land:#1E2E30; --map-coast:#4A6462; --map-prov:#283A3C; --map-ink:#E9F1EF; --map-faint:#56696B;
+  --ln-northeast:#F5B45C; --ln-north:#A99BEA; --ln-south:#6FBDEB; --ln-maeklong:#F49ABB; --ln-east:#F0787F; --ln-west:#4FC08E;
+  --ln-other:#6F8388; --mk-done-bg:#FFE6A8; --mk-done-ink:#2B3A4A; --mk-lock-bg:#233436;
+  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B;
   color-scheme:dark}
 
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg)}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);overscroll-behavior:none}
 body{color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
-h1{font-family:var(--display);font-weight:500;line-height:1.2;margin:0;text-wrap:balance}
+h1,h2,h3{font-family:var(--display);font-weight:500;line-height:1.2;margin:0;text-wrap:balance}
 p{margin:0;text-wrap:pretty}
+ul,ol{margin:0;padding:0;list-style:none}
 a{color:var(--link)}
+button{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+h2:focus{outline:none}
 
+/* เวที: ก่อน JS ทำงานเต็มจอปกติ จากนั้น stage.js ตั้งกว้าง สูง และ transform ให้ */
 .stage{
-  min-height:100%;display:flex;flex-direction:column;justify-content:center;gap:clamp(12px,3vh,28px);
-  max-width:1080px;margin:0 auto;
-  padding:max(clamp(12px,3vh,32px),env(safe-area-inset-top)) max(clamp(16px,4vw,48px),env(safe-area-inset-right)) max(clamp(10px,2.5vh,28px),env(safe-area-inset-bottom)) max(clamp(16px,4vw,48px),env(safe-area-inset-left));
+  position:fixed;left:0;top:0;width:100%;height:100%;transform-origin:0 0;overflow:hidden;background:var(--bg);container-type:size;
+  --sa-t:env(safe-area-inset-top,0px); --sa-r:env(safe-area-inset-right,0px); --sa-b:env(safe-area-inset-bottom,0px); --sa-l:env(safe-area-inset-left,0px);
 }
-.hero{display:flex;align-items:center;gap:clamp(18px,4vw,48px);background:var(--paper);border:1.5px solid var(--line);border-radius:28px;padding:clamp(16px,4vh,44px) clamp(20px,4vw,52px)}
-.mascot{flex:none;height:clamp(120px,36vh,260px);width:auto}
+/* หมุนตามเข็ม 90°: ซ้ายของเวที = บนของจอ, บนของเวที = ขวาของจอ */
+.stage.rot{
+  --sa-l:env(safe-area-inset-top,0px); --sa-t:env(safe-area-inset-right,0px); --sa-r:env(safe-area-inset-bottom,0px); --sa-b:env(safe-area-inset-left,0px);
+}
+.screen{position:absolute;inset:0}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:6px 24px;border-radius:999px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);font-family:var(--display);font-size:17px;text-decoration:none;white-space:nowrap;cursor:pointer}
+.btn.go{background:var(--green);border-color:var(--green);color:var(--go-ink)}
+.btn.sm{min-height:40px;padding:4px 16px;font-size:15px}
+.btn.quiet{background:transparent;color:var(--muted)}
+.btn:active,.iconbtn:active{transform:translateY(1px)}
+.iconbtn{flex:none;display:grid;place-items:center;width:44px;height:44px;padding:0;border-radius:50%;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.iconbtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;color:var(--muted)}
+.muted{color:var(--muted)}
+.lead{color:var(--muted);max-width:56ch;font-size:clamp(15px,2.2cqh,18px)}
+.mascot{flex:none;height:clamp(110px,34cqh,260px);width:auto}
 .m-post{fill:var(--muted)} .m-base{fill:var(--line)} .m-head{fill:var(--navy)}
 .m-red{fill:var(--red)} .m-amber{fill:var(--amber)} .m-green{fill:var(--green)}
-.hero-t{display:flex;flex-direction:column;gap:clamp(6px,1.6vh,14px);min-width:0}
-.eyebrow{font-family:var(--display);font-size:13px;letter-spacing:.12em;color:var(--muted)}
-h1{font-size:clamp(30px,9vh,60px)}
-.lead{color:var(--muted);max-width:56ch;font-size:clamp(15px,2.2vh,18px)}
-.actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;margin-top:clamp(2px,1vh,10px)}
-.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:8px 26px;border-radius:999px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);font-family:var(--display);font-size:17px;text-decoration:none;white-space:nowrap;cursor:pointer}
-.btn.go{background:var(--green);border-color:var(--green);color:var(--go-ink)}
-.btn:active{transform:translateY(1px)}
-.ver{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin-top:clamp(2px,1cqh,10px)}
 
-.foot{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--muted);padding:0 6px}
-.credits summary{font-family:var(--display);cursor:pointer;min-height:40px;display:flex;align-items:center;gap:8px;width:fit-content;padding-right:12px;list-style:none}
+/* หน้าแรก (มินิมอล): มาสคอต + ชื่อเกม + ปุ่มหลักเดียว + ปุ่มรอง 2 อย่าง เครดิตเต็มพับไว้เป็นแผ่นทับ บรรทัดปฏิเสธเล็กด้านล่าง
+   วางแนวนอนแบบเดียว ขนาดอิงความสูงเวที (cqh) จึงพอดีทุกจอโดยไม่ต้องเลื่อน */
+.home{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(6px,2cqh,20px);
+  padding:calc(clamp(8px,3cqh,32px) + var(--sa-t)) calc(clamp(16px,4cqw,48px) + var(--sa-r)) calc(clamp(6px,2cqh,20px) + var(--sa-b)) calc(clamp(16px,4cqw,48px) + var(--sa-l))}
+.home .hero{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:clamp(20px,5cqw,64px);width:100%;max-width:1000px}
+.home .mascot{height:clamp(150px,58cqh,440px);width:auto;flex:none}
+.home .hero-t{display:flex;flex-direction:column;align-items:flex-start;gap:clamp(6px,2.2cqh,18px);min-width:0}
+.home h1{font-family:var(--display);font-weight:600;font-size:clamp(36px,min(14cqh,7.2cqw),104px);line-height:1.05;letter-spacing:-.01em;color:var(--ink);white-space:nowrap}
+.home .lead{font-size:clamp(15px,4.2cqh,20px);line-height:1.4;max-width:none;margin-top:-2px}
+.home .btn.big{min-height:clamp(52px,14cqh,64px);padding:4px clamp(32px,6cqw,48px);font-size:clamp(19px,5.4cqh,24px);margin-top:clamp(2px,1.6cqh,10px);box-shadow:var(--shadow)}
+.home .more{display:flex;align-items:center;flex-wrap:wrap;gap:2px 6px;margin-left:-14px}
+.home .more .btn.sm{font-family:var(--body);font-size:15px;border-color:transparent;text-decoration:underline;text-underline-offset:3px;padding-inline:14px}
+.disclaimer{font-size:12.5px;line-height:1.4;color:var(--muted);text-align:center;flex:none}
+/* เครดิต: <details> ปุ่ม "เครดิต" เปิดแผ่นทับหน้าแรก (ครบทุกบรรทัด) */
+.credits summary{list-style:none;cursor:pointer}
 .credits summary::-webkit-details-marker{display:none}
-.credits summary::before{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
-.credits[open] summary::before{transform:rotate(45deg)}
-.credits ul{margin:0 0 6px;padding-left:20px}
-.credits a{display:inline-block;padding:9px 6px;margin:-9px 0}
-
-/* ถือเครื่องแนวตั้ง: ยังอ่านได้ เรียงลงมา (เกมจริงจะหมุนเวทีใน M1) */
-@media (orientation:portrait) and (max-width:700px){
-  .hero{flex-direction:column;text-align:center}
-  .hero-t{align-items:center}
-  .mascot{height:clamp(120px,22vh,200px)}
-  h1{font-size:clamp(30px,9vw,48px)}
+.credits-panel{position:absolute;z-index:5;inset:calc(10px + var(--sa-t)) calc(10px + var(--sa-r)) calc(10px + var(--sa-b)) calc(10px + var(--sa-l));margin:auto;max-width:760px;max-height:calc(100% - 20px);overflow-y:auto;overscroll-behavior:contain;
+  display:flex;flex-direction:column;gap:8px;padding:12px 18px 14px;border-radius:22px;background:var(--paper);border:1.5px solid var(--line);box-shadow:0 12px 40px rgb(0 0 0 / .18);font-size:14px;line-height:1.5;color:var(--ink);text-align:left}
+.credits-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.credits-h h2{font-size:20px}
+.credits ul{margin:0;padding-left:20px;list-style:disc;color:var(--muted)}
+.credits li{padding:0}
+/* ลิงก์สูง 40 px เต็มบรรทัดของตัวเอง (บรรทัดที่มีลิงก์จึงสูง 40 px) กรอบแตะไม่ซ้อนกัน */
+.credits li a{display:inline-block;min-width:40px;line-height:40px;text-align:center;padding:0 6px}
+.credits .fine{font-size:13px;color:var(--muted);border-top:1.5px dashed var(--line);padding-top:6px}
+.credits .extra{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px}
+.ver{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+@container (max-height:480px){
+  .credits-panel{padding:8px 14px 10px;gap:4px;font-size:13px}
+  .credits li a{line-height:40px}
 }
-@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@container (max-height:345px){.home .lead{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
