@@ -1,13 +1,15 @@
 /* ฐานของเกมใหม่: ตัวแปรสี เวทีแนวนอน ปุ่ม และหน้าแรก (หน้าแผนที่อยู่ใน ui/map.css)
    - ออกแบบแนวนอนแบบเดียว (844×390, 1180×820, 1280×800) ถือเครื่องแนวตั้ง ui/stage.js หมุน .stage 90° ชั้นเดียว
    - ขนาดที่อิงจอใช้หน่วย cqw/cqh ของ .stage (ห้ามใช้ vw/vh และ @media ตามขนาดจอ เพราะตอนหมุนแล้วจะสลับแกน) ใช้ @container แทน
+   - สีเส้นทาง --ln-* ใช้โทนพาสเทลของสีป้ายข้างขบวนรถจริง (data/sources.md "สีเส้นทางบนแผนที่"): เหนือฟ้า อีสานเขียว ใต้เหลือง ตะวันออกม่วง
+     ตะวันตกเป็นเส้นขาวขอบน้ำเงินเข้ม (--ln-west-edge) ตามป้ายขบวนธนบุรี–น้ำตก แม่กลองเป็นสีกลางเพราะยังไม่มีแหล่งยืนยัน
    - ขอบปลอดภัยใช้ --sa-t/r/b/l (สลับด้านให้แล้วเมื่อหมุน) สีทั้งหมดอ่านจาก CSS variable เพื่อรองรับโหมดมืด รวมสีบน canvas */
 :root{
   --bg:#EAF5F3; --paper:#FFFDF8; --ink:#22313E; --muted:#5B6E7A; --line:#D2E2DE;
   --navy:#2B3A4A; --cream:#FFE6A8; --red:#E9525A; --amber:#F2A33A; --green:#2FA872;
   --go-ink:#12241C; --link:#1F6F4E; --star:#E0902A; --shadow:0 2px 10px rgba(34,49,62,.12);
   --map-sea:#DCEEF0; --map-land:#FFFDF8; --map-coast:#9DBDB8; --map-prov:#E3EBE6; --map-ink:#22313E; --map-faint:#A9B8BC;
-  --ln-northeast:#EE9A2E; --ln-north:#8C7BDB; --ln-south:#4FA9DE; --ln-maeklong:#EF7FA9; --ln-east:#E9525A; --ln-west:#2FA872; --ln-other:#9AA8AD;
+  --ln-northeast:#2FA872; --ln-north:#4FA9DE; --ln-south:#D9960B; --ln-maeklong:#8A979C; --ln-east:#7B52B5; --ln-west:#FFFFFF; --ln-west-edge:#2B3A4A; --ln-other:#B5C0C3;
   --mk-done-bg:#2B3A4A; --mk-done-ink:#FFE6A8; --mk-lock-bg:#EEF2F0;
   --board:#F6FBF9; --track:#8FA3AC; --route:#7FD6A8; --occ:#F59AA0; --t1:#EF7FA9; --t2:#4FA9DE; --t3:#EE9A2E; --exp:#8C7BDB;
   --lamp-off:#41505d; --on-color:#fff; --on-amber:#2B3A4A; --train-stripe:rgba(255,255,255,.75);
@@ -17,15 +19,15 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F; --link:#7FD6A8; --star:#F2B24A; --shadow:0 2px 10px rgba(0,0,0,.4);
   --map-sea:#0F1A1B; --map-land:#1E2E30; --map-coast:#4A6462; --map-prov:#283A3C; --map-ink:#E9F1EF; --map-faint:#56696B;
-  --ln-northeast:#F5B45C; --ln-north:#A99BEA; --ln-south:#6FBDEB; --ln-maeklong:#F49ABB; --ln-east:#F0787F; --ln-west:#4FC08E;
-  --ln-other:#6F8388; --mk-done-bg:#FFE6A8; --mk-done-ink:#2B3A4A; --mk-lock-bg:#233436;
+  --ln-northeast:#4FC08E; --ln-north:#7CC6F0; --ln-south:#F2C14E; --ln-maeklong:#8D9DA1; --ln-east:#A387E0; --ln-west:#F4F7F6; --ln-west-edge:#5A7BA6;
+  --ln-other:#5F7377; --mk-done-bg:#FFE6A8; --mk-done-ink:#2B3A4A; --mk-lock-bg:#233436;
   --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B;
   color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F; --link:#7FD6A8; --star:#F2B24A; --shadow:0 2px 10px rgba(0,0,0,.4);
   --map-sea:#0F1A1B; --map-land:#1E2E30; --map-coast:#4A6462; --map-prov:#283A3C; --map-ink:#E9F1EF; --map-faint:#56696B;
-  --ln-northeast:#F5B45C; --ln-north:#A99BEA; --ln-south:#6FBDEB; --ln-maeklong:#F49ABB; --ln-east:#F0787F; --ln-west:#4FC08E;
-  --ln-other:#6F8388; --mk-done-bg:#FFE6A8; --mk-done-ink:#2B3A4A; --mk-lock-bg:#233436;
+  --ln-northeast:#4FC08E; --ln-north:#7CC6F0; --ln-south:#F2C14E; --ln-maeklong:#8D9DA1; --ln-east:#A387E0; --ln-west:#F4F7F6; --ln-west-edge:#5A7BA6;
+  --ln-other:#5F7377; --mk-done-bg:#FFE6A8; --mk-done-ink:#2B3A4A; --mk-lock-bg:#233436;
   --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B;
   color-scheme:dark}
 

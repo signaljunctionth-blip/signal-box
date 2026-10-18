@@ -2,7 +2,7 @@
 // - นิ้วเดียวลาก สองนิ้วซูม ล้อเมาส์ซูม ปุ่ม + − คีย์บอร์ด (ลูกศร + − 0) จุดแตะทุกจุดแปลงผ่าน stage.toStage() จึงใช้ได้ตอนเวทีหมุน 90°
 // - วาด canvas ใหม่เฉพาะเมื่อกล้องเปลี่ยน (invalidate -> requestAnimationFrame รอบเดียว)
 // - จุดสถานีที่ใกล้กันกว่า CLUSTER_PX บนจอ รวมเป็นปุ่ม "เส้นทางสอน" ปุ่มเดียวที่พาซูมเข้า เป้าแตะจึงไม่ซ้อนกันทุกระดับซูม
-import { createMapRenderer, LINE_DASH } from '../render/map-draw.js';
+import { createMapRenderer, LINE_DASH, EDGED } from '../render/map-draw.js';
 import { fitBounds, centerOn, clampCamera, panBy, zoomAt, pinch, lerpCamera, easeInOut, sameCamera, toScreen, boundsOf, minPairDistance, labelSides, KM_PER_UNIT } from '../render/map-camera.js';
 import { sheetHtml, starCount, starIcon, esc, LOCK_ICON, NOTE_UNOFFICIAL } from './station-sheet.js';
 import { canFullscreen, toggleFullscreen } from './stage.js';
@@ -12,7 +12,7 @@ const MAX_PX_PER_KM = 20;
 const INTRO_FLAG = 'map-intro-seen';
 // สายที่เป็นการจัดกลุ่มของเกมเอง ไม่ใช่การแบ่งสายทางการของการรถไฟ (ทางไปน้ำตกและสุพรรณบุรีเป็นทางแยกของสายใต้)
 const GAME_GROUPS = ['west'];
-const swatch = id => `<svg class="ln" viewBox="0 0 30 8" aria-hidden="true"><line x1="2" y1="4" x2="28" y2="4" stroke="var(--ln-${id})" stroke-dasharray="${(LINE_DASH[id] || []).map(n => n * 0.6).join(' ')}"/></svg>`;
+const swatch = id => `<svg class="ln" viewBox="0 0 30 8" aria-hidden="true">${EDGED.has(id) ? `<line x1="2" y1="4" x2="28" y2="4" stroke="var(--ln-${id}-edge)" class="edge"/>` : ''}<line x1="2" y1="4" x2="28" y2="4" stroke="var(--ln-${id})" stroke-dasharray="${(LINE_DASH[id] || []).map(n => n * 0.6).join(' ')}"/></svg>`;
 const DRAG_PX = 8;            // ขยับเกินนี้ถือว่าลาก ไม่ใช่แตะ
 const STATE_TH = { locked: 'ยังล็อก', open: 'เปิดแล้ว', done: 'ผ่านแล้ว' };
 const ICON = {

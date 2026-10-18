@@ -7,7 +7,10 @@ import { makeProjection, toScreen, placeLabels, KM_PER_UNIT } from './map-camera
 const VARS = {
   sea: '--map-sea', land: '--map-land', coast: '--map-coast', prov: '--map-prov', ink: '--map-ink', faint: '--map-faint',
   northeast: '--ln-northeast', north: '--ln-north', south: '--ln-south', maeklong: '--ln-maeklong', east: '--ln-east', west: '--ln-west', other: '--ln-other',
+  westEdge: '--ln-west-edge',
 };
+// สายที่วาดเป็นเส้นสีอ่อนมีขอบเข้ม (ป้ายจริงเป็นพื้นขาวตัวอักษรน้ำเงินเข้ม) ขอบใช้สี C[id + 'Edge']
+export const EDGED = new Set(['west']);
 // สถานีอ้างอิงที่ให้ป้ายชื่อขึ้นก่อนเมื่อที่ไม่พอ (ที่เหลือเรียงตามไฟล์)
 const FIRST = ['กรุงเทพอภิวัฒน์', 'เชียงใหม่', 'หนองคาย', 'อุบลราชธานี', 'ชุมทางหาดใหญ่', 'สุไหงโก-ลก', 'นครราชสีมา', 'พิษณุโลก', 'สุราษฎร์ธานี', 'อรัญประเทศ', 'ขอนแก่น', 'ชุมพร', 'หัวหิน', 'นครสวรรค์', 'นครลำปาง', 'พัทยา', 'ตรัง', 'นครศรีธรรมราช', 'อุดรธานี', 'สุรินทร์'];
 // เริ่มแสดงที่หยุดรถของสายน้ำตกเมื่อ 1 กม. กว้างตั้งแต่กี่ px
@@ -103,6 +106,7 @@ export function createMapRenderer(canvas, map, styleEl, opts = {}) {
     ctx.globalAlpha = 0.9; ctx.lineWidth = px(thin);
     for (const id of ['other', 'maeklong', 'east', 'south', 'north', 'northeast', 'west']) {
       if (!rail[id]) continue;
+      if (EDGED.has(id)) { ctx.setLineDash([]); ctx.strokeStyle = C[id + 'Edge']; ctx.lineWidth = px(thin + 1.6); ctx.stroke(rail[id]); ctx.lineWidth = px(thin); }
       ctx.strokeStyle = C[id]; ctx.setLineDash((LINE_DASH[id] || []).map(px)); ctx.stroke(rail[id]);
     }
     ctx.setLineDash([]);
@@ -112,7 +116,8 @@ export function createMapRenderer(canvas, map, styleEl, opts = {}) {
     }
     // เส้นทางสอน: เส้นละเอียดของสายน้ำตก มีขอบรองให้เด่น
     const thick = Math.min(5, 3 + pxPerKm * 0.3);
-    ctx.strokeStyle = C.land; ctx.lineWidth = px(thick + 3.5); ctx.stroke(route);
+    ctx.strokeStyle = C.land; ctx.lineWidth = px(thick + 7); ctx.stroke(route);
+    ctx.strokeStyle = C.westEdge; ctx.lineWidth = px(thick + 4.5); ctx.stroke(route);
     ctx.strokeStyle = C.west; ctx.lineWidth = px(thick); ctx.stroke(route);
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -127,11 +132,12 @@ export function createMapRenderer(canvas, map, styleEl, opts = {}) {
         if (placeLabels([r], occupied).length !== 1) continue;
         occupied.push(r);
         ctx.fillStyle = C.land; ctx.globalAlpha = 0.88; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(r.x, r.y, r.w, r.h, 10); else ctx.rect(r.x, r.y, r.w, r.h); ctx.fill(); ctx.globalAlpha = 1;
+        if (EDGED.has(l.id)) { ctx.strokeStyle = C[l.id + 'Edge']; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(r.x + 5, r.y + 10); ctx.lineTo(r.x + 15, r.y + 10); ctx.stroke(); }
         ctx.strokeStyle = C[l.id]; ctx.lineWidth = 3; ctx.setLineDash(LINE_DASH[l.id] ? LINE_DASH[l.id].map(n => n * 0.5) : []); ctx.beginPath(); ctx.moveTo(r.x + 5, r.y + 10); ctx.lineTo(r.x + 15, r.y + 10); ctx.stroke(); ctx.setLineDash([]);
         ctx.fillStyle = C.ink; ctx.fillText(l.name, r.x + 18, r.y + 10.5);
       }
     }
-    if (detail) dots(stops, cam, view, 3.5, C.land, C.west, `400 12px ${C.body}`, C.ink, occupied);
+    if (detail) dots(stops, cam, view, 3.5, C.land, C.ink, `400 12px ${C.body}`, C.ink, occupied);
     // ซูมออก: ป้ายสถานีอ้างอิงขึ้นเฉพาะอันสำคัญ และไม่วาดจุดที่ไม่มีป้าย (แถวกรุงเทพจุดแน่นมากบนจอมือถือ)
     const maxLm = pxPerKm < 0.25 ? 7 : pxPerKm < 0.4 ? 12 : pxPerKm < 0.8 ? 24 : Infinity;
     dots(landmarks, cam, view, pxPerKm < 0.6 ? 2.2 : 3, C.land, C.ink, `500 12px ${C.display}`, C.ink, occupied, maxLm, pxPerKm < 0.25);
