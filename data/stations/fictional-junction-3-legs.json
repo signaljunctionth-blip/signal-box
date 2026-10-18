@@ -1,0 +1,49 @@
+{
+  "schema": 2,
+  "id": "fictional-junction-3-legs",
+  "fictional": true,
+  "upDir": "E",
+  "name_th": "ผังสมมุติ: ชุมทาง 3 ขา",
+  "name_en": "Fictional junction, 3 legs",
+  "verified": {"layout": false, "signalling": false, "notes": "ผังสมมุติสำหรับทดสอบเอนจิน ไม่ได้อ้างอิงสถานีจริง"},
+  "sources": [],
+  "layout": {
+    "size": [960, 480],
+    "tracks": {
+      "bw": {"pts": [[-100, 300], [150, 300]]},
+      "ap": {"pts": [[150, 300], [190, 300]]},
+      "b": {"pts": [[190, 300], [260, 210], [360, 210]]},
+      "c": {"pts": [[190, 300], [360, 300]]},
+      "k1": {"pts": [[360, 210], [640, 210]]},
+      "k2": {"pts": [[360, 300], [640, 300]]},
+      "x1": {"pts": [[640, 210], [740, 210], [810, 300]]},
+      "x2": {"pts": [[640, 300], [810, 300]]},
+      "bp": {"pts": [[810, 300], [850, 300]]},
+      "ea": {"pts": [[850, 300], [900, 300]]},
+      "eb": {"pts": [[850, 300], [910, 360]]},
+      "pa": {"pts": [[900, 300], [1070, 300]]},
+      "pb": {"pts": [[910, 360], [1070, 360]]}
+    },
+    "points": {
+      "P1": {"x": 190, "y": 300, "N": "c", "R": "b"},
+      "P2": {"x": 810, "y": 300, "N": "x2", "R": "x1"},
+      "P3": {"x": 850, "y": 300, "N": "ea", "R": "eb"}
+    },
+    "signals": {
+      "SA": {"track": "bw", "dir": "E", "type": "home"},
+      "SB": {"track": "pa", "dir": "W", "type": "home"},
+      "SC": {"track": "pb", "dir": "W", "type": "home"},
+      "T1": {"track": "k1", "dir": "E", "type": "starter"},
+      "T2": {"track": "k2", "dir": "E", "type": "starter"},
+      "U1": {"track": "k1", "dir": "W", "type": "starter"},
+      "U2": {"track": "k2", "dir": "W", "type": "starter"}
+    },
+    "platforms": [{"track": "k1", "no": 1}, {"track": "k2", "no": 2}],
+    "roles": {"t1": "k2", "t3": "k1"},
+    "portals": {
+      "A": {"track": "bw", "label_th": "ขา A"},
+      "B": {"track": "pa", "label_th": "ขา B"},
+      "C": {"track": "pb", "label_th": "ขา C"}
+    }
+  }
+}

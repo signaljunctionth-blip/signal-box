@@ -1,0 +1,844 @@
+{
+  "schema": 2,
+  "id": "namtok",
+  "kind": "career",
+  "line": "west",
+  "name_th": "เส้นทางสอน สายน้ำตก",
+  "signalling_note_th": "ระบบสัญญาณสมมุติตามขนาดสถานี ไม่ใช่ระบบจริงของสถานีนี้ ชื่อเสาในเกมนี้เกมตั้งเอง เลขทางและตารางเดินรถเป็นของสมมุติ ผังย่อจากข้อมูลสาธารณะ ไม่ใช่วิธีปฏิบัติงานจริง",
+  "eras": [
+    {
+      "name": "ขั้น 1 ไม่มีอินเตอร์ล็อก",
+      "interlock": false,
+      "sema": true,
+      "tc": false,
+      "nx": false,
+      "lesson": "ด่านนี้จำลองสถานีที่ยังไม่มีอินเตอร์ล็อก ไม่มีอะไรห้ามคุณพลาด สถานีถัดไปในเกมมีอินเตอร์ล็อกช่วยกันไว้ให้"
+    },
+    {
+      "name": "ขั้น 2 อินเตอร์ล็อกกล",
+      "interlock": true,
+      "sema": true,
+      "tc": false,
+      "nx": false,
+      "overlapPointsAuto": false
+    },
+    {
+      "name": "ขั้น 3 ไฟสีและวงจรตอนราง",
+      "interlock": true,
+      "sema": false,
+      "tc": true,
+      "nx": false
+    },
+    {
+      "name": "ขั้น 4 แผงตั้งทางต้นทาง-ปลายทาง",
+      "interlock": true,
+      "sema": false,
+      "tc": true,
+      "nx": true
+    }
+  ],
+  "stations": [
+    {
+      "station": "tha-kilen",
+      "tier": 1,
+      "needStars": 0
+    },
+    {
+      "station": "wang-pho",
+      "tier": 2,
+      "needStars": 0
+    },
+    {
+      "station": "nam-tok",
+      "tier": 2,
+      "needStars": 0,
+      "note_th": "ผังย่อ: ของจริงสองทางมาบรรจบกันอีกครั้งและมีรางต่อไปน้ำตกไทรโยคน้อย ในเกมตัดเป็นทางตัน"
+    },
+    {
+      "station": "kanchanaburi",
+      "tier": 3,
+      "needStars": 12
+    },
+    {
+      "station": "nong-pla-duk-jn",
+      "tier": 4,
+      "needStars": 20,
+      "note_th": "ผังย่อมาก: สายใต้ของจริงเป็นทางคู่ ในเกมย่อเป็นทางเดียวต่อขา ประแจ P1 และ P3 เกมเพิ่มเอง ขาสุพรรณบุรีถูกตัดออก"
+    }
+  ],
+  "levels": [
+    {
+      "id": "tk-1",
+      "station": "tha-kilen",
+      "era": 0,
+      "name": "รับรถเข้า ปล่อยรถออก",
+      "teaches": "เสาเข้าและเสาออก",
+      "speed": 48,
+      "hints": true,
+      "waitGrace": 12,
+      "pointsLocked": true,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        }
+      ],
+      "goal": "แตะเสาเข้าให้รถเข้าจอด แล้วแตะเสาออกปล่อยรถไปต่อ",
+      "tips": [
+        "เสาแขนขวาง (แดง) คือห้าม รถจะหยุดรอเอง",
+        "แตะเสาเข้า รถจะวิ่งเข้าจอดที่ชานชาลา",
+        "ผู้โดยสารขึ้นลงเสร็จ ค่อยแตะเสาออก"
+      ]
+    },
+    {
+      "id": "tk-2",
+      "station": "tha-kilen",
+      "era": 0,
+      "name": "รถมาได้สองทาง",
+      "teaches": "เสาแต่ละต้นคุมรถทิศเดียว",
+      "speed": 50,
+      "hints": true,
+      "waitGrace": 12,
+      "pointsLocked": true,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        }
+      ],
+      "goal": "รับและปล่อยขบวนจากทั้งสองฝั่ง ทีละขบวน",
+      "tips": [
+        "ดูหัวลูกศรบนขบวนว่าวิ่งไปทางไหน",
+        "เสาแต่ละต้นคุมรถทิศเดียว รถอีกทิศไม่สนใจ",
+        "ทางเดี่ยวมีรางเส้นเดียว รถสองทิศใช้ร่วมกัน"
+      ]
+    },
+    {
+      "id": "tk-3",
+      "station": "tha-kilen",
+      "era": 0,
+      "name": "สับประแจเข้าทางหลีก",
+      "teaches": "ประแจต้องตั้งให้ถูกทั้งขาเข้าและขาออก",
+      "speed": 52,
+      "hints": true,
+      "waitGrace": 12,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "W",
+          "track": "loop1"
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        }
+      ],
+      "goal": "ส่งขบวนเข้าทางที่ตารางกำหนด โดยไม่ให้รถฝ่าประแจ",
+      "tips": [
+        "ดูในตารางว่าขบวนนี้จอดทางไหน สับประแจก่อนแตะเสาเข้า",
+        "ขาออกก็ต้องสับประแจรับ ไม่งั้นรถฝ่าประแจ",
+        "ห้ามสับประแจตอนรถทับอยู่"
+      ]
+    },
+    {
+      "id": "wp-1",
+      "station": "wang-pho",
+      "era": 1,
+      "name": "หลีกขบวนครั้งแรก",
+      "teaches": "ในเกมนี้รับขบวนเข้าทีละขบวน แล้วปล่อยสวนกัน",
+      "speed": 56,
+      "hints": true,
+      "waitGrace": 20,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        },
+        {
+          "at": 3,
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        }
+      ],
+      "goal": "ให้สองขบวนสวนกันที่สถานี แล้วไปต่อทั้งคู่",
+      "tips": [
+        "รับขบวนแรกเข้าทางหลีกก่อน ขบวนที่สวนมารอหน้าเสาเข้าได้",
+        "ในเกมนี้ต้องรอขบวนแรกจอดสนิท ระบบถึงยอมรับอีกขบวน",
+        "ระบบไม่ยอมเมื่อไร อ่านเหตุผลที่ขึ้นบนจอ"
+      ]
+    },
+    {
+      "id": "wp-2",
+      "station": "wang-pho",
+      "era": 1,
+      "name": "ทางข้างหน้ายังไม่ว่าง",
+      "teaches": "ตอนทางเดี่ยวมีรถได้ทีละขบวน",
+      "speed": 58,
+      "waitGrace": 18,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        },
+        {
+          "at": 8,
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        },
+        {
+          "at": 22,
+          "from": "W",
+          "to": "E",
+          "track": "loop2"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 4
+          },
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        }
+      ],
+      "goal": "หลีกขบวน 3 ครั้งต่อกัน ไม่ให้ใครค้าง",
+      "tips": [
+        "รถที่รอหน้าเสาเข้ายังอยู่ในตอน จะปล่อยรถสวนออกไปหาไม่ได้",
+        "รับรถเข้ามาให้พ้นทั้งขบวน แล้วค่อยปล่อยคันที่จอดรอ",
+        "ปล่อยรถออกไว ๆ ทางจะว่างรับคันต่อไป"
+      ]
+    },
+    {
+      "id": "wp-3",
+      "station": "wang-pho",
+      "era": 1,
+      "name": "ขบวนผ่านไม่จอด",
+      "teaches": "เปิดเสาออกรอไว้ให้ขบวนด่วนผ่าน",
+      "speed": 60,
+      "waitGrace": 18,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        },
+        {
+          "at": 12,
+          "from": "E",
+          "to": "W",
+          "track": "main",
+          "type": "express",
+          "stop": false
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "E",
+          "to": "W",
+          "track": "loop2"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 26
+          },
+          "from": "W",
+          "to": "E",
+          "track": "main",
+          "type": "express",
+          "stop": false
+        }
+      ],
+      "goal": "ให้ขบวนด่วน 2 ขบวนผ่านทางประธานโดยไม่ต้องหยุด",
+      "tips": [
+        "ขบวนด่วนสีม่วง ไม่จอด",
+        "เปิดเสาออกก่อน แล้วค่อยเปิดเสาเข้า ขบวนด่วนจะผ่านได้โดยไม่ต้องหยุด",
+        "ขบวนด่วนต้องหยุดรอ ได้ 60 แทน 150"
+      ]
+    },
+    {
+      "id": "nt-1",
+      "station": "nam-tok",
+      "era": 1,
+      "name": "สุดสาย รถกลับหัว",
+      "teaches": "สถานีปลายทาง รถออกกลับฝั่งที่เข้ามา",
+      "speed": 56,
+      "hints": true,
+      "waitGrace": 14,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "W",
+          "track": "main",
+          "dwell": 6
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "W",
+          "track": "loop1",
+          "dwell": 6
+        }
+      ],
+      "goal": "รับขบวนเข้าจอด แล้วปล่อยกลับไปทางเดิม",
+      "tips": [
+        "ที่นี่สุดทางแล้ว รถทุกขบวนต้องกลับทางเดิม",
+        "ขากลับใช้เสาออกด้านเดียวกับที่รถเข้ามา",
+        "สับประแจรับรถขาออกเหมือนเดิม",
+        "ในเกมขบวนกลับหัวได้เอง ของจริงขบวนที่ใช้รถจักรลากมักต้องย้ายรถจักรมาต่ออีกด้านก่อน"
+      ]
+    },
+    {
+      "id": "nt-2",
+      "station": "nam-tok",
+      "era": 1,
+      "name": "เข้าก่อน ออกทีหลัง",
+      "teaches": "รับขบวนใหม่เข้ามาพ้นก่อน จึงปล่อยขบวนเก่าออก",
+      "speed": 58,
+      "waitGrace": 16,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "W",
+          "track": "loop1",
+          "dwell": 12
+        },
+        {
+          "at": 18,
+          "from": "W",
+          "to": "W",
+          "track": "main",
+          "dwell": 6
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 6
+          },
+          "from": "W",
+          "to": "W",
+          "track": "loop1",
+          "dwell": 6
+        }
+      ],
+      "goal": "หมุนเวียน 3 ขบวนผ่านสถานีปลายทาง โดยมีทางว่างรับขบวนใหม่เสมอ",
+      "tips": [
+        "ขบวนที่กำลังมายึดตอนอยู่ รถที่จอดรอจะออกได้เมื่อคันนั้นเข้ามาพ้น",
+        "ถ้าทางจอดเต็มทุกทาง ขบวนใหม่เข้าไม่ได้ และคันเก่าก็ออกไม่ได้",
+        "ดูแถบคันถัดไป แล้วเหลือทางว่างไว้"
+      ]
+    },
+    {
+      "id": "kb-1",
+      "station": "kanchanaburi",
+      "era": 2,
+      "name": "แผงไฟบอกตอนราง",
+      "teaches": "อ่านแผงว่าตอนไหนมีรถ",
+      "speed": 64,
+      "hints": true,
+      "waitGrace": 16,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        },
+        {
+          "at": 5,
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        },
+        {
+          "at": 28,
+          "from": "W",
+          "to": "E",
+          "track": "loop2"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        },
+        {
+          "after": {
+            "train": 4,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        }
+      ],
+      "goal": "ส่ง 6 ขบวนผ่านสถานี 3 ทาง ด้วยการดูสีตอนรางบนแผง",
+      "tips": [
+        "ตอนรางสีแดงคือมีรถ ระบบรู้เอง ไม่ต้องเดา",
+        "คอสถานีเป็นสีแดงอยู่ แปลว่ารถยังเข้าไม่พ้น",
+        "ด่านนี้รถวิ่งเร็วขึ้น ดูแผงให้ทัน"
+      ]
+    },
+    {
+      "id": "kb-2",
+      "station": "kanchanaburi",
+      "era": 2,
+      "name": "ให้ขบวนด่วนแซง",
+      "teaches": "ขบวนช้าหลบเข้าทางหลีกให้ขบวนด่วนแซง",
+      "speed": 68,
+      "waitGrace": 16,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "loop1",
+          "dwell": 8
+        },
+        {
+          "at": 16,
+          "from": "W",
+          "to": "E",
+          "track": "main",
+          "type": "express",
+          "stop": false
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "E",
+          "to": "W",
+          "track": "loop2",
+          "dwell": 8
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 12
+          },
+          "from": "E",
+          "to": "W",
+          "track": "main",
+          "type": "express",
+          "stop": false
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        }
+      ],
+      "goal": "ให้ขบวนด่วน 2 ขบวนแซงขบวนธรรมดาโดยไม่ต้องหยุด",
+      "tips": [
+        "ขบวนด่วนตามหลังมา ให้รถธรรมดารอในทางหลีกก่อน",
+        "ปล่อยรถธรรมดาออกก่อน ขบวนด่วนจะติดอยู่ข้างหลังทั้งตอน",
+        "เปิดเสาออกให้ขบวนด่วนตั้งแต่มันยังมาไม่ถึง"
+      ]
+    },
+    {
+      "id": "kb-3",
+      "station": "kanchanaburi",
+      "era": 2,
+      "name": "ขบวนสุดสายที่กาญจนบุรี",
+      "teaches": "ขบวนปลายทางเข้าทางตัน แล้วออกกลับทางเดิม",
+      "speed": 70,
+      "waitGrace": 16,
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        },
+        {
+          "at": 6,
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        },
+        {
+          "at": 30,
+          "from": "W",
+          "to": "W",
+          "track": "bay1",
+          "dwell": 10
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "W",
+          "track": "loop2"
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "W",
+          "to": "E",
+          "track": "main",
+          "type": "express",
+          "stop": false
+        },
+        {
+          "after": {
+            "train": 4,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        }
+      ],
+      "goal": "ส่ง 6 ขบวน มี 1 ขบวนเข้าทางตันแล้วกลับออกทางเดิม",
+      "tips": [
+        "ขบวนที่มาสุดทางที่นี่ ส่งเข้าทางตันจะไม่ขวางทางประธาน",
+        "สองขบวนจะออกฝั่งเดียวกัน เลือกว่าใครไปก่อน",
+        "ทางตันมีทางออกด้านเดียว ดูให้คอสถานีว่างก่อนปล่อย"
+      ]
+    },
+    {
+      "id": "np-1",
+      "station": "nong-pla-duk-jn",
+      "era": 3,
+      "name": "แตะต้นทาง แตะปลายทาง",
+      "teaches": "แตะเสา แล้วแตะปลายทาง ระบบตั้งประแจให้",
+      "speed": 72,
+      "hints": true,
+      "waitGrace": 12,
+      "trains": [
+        {
+          "at": 1,
+          "from": "A",
+          "to": "B",
+          "track": "t1"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "C",
+          "to": "A",
+          "track": "t3"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "B",
+          "to": "A",
+          "track": "t2"
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "A",
+          "to": "C",
+          "track": "t3"
+        }
+      ],
+      "goal": "ส่งขบวนจากแต่ละขาไปยังขาที่ตารางกำหนด ทีละขบวน",
+      "tips": [
+        "แตะเสาเข้า แล้วแตะทางจอดปลายทาง",
+        "ขาออก แตะเสาออกแล้วแตะป้ายขาที่ขบวนจะไป",
+        "ในเกมนี้ยุคนี้กดประแจเองไม่ได้ งานของคุณคือเลือกทางและลำดับ"
+      ]
+    },
+    {
+      "id": "np-2",
+      "station": "nong-pla-duk-jn",
+      "era": 3,
+      "name": "ทางขัดกันที่ชุมทาง",
+      "teaches": "เส้นทางที่ขัดกันตั้งพร้อมกันไม่ได้ ต้องเลือกว่าใครไปก่อน",
+      "speed": 74,
+      "waitGrace": 12,
+      "trains": [
+        {
+          "at": 1,
+          "from": "A",
+          "to": "B",
+          "track": "t1"
+        },
+        {
+          "at": 4,
+          "from": "B",
+          "to": "A",
+          "track": "t2"
+        },
+        {
+          "at": 22,
+          "from": "C",
+          "to": "A",
+          "track": "t3"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "B",
+          "to": "A",
+          "track": "t2"
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "C",
+          "to": "A",
+          "track": "t3"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 30
+          },
+          "from": "A",
+          "to": "B",
+          "track": "t1"
+        }
+      ],
+      "goal": "ส่ง 6 ขบวนผ่านชุมทางโดยไม่ให้ใครค้างนาน",
+      "tips": [
+        "เส้นทางที่ล็อกแล้วเป็นแถบเขียว ทางที่ขัดกับแถบนี้ต้องรอ แถบประคือระยะเผื่อขบวนหยุดเลย ทางที่ทับแถบประก็ต้องรอ",
+        "สายน้ำตกเข้าออกได้ทางที่ 3 ทางเดียว อย่าให้มีรถค้าง",
+        "ระบบปฏิเสธเพราะทางขัดกัน ไม่ใช่เพราะคุณกดผิด"
+      ]
+    },
+    {
+      "id": "np-3",
+      "station": "nong-pla-duk-jn",
+      "era": 3,
+      "name": "ด่วนผ่านชุมทาง",
+      "teaches": "เวลารอสูงสุด ดูคันที่รอนานที่สุดก่อน",
+      "speed": 78,
+      "maxWait": 45,
+      "waitGrace": 10,
+      "trains": [
+        {
+          "at": 1,
+          "from": "C",
+          "to": "A",
+          "track": "t3"
+        },
+        {
+          "at": 5,
+          "from": "A",
+          "to": "B",
+          "track": "t1",
+          "type": "express",
+          "stop": false
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "B",
+          "to": "A",
+          "track": "t2"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 4
+          },
+          "from": "A",
+          "to": "C",
+          "track": "t3"
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "B",
+          "to": "A",
+          "track": "t2",
+          "type": "express",
+          "stop": false
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 14
+          },
+          "from": "A",
+          "to": "B",
+          "track": "t1"
+        },
+        {
+          "after": {
+            "train": 4,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "C",
+          "to": "A",
+          "track": "t3"
+        },
+        {
+          "after": {
+            "train": 6,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "A",
+          "to": "B",
+          "track": "t1"
+        }
+      ],
+      "goal": "ส่ง 8 ขบวน ให้ขบวนด่วนผ่านไม่ต้องหยุด และห้ามใครรอเกิน 45 วินาที",
+      "tips": [
+        "วงแหวนรอบเลขขบวนแดงเมื่อเริ่มเสียคะแนน",
+        "ใครรอเกิน 45 วินาที ผู้โดยสารร้องเรียนและแพ้ทันที",
+        "ขบวนด่วนมาก่อนก็จริง แต่อย่าลืมคันที่รอนานที่สุด"
+      ]
+    }
+  ]
+}

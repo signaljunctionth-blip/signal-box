@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "id": "fictional-history-3-platforms",
+  "fictional": true,
+  "name_th": "ผังสมมุติ: สถานี 3 ชานชาลา",
+  "name_en": "Fictional station, 3 platforms",
+  "verified": { "layout": false, "signalling": false, "notes": "ผังสมมุติของโหมดประวัติศาสตร์ ย้ายมาจากต้นแบบ v2 ไม่ได้อ้างอิงสถานีจริง" },
+  "sources": [],
+  "layout": {
+    "size": [960, 480],
+    "edges": {
+      "in": { "pts": [[-100, 250], [150, 250]], "dir": "E", "sig": "S1", "next": "ap" },
+      "ap": { "pts": [[150, 250], [190, 250]], "dir": "E", "next": { "pt": "P1", "N": "a", "R": "b" } },
+      "a": { "pts": [[190, 250], [280, 250]], "dir": "E", "next": { "pt": "P2", "N": "c", "R": "d" } },
+      "b": { "pts": [[190, 250], [260, 160], [360, 160]], "dir": "E", "next": "p1" },
+      "c": { "pts": [[280, 250], [360, 250]], "dir": "E", "next": "p2" },
+      "d": { "pts": [[280, 250], [350, 340], [360, 340]], "dir": "E", "next": "p3" },
+      "p1": { "pts": [[360, 160], [640, 160]], "dir": "E", "sig": "T1", "plat": 1, "next": "x1" },
+      "p2": { "pts": [[360, 250], [640, 250]], "dir": "E", "sig": "T2", "plat": 2, "next": "x2" },
+      "p3": { "pts": [[360, 340], [640, 340]], "dir": "E", "sig": "T3", "plat": 3, "next": "x3" },
+      "x1": { "pts": [[640, 160], [740, 160], [810, 250]], "dir": "E", "next": { "trail": "P4", "as": "R", "to": "out" } },
+      "x2": { "pts": [[640, 250], [720, 250]], "dir": "E", "next": { "trail": "P3", "as": "N", "to": "m" } },
+      "x3": { "pts": [[640, 340], [660, 340], [720, 250]], "dir": "E", "next": { "trail": "P3", "as": "R", "to": "m" } },
+      "m": { "pts": [[720, 250], [810, 250]], "dir": "E", "next": { "trail": "P4", "as": "N", "to": "out" } },
+      "out": { "pts": [[810, 250], [1070, 250]], "dir": "E", "exit": true }
+    },
+    "points": {
+      "P1": { "x": 190, "y": 250, "N": "a", "R": "b", "facing": true },
+      "P2": { "x": 280, "y": 250, "N": "c", "R": "d", "facing": true },
+      "P3": { "x": 720, "y": 250, "N": "x2", "R": "x3", "facing": false },
+      "P4": { "x": 810, "y": 250, "N": "m", "R": "x1", "facing": false }
+    },
+    "signals": {
+      "S1": { "edge": "in", "lx": 132, "ly": 206, "dir": "E", "type": "home" },
+      "T1": { "edge": "p1", "lx": 660, "ly": 118, "dir": "E", "type": "starter" },
+      "T2": { "edge": "p2", "lx": 660, "ly": 208, "dir": "E", "type": "starter" },
+      "T3": { "edge": "p3", "lx": 660, "ly": 298, "dir": "E", "type": "starter" }
+    },
+    "platforms": [{ "edge": "p1", "no": 1 }, { "edge": "p2", "no": 2 }, { "edge": "p3", "no": 3 }],
+    "entries": ["in"],
+    "exits": ["out"]
+  }
+}

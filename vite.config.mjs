@@ -21,6 +21,10 @@ const copyPrototype = () => {
 export default defineConfig({
   base: './',
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
-  build: { outDir: 'dist', emptyOutDir: true },
+  build: {
+    outDir: 'dist', emptyOutDir: true,
+    // หน้าแรก + เกมโหมดประวัติศาสตร์ (เวอร์ชันโมดูล)
+    rollupOptions: { input: { main: resolve(import.meta.dirname, 'index.html'), history: resolve(import.meta.dirname, 'history.html') } },
+  },
   plugins: [copyPrototype()],
 });
