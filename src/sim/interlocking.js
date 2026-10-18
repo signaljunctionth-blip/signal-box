@@ -3,11 +3,12 @@
 // การล็อกและการครอบครองคิดจากรางกายภาพ (E[k].track): ขอบราง k (ทิศ E) กับ k~ (ทิศ W) คือรางเส้นเดียวกัน
 import { T, way } from './messages.js';
 import { msg, fail } from './events.js';
-import { blockState, blockFree, requestPermit, returnPermit } from './block.js';
+import { blockState, blockFree, requestPermit, returnPermit, tokenMode, hasToken } from './block.js';
 
 // ชื่อที่ผู้เล่นเห็นของสัญญาณ (ฟิลด์ label ในไฟล์ผัง) แยกจาก id ภายใน
 export const sigName = (g, id) => (g.S[id] && g.S[id].label) || id;
 export const T_OVL = 2; // วินาทีที่ขบวนต้องจอดนิ่งในรางจอดก่อนคืน overlap (SIGNALLING-RULES 2.9)
+export const T_CANCEL = 3; // วินาทีที่เส้นทางยังล็อกหลังยกเลิกเสาที่มีขบวนเข้าใกล้ (approach locking, 2.10)
 
 // เดินจากสัญญาณตามตำแหน่งประแจปัจจุบัน จนถึงขอบที่มีสัญญาณถัดไป ขาออก หรือทางตัน
 export function walk(g, sig) {
@@ -152,12 +153,16 @@ export function overlapFor(g, dest, pos = null) {
 // plan = ถามล่วงหน้าแทนผู้เล่น (คำใบ้/บอท): ประแจบนทางหยุดเลยที่ผู้เล่นสับเองได้ ถือว่าจะถูกสับ
 export function routeConflict(g, sig, edges, pos = null, plan = false) {
   const E = g.E, dest = E[edges[edges.length - 1]];
-  if (dest.exit && dest.portal && !blockFree(g, dest.portal)) {
-    const b = blockState(g, dest.portal), side = g.L.portals[dest.portal].label;
-    return { code: 'BLOCK_NOT_FREE', text: b.state === 'permit' ? T.blockNotFreePermit(side) : b.dir === 'in' ? T.blockNotFreeIn(side) : T.blockNotFreeOut(side) };
+  if (dest.exit && dest.portal && g.block[dest.portal]) {
+    const k = dest.portal, side = g.L.portals[k].label;
+    if (tokenMode(g)) { const bad = tokenBlock(g, k, plan); if (bad) return bad; }
+    else if (!blockFree(g, k)) {
+      const b = blockState(g, k);
+      return { code: 'BLOCK_NOT_FREE', text: b.state === 'permit' ? T.blockNotFreePermit(side) : b.dir === 'in' ? T.blockNotFreeIn(side) : T.blockNotFreeOut(side) };
+    }
   }
   for (const e of edges) {
-    if (g.lockOf[e]) return { code: 'ROUTE_CONFLICT', text: T.routeConflict(sigName(g, g.lockOf[e].sig)) };
+    if (g.lockOf[e]) return g.lockOf[e].cancelAt !== undefined ? { code: 'APPROACH_LOCKED', text: T.approachLockedRoute(sigName(g, g.lockOf[e].sig)) } : { code: 'ROUTE_CONFLICT', text: T.routeConflict(sigName(g, g.lockOf[e].sig)) };
     const o = g.ovlOf[E[e].track];
     if (o && o.destSig !== sig) return { code: 'OVERLAP_HELD', text: T.overlapHeld(sigName(g, o.sig)) };
     if (edgeOccupied(g, e)) return { code: 'TRACK_OCCUPIED', text: E[e].plat ? T.platOccupied(E[e].plat, way(g), g.era.tc) : T.routeOccupied(g.era.tc) };
@@ -175,10 +180,34 @@ export function routeConflict(g, sig, edges, pos = null, plan = false) {
   return null;
 }
 
+// ด่านที่มีห่วง: ขบวนออกไปขา k ได้เมื่อผู้เล่นถือห่วงของขานั้นอยู่ที่สถานี คืน null = ได้ หรือ { code, text }
+// plan = ถามล่วงหน้า (คำใบ้/บอท/ตัวตรวจทางตัน): ตอนว่างถือว่าผู้เล่นแตะขอห่วงได้
+function tokenBlock(g, k, plan = false) {
+  if (hasToken(g, k)) return null;
+  const b = blockState(g, k), side = g.L.portals[k].label;
+  if (b.state !== 'free') return { code: 'BLOCK_NOT_FREE', text: b.dir === 'in' ? T.blockNotFreeIn(side) : T.blockNotFreeOut(side) };
+  return plan ? null : { code: 'TOKEN_NEEDED', text: g.era.interlock ? T.tokenNeeded(side) : T.tokenNeededDriver(side) };
+}
+
+// มีขบวนกำลังเข้าใกล้เสา id ไหม (approach locking): ขบวนอยู่บนรางหน้าเสา หรือรางก่อนหน้านั้น หรือกำลังมาในตอนทางเดี่ยวสู่เสาเข้านี้
+function approaching(g, id) {
+  const e = g.S[id].edge;
+  if (g.trains.some(t => t.edge === e || g.E[t.edge].next === e)) return true;
+  for (const k in g.block) if (g.L.portals[k].entry === e && g.block[k].in !== null) return true;
+  return false;
+}
+
+// เส้นทางที่ยกเลิกแล้วแต่ยังล็อกรอ T_CANCEL: ครบเวลาแล้วคืน
+export function stepCancels(g) {
+  for (const r of [...g.routes]) if (r.cancelAt !== undefined && g.time >= r.cancelAt) { release(g, r); msg(g, T.approachReleased(sigName(g, r.sig))); }
+}
+
 export function tapSignal(g, id) {
   const s = g.S[id];
   if (s.aspect === 'G') {
-    if (s.route) release(g, s.route);
+    // ยุคที่มี approach locking: ยกเลิกเสาที่มีขบวนเข้าใกล้ เสากลับห้ามทันที แต่เส้นทางและประแจยังล็อกอีก T_CANCEL วินาที
+    const held = !!(s.route && g.era.approachLock && !s.route.passed && approaching(g, id));
+    if (held) s.route.cancelAt = g.time + T_CANCEL; else if (s.route) release(g, s.route);
     s.aspect = 'R'; s.route = null;
     // ยกเลิกเสาออกที่ตั้งรอขบวนผ่าน: ขบวนที่กำลังเข้ารางนี้ไม่มีทางออกต่อแล้ว ต้องคืน overlap ให้เส้นทางรับเข้า
     const here = g.E[s.edge];
@@ -187,10 +216,17 @@ export function tapSignal(g, id) {
       const t = r ? null : g.trains.find(x => x.edge === here.id && !x.stopped && x.state !== 'leaving');
       // ยุคที่ผู้เล่นสับเอง: ประแจบนทางหยุดเลยที่ยังไม่อยู่ท่า (ถ้ามี) ถูกล็อกไว้ก่อน แตะไปท่าที่ถูกได้ (tapPoint)
       if (r) holdOverlap(g, here, r); else if (t) holdOverlap(g, here, { sig: id, passed: true, train: t, edges: [here.id], overlap: null });
-    } msg(g, T.cancelSignal(sigName(g, id))); return true;
+    }
+    if (held) msg(g, T.approachLocked(sigName(g, id), T_CANCEL), '', 'APPROACH_LOCKED'); else msg(g, T.cancelSignal(sigName(g, id)));
+    return true;
+  }
+  const w = walk(g, id);
+  // ด่านที่มีห่วง: เสาออกเปิดไม่ได้ถ้ายังไม่มีห่วงของขาที่จะไป (ยุคไม่มีอินเตอร์ล็อกก็เช่นกัน: คนขับไม่ออกถ้าไม่มีห่วง)
+  if (tokenMode(g) && (w.ok || !g.era.interlock)) {
+    const last = g.E[w.edges[w.edges.length - 1]];
+    if (last && last.exit && last.portal && g.block[last.portal]) { const bad = tokenBlock(g, last.portal); if (bad) return msg(g, bad.text, 'bad', bad.code); }
   }
   if (!g.era.interlock) { s.aspect = 'G'; msg(g, T.openNoInterlock(sigName(g, id))); return true; }
-  const w = walk(g, id);
   if (!w.ok) return msg(g, w.reason, 'bad', 'POINT_NOT_SET');
   const bad = routeConflict(g, id, w.edges);
   if (bad) return msg(g, bad.text, 'bad', bad.code);
@@ -201,7 +237,7 @@ export function tapSignal(g, id) {
   const moved = overlapFor(g, dest) ? holdOverlap(g, dest, r) : [];
   // ตั้งทางออกต่อจากรางจอด: overlap ของทางเข้ารางนั้นคืนได้เลย (2.9)
   for (const o of [...g.overlaps]) if (o.destSig === id) dropOverlap(g, o);
-  if (r.portal) requestPermit(g, r.portal, 'out', r);
+  if (r.portal && !tokenMode(g)) requestPermit(g, r.portal, 'out', r);
   g.routes.push(r); s.route = r; s.aspect = 'G';
   const auto = moved.length ? (g.era.tc || g.era.nx ? T.overlapPointsSet(moved) : T.overlapPointsSetGame(moved)) : '';
   msg(g, (dest.plat ? T.routeSetIn(dest.plat, way(g)) : T.routeSetOut(sigName(g, id))) + auto, 'good');
@@ -229,6 +265,7 @@ export function tapPoint(g, k) {
   if (g.lv.pointsLocked) return msg(g, T.pointsFixed(), '', 'POINTS_FIXED');
   if (g.era.nx) return msg(g, T.nxPointsAuto());
   if (g.era.interlock) {
+    if (p.lock && p.lock.cancelAt !== undefined) return msg(g, T.pointApproachLocked(k, Math.max(0, Math.ceil(p.lock.cancelAt - g.time))), 'bad', 'APPROACH_LOCKED');
     if (p.lock) return msg(g, T.pointLocked(k, sigName(g, p.lock.sig)), 'bad', 'POINT_LOCKED');
     // ประแจที่ทางหยุดเลยกันไว้: แตะไปท่าที่ทางหยุดเลยต้องใช้ได้ (แก้ท่าที่ยังสวนทาง) แตะออกจากท่านั้นไม่ได้
     if (p.ovl && !(p.ovl.want && p.ovl.want[k] && p.ovl.want[k] !== p.pos)) return msg(g, T.pointOverlapLocked(k), 'bad', 'POINT_LOCKED');

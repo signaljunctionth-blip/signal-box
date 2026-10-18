@@ -116,9 +116,33 @@ export function panelGeom(L) {
   const view = { x0: 0, x1: W, y0: y0 - MARGIN, y1: y1 + MARGIN };
 
   const G = { W, H, tracks, signals, points, plats, portals, buffers, view };
+  G.tokens = placeTokens(G, sigList);
   cache.set(L, G);
   return G;
 }
+
+// ด่านที่มีห่วงทางสะดวก: ป้ายขาเป็นเครื่องทางสะดวก (แตะ = ขอ/คืนห่วง) และปุ่ม "ให้ทาง" ขึ้นข้างป้ายเมื่อสถานีข้างเคียงขอทาง
+// กรอบที่วาด (หน่วยแผง) ส่วนเป้าแตะขยายบนล่างให้สูงอย่างน้อย TOKEN_HIT × 2 หน่วย (≈ 44 px ที่แผงกว้าง 844 px)
+export const TOKEN_H = 30, ACCEPT_W = 84, TOKEN_HIT = 31;
+export const tokenBoxes = (G, k) => G.tokens[k] || null;
+// วางกรอบเครื่องทางสะดวกและปุ่มให้ทางของทุกขา (คิดครั้งเดียวต่อผัง): ลองหลายตำแหน่ง เลือกที่ทับเสา ปุ่มประแจ และกรอบอื่นน้อยที่สุด
+function placeTokens(G, sigList) {
+  const solid = [...sigList.flatMap(s => s.boxes), ...Object.values(G.points).map(q => ({ x: q.kx - 20, y: q.ky - 20, w: 40, h: 40 }))], out = {};
+  const hit = r => solid.reduce((n, b) => n + Math.max(0, Math.min(r.x + r.w, b.x + b.w) - Math.max(r.x, b.x)) * Math.max(0, Math.min(r.y + r.h, b.y + b.h) - Math.max(r.y, b.y)), 0);
+  const V = G.view, outside = r => (r.y < V.y0 + 4 || r.y + r.h > V.y1 - 4 || r.x < V.x0 || r.x + r.w > V.x1 ? 1e6 : 0);
+  const best = cands => cands.reduce((a, c) => { const sc = hit(c) + outside(c) + (c.cost || 0); return sc < a.sc ? { c, sc } : a; }, { c: cands[0], sc: Infinity }).c;
+  for (const k in G.portals) {
+    const p = G.portals[k], w = p.lw + 6, x0 = p.east ? p.x - w : p.x;
+    const token = best([0, -8, 8, -16, 16].map(d => ({ x: x0, y: p.y + d - TOKEN_H / 2, w, h: TOKEN_H, cost: Math.abs(d) })));
+    solid.push(token);
+    const inner = p.east ? token.x - 8 - ACCEPT_W : token.x + w + 8, edge = p.east ? token.x + w - ACCEPT_W : token.x;
+    const accept = best([[inner, 0], [edge, -38], [edge, 38], [inner, -38], [inner, 38]].map(([x, dy], i) => ({ x, y: token.y + dy, w: ACCEPT_W, h: TOKEN_H, cost: i })));
+    solid.push(accept);
+    out[k] = { token: { x: token.x, y: token.y, w, h: TOKEN_H }, accept: { x: accept.x, y: accept.y, w: ACCEPT_W, h: TOKEN_H } };
+  }
+  return out;
+}
+const boxDist = (b, x, y) => Math.hypot(Math.max(0, b.x - x, x - b.x - b.w), Math.max(0, Math.abs(y - (b.y + b.h / 2)) - Math.max(b.h / 2, TOKEN_HIT)));
 
 // ศูนย์กลางของเป้าแตะ (หน่วยแผง) ของ target แบบเดียวกับที่ส่งเข้า sim.press()
 export function targetCenter(L, target) {
@@ -128,6 +152,7 @@ export function targetCenter(L, target) {
   if (target.kind === 'point') { const p = G.points[target.id]; return p ? { x: p.kx, y: p.ky } : null; }
   if (target.kind === 'platform') { const p = G.plats[target.no]; return p ? { x: p.cx, y: p.y + 26 } : null; }
   if (target.kind === 'portal') { const p = G.portals[target.id]; return p ? { x: p.east ? G.W - 60 : 60, y: p.y } : null; }
+  if (target.kind === 'token' || target.kind === 'accept') { const b = tokenBoxes(G, target.id); if (!b) return null; const r = b[target.kind]; return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }
   if (target.kind === 'track') { const t = G.tracks[target.id]; if (!t) return null; const [x, y] = along(t.pts, t.len / 2); return { x, y }; }
   return null;
 }
@@ -161,10 +186,23 @@ export function hitTest(g, x, y) {
     }
     if (best) return best;
   }
+  // ด่านที่มีห่วง: ปุ่ม "ให้ทาง" (เมื่อมีคำขอ) และป้ายขา (เครื่องทางสะดวก)
+  // แตะในกรอบที่วาด = โดนปุ่มเสมอ, นอกกรอบแต่ในแถบขยายบนล่าง = โดนปุ่มเมื่อไม่มีเสาหรือประแจในรัศมี
+  let near = null;
+  if (g.lv && g.lv.token) for (const k in G.portals) {
+    if (!g.block || !g.block[k]) continue;
+    const b = tokenBoxes(G, k), kinds = g.block[k].ask !== null ? ['accept', 'token'] : ['token'];
+    for (const kind of kinds) {
+      const r = b[kind];
+      if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return { kind, id: k };
+      if (!near && boxDist(r, x, y) < TAP_R - 14) near = { kind, id: k };
+    }
+  }
   let best = null, bd = TAP_R;
   for (const k in G.signals) { const s = G.signals[k], dd = d(s.x, s.y); if (dd < bd) { bd = dd; best = { kind: 'signal', id: k }; } }
   for (const k in G.points) { const p = G.points[k], dd = Math.min(d(p.kx, p.ky), d(p.x, p.y) + 6); if (dd < bd) { bd = dd; best = { kind: 'point', id: k }; } }
   if (best) return best;
+  if (near) return near;
   for (const n in G.plats) if (inPlat(G.plats[n])) return { kind: 'platform', no: G.plats[n].no };
   return null;
 }

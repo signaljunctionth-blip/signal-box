@@ -15,7 +15,7 @@ const verbose = process.argv.includes('-v');
 let fails = 0, checks = 0;
 const ok = (cond, name, detail = '') => { checks++; if (!cond) { fails++; console.error(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); } };
 
-const IDS = ['tk-1', 'tk-2', 'tk-3', 'wp-1', 'wp-2', 'wp-3', 'nt-1', 'nt-2', 'kb-1', 'kb-2', 'kb-3', 'np-1', 'np-2', 'np-3'];
+const IDS = ['tk-1', 'tk-2', 'tk-token', 'tk-3', 'wp-1', 'wp-token', 'wp-2', 'wp-3', 'nt-1', 'nt-2', 'kb-1', 'kb-2', 'kb-3', 'np-1', 'np-2', 'np-3'];
 const STATIONS = [['tha-kilen', 0], ['wang-pho', 0], ['nam-tok', 0], ['kanchanaburi', 12], ['nong-pla-duk-jn', 20]];
 const MIN_PCT = 80, MAX_TIME = 360, MAX_TIME_FIRST = 180;
 
@@ -29,7 +29,7 @@ if (!res.ok) { console.error(`\nไม่ผ่าน ${fails}/${checks}`); proc
 const pack = res.pack;
 
 ok(pack.id === 'namtok', 'id ของชุดคือ namtok');
-ok(JSON.stringify(pack.levels.map(l => l.id)) === JSON.stringify(IDS), 'มี 14 ภารกิจ id tk-1 ถึง np-3 ตามลำดับ', pack.levels.map(l => l.id).join(','));
+ok(JSON.stringify(pack.levels.map(l => l.id)) === JSON.stringify(IDS), 'มี 16 ภารกิจ id tk-1 ถึง np-3 ตามลำดับ (ภารกิจห่วงแทรกหลัง tk-2 และ wp-1)', pack.levels.map(l => l.id).join(','));
 ok(JSON.stringify(pack.stations.map(s => [s.station, s.needStars])) === JSON.stringify(STATIONS), 'stations[] เรียงตามลำดับปลดล็อก needStars 0/0/0/12/20');
 const NO_EMOJI = /\p{Extended_Pictographic}/u;
 for (const lv of pack.levels) {

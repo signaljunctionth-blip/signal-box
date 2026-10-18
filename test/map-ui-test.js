@@ -54,30 +54,37 @@ async function pure() {
   assert.ok(pack.levels.every(l => levelKey(l) === l.id), 'levelKey ของ sim ต้องคืน id ภารกิจ (key เซฟเดียวกับหน้าเล่น)');
   const give = (ids, n) => ids.forEach(id => { stars[id] = n; });
   let p = prog();
-  assert.strictEqual(pack.levels.length, 14); assert.strictEqual(p.maxStars, 42);
+  assert.strictEqual(pack.levels.length, 16); assert.strictEqual(p.maxStars, 48);
   assert.deepStrictEqual(p.stations.map(s => s.state), ['open', 'locked', 'locked', 'locked', 'locked']);
-  assert.deepStrictEqual(p.byId['tha-kilen'].missions.map(m => m.unlocked), [true, false, false]);
+  assert.deepStrictEqual(p.byId['tha-kilen'].missions.map(m => m.unlocked), [true, false, false, false]);
   assert.deepStrictEqual(p.next, { stationId: 'tha-kilen', missionId: 'tk-1' });
-  assert.deepStrictEqual(p.byId['wang-pho'].lock, { prevStation: 'tha-kilen', prevRemaining: 3, needStars: 0, haveStars: 0, missingStars: 0 });
+  assert.deepStrictEqual(p.byId['wang-pho'].lock, { prevStation: 'tha-kilen', prevRemaining: 4, needStars: 0, haveStars: 0, missingStars: 0 });
   assert.ok(!P.canPlay(p, 'tha-kilen', 'tk-2') && P.canPlay(p, 'tha-kilen', 'tk-1') && !P.canPlay(p, 'wang-pho', 'wp-1') && !P.canPlay(p, 'x', 'y'));
   give(['tk-1'], 1); p = prog();
-  assert.deepStrictEqual(p.byId['tha-kilen'].missions.map(m => m.unlocked), [true, true, false]);
+  assert.deepStrictEqual(p.byId['tha-kilen'].missions.map(m => m.unlocked), [true, true, false, false]);
   assert.strictEqual(p.byId['wang-pho'].unlocked, false);
-  give(['tk-2', 'tk-3'], 1); p = prog();
+  give(['tk-2', 'tk-token', 'tk-3'], 1); p = prog();
   assert.deepStrictEqual(p.stations.map(s => s.state), ['done', 'open', 'locked', 'locked', 'locked']);
   assert.strictEqual(p.current, 'wang-pho'); assert.strictEqual(p.lineSelectOpen, false);
-  give(['wp-1', 'wp-2', 'wp-3', 'nt-1', 'nt-2'], 1); p = prog();   // ผ่านครบ 8 ภารกิจ แต่มีแค่ 8 ดาว: กาญจนบุรีต้อง 12
-  assert.strictEqual(p.totalStars, 8); assert.strictEqual(p.lineSelectOpen, true);
+  give(['wp-1', 'wp-token', 'wp-2', 'wp-3', 'nt-1', 'nt-2'], 1); p = prog();   // ผ่านครบ 10 ภารกิจ แต่มีแค่ 10 ดาว: กาญจนบุรีต้อง 12
+  assert.strictEqual(p.totalStars, 10); assert.strictEqual(p.lineSelectOpen, true);
   assert.deepStrictEqual(p.stations.map(s => s.state), ['done', 'done', 'done', 'locked', 'locked']);
-  assert.deepStrictEqual(p.byId.kanchanaburi.lock, { prevStation: 'nam-tok', prevRemaining: 0, needStars: 12, haveStars: 8, missingStars: 4 });
+  assert.deepStrictEqual(p.byId.kanchanaburi.lock, { prevStation: 'nam-tok', prevRemaining: 0, needStars: 12, haveStars: 10, missingStars: 2 });
   assert.strictEqual(p.next, null); assert.strictEqual(P.improvable(p).length, 3);
-  give(['tk-1', 'tk-2'], 3); p = prog();                            // 12 ดาวพอดี
+  give(['tk-1'], 3); p = prog();                                    // 12 ดาวพอดี
   assert.strictEqual(p.totalStars, 12); assert.strictEqual(p.byId.kanchanaburi.state, 'open');
   give(['kb-1', 'kb-2', 'kb-3'], 2); p = prog();                    // 18 ดาว: หนองปลาดุกต้อง 20
   assert.strictEqual(p.byId['nong-pla-duk-jn'].lock.missingStars, 2);
   give(['kb-1'], 3); give(['tk-3'], 2); p = prog();                 // 20 ดาว
   assert.strictEqual(p.byId['nong-pla-duk-jn'].state, 'open');
   assert.deepStrictEqual(p.next, { stationId: 'nong-pla-duk-jn', missionId: 'np-1' });
+  // เซฟเก่าก่อนมีภารกิจห่วง (ไม่มีดาว tk-token / wp-token): ที่เคยเล่นแล้วต้องเปิดค้าง ไม่ถูกล็อกย้อนหลัง
+  {
+    const old = { 'tk-1': 3, 'tk-2': 3, 'tk-3': 2, 'wp-1': 1 }, po = P.computeProgress(pack, lv => old[levelKey(lv)] || 0, unlockState);
+    assert.deepStrictEqual(po.byId['tha-kilen'].missions.map(m => m.unlocked), [true, true, true, true], 'เซฟเก่า: ภารกิจท่ากิเลนเปิดครบ รวม tk-token');
+    assert.ok(po.byId['wang-pho'].unlocked && P.canPlay(po, 'wang-pho', 'wp-1') && P.canPlay(po, 'wang-pho', 'wp-token'), 'เซฟเก่า: วังโพยังเปิด');
+    assert.ok(!P.canPlay(po, 'wang-pho', 'wp-2'), 'เซฟเก่า: ภารกิจที่ยังไม่ถึงยังเปิดตามลำดับ');
+  }
   // สถานะปลดล็อกต้องตรงกับ unlockState ของ sim ทุกภารกิจ (แหล่งเดียวกับหน้าเล่น)
   const U = unlockState(pack, lv => stars[lv.id] || 0);
   assert.deepStrictEqual(p.stations.flatMap(s => s.missions.map(m => m.unlocked)), U.levels.map(l => l.open));
@@ -201,7 +208,7 @@ async function browser() {
       const mk = await p.evaluate(() => [...document.querySelectorAll('.mk[data-id]')].map(el => { const r = el.getBoundingClientRect(); return { id: el.dataset.id, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, label: el.getAttribute('aria-label') }; }));
       check(mk.length === 5 && mk.every(m => m.x > 20 && m.y > 20 && m.x < v.width - 20 && m.y < v.height - 20), `${tag}: ปุ่มสถานีไม่ครบหรือหลุดจอ ${JSON.stringify(mk.map(m => [m.id, m.x | 0, m.y | 0]))}`);
       for (let i = 0; i < mk.length; i++) for (let j = i + 1; j < mk.length; j++) check(Math.hypot(mk[i].x - mk[j].x, mk[i].y - mk[j].y) >= 44, `${tag}: ปุ่ม ${mk[i].id} กับ ${mk[j].id} ซ้อนกัน`);
-      check(mk[0].label === 'สถานีที่ 1 ท่ากิเลน เปิดแล้ว ดาว 0 จาก 9' && mk[1].label === 'สถานีที่ 2 วังโพ ยังล็อก', `${tag}: ป้ายสถานีผิด ${mk[0].label} / ${mk[1].label}`);
+      check(mk[0].label === 'สถานีที่ 1 ท่ากิเลน เปิดแล้ว ดาว 0 จาก 12' && mk[1].label === 'สถานีที่ 2 วังโพ ยังล็อก', `${tag}: ป้ายสถานีผิด ${mk[0].label} / ${mk[1].label}`);
 
       // ---- ทั้งประเทศ: จุดสถานีรวมเป็นปุ่ม "เส้นทางสอน" ปุ่มเดียว ----
       await dbg(A => A.map.country()); await settle();
@@ -245,9 +252,9 @@ async function browser() {
       check(await dbg(A => A.map.openId()) === 'tha-kilen' && await p.evaluate(() => location.hash) === '#map/tha-kilen', `${tag}: แตะท่ากิเลนแล้วแผ่นข้อมูลไม่เปิด`);
       const sheet = await p.textContent('.sheet');
       const tk = await dbg(A => A.pack.levels.filter(l => l.station === 'tha-kilen').map(l => [l.name, l.teaches]));   // ชื่อและสิ่งที่สอนจากชุดภารกิจที่ใช้จริง
-      check(tk.length === 3, `${tag}: ท่ากิเลนต้องมี 3 ภารกิจ (ได้ ${tk.length})`);
+      check(tk.length === 4, `${tag}: ท่ากิเลนต้องมี 4 ภารกิจ (ได้ ${tk.length})`);
       for (const t of ['ท่ากิเลน', 'Tha Kilen', 'ขั้น 1', 'ผังจำลองจากข้อมูลสาธารณะ อาจไม่ตรงกับสภาพจริง', 'ระบบสัญญาณสมมุติตามขนาดสถานี', ...tk.flat()]) check(sheet.includes(t), `${tag}: แผ่นข้อมูลไม่มี "${t}"`);
-      check(await p.locator('.sheet [data-act="play"]').count() === 1 && await p.locator('.sheet .ms.locked').count() === 2, `${tag}: สถานะภารกิจเริ่มต้นผิด`);
+      check(await p.locator('.sheet [data-act="play"]').count() === 1 && await p.locator('.sheet .ms.locked').count() === 3, `${tag}: สถานะภารกิจเริ่มต้นผิด`);
       pos = await at('tha-kilen');
       const sheetBox = await p.locator('.sheet').boundingBox();
       check(lay.rotated ? pos.y < sheetBox.y : pos.x < sheetBox.x, `${tag}: สถานีที่เลือกถูกแผ่นข้อมูลบัง`);
@@ -259,7 +266,7 @@ async function browser() {
       // ---- สถานีล็อก: บอกเงื่อนไข ----
       pos = await at('wang-pho'); await tap(pos.x, pos.y); await settle();
       const locked = await p.textContent('.sheet');
-      check(locked.includes('ยังล็อกอยู่') && locked.includes('ผ่านภารกิจของสถานีท่ากิเลนให้ครบก่อน เหลืออีก 3 ภารกิจ') && await p.locator('.sheet [data-act="play"]').count() === 0, `${tag}: สถานีล็อกไม่บอกเงื่อนไข`);
+      check(locked.includes('ยังล็อกอยู่') && locked.includes('ผ่านภารกิจของสถานีท่ากิเลนให้ครบก่อน เหลืออีก 4 ภารกิจ') && await p.locator('.sheet [data-act="play"]').count() === 0, `${tag}: สถานีล็อกไม่บอกเงื่อนไข`);
       await audit('แผ่นข้อมูลสถานีล็อก');
       if (full) await shot('locked');
       await p.locator('.sheet [data-act="station"]').click(); await settle();
@@ -276,10 +283,10 @@ async function browser() {
       check(await p.evaluate(() => location.hash) === '#map/tha-kilen' && await dbg(A => A.map.openId()) === 'tha-kilen', `${tag}: กลับจากหน้าจอเล่นแล้วไม่อยู่ที่แผ่นข้อมูลสถานี`);
 
       // ---- ความคืบหน้า: ผ่านท่ากิเลนครบ วังโพเปิด; ดาวไม่พอเข้ากาญจนบุรี ----
-      await dbg(A => { ['tk-1', 'tk-2', 'tk-3'].forEach((id, i) => A.career.setStars(id, 3 - i)); A.refresh(); });
-      check(await p.getAttribute('.mk[data-id="wang-pho"]', 'aria-label') === 'สถานีที่ 2 วังโพ เปิดแล้ว ดาว 0 จาก 9' && await p.getAttribute('.mk[data-id="tha-kilen"]', 'aria-label') === 'สถานีที่ 1 ท่ากิเลน ผ่านแล้ว ดาว 6 จาก 9', `${tag}: ป้ายสถานีไม่อัปเดตตามดาว`);
-      check(await p.locator('.sheet [data-act="play"]').count() === 3, `${tag}: ผ่านแล้วต้องเล่นซ้ำได้ทุกภารกิจ`);
-      await dbg(A => { ['wp-1', 'wp-2', 'wp-3', 'nt-1', 'nt-2'].forEach(id => A.career.setStars(id, 1)); A.refresh(); });
+      await dbg(A => { ['tk-1', 'tk-2', 'tk-token', 'tk-3'].forEach((id, i) => A.career.setStars(id, i ? 1 : 2)); A.refresh(); });
+      check(await p.getAttribute('.mk[data-id="wang-pho"]', 'aria-label') === 'สถานีที่ 2 วังโพ เปิดแล้ว ดาว 0 จาก 12' && await p.getAttribute('.mk[data-id="tha-kilen"]', 'aria-label') === 'สถานีที่ 1 ท่ากิเลน ผ่านแล้ว ดาว 5 จาก 12', `${tag}: ป้ายสถานีไม่อัปเดตตามดาว`);
+      check(await p.locator('.sheet [data-act="play"]').count() === 4, `${tag}: ผ่านแล้วต้องเล่นซ้ำได้ทุกภารกิจ`);
+      await dbg(A => { ['wp-1', 'wp-token', 'wp-2', 'wp-3', 'nt-1', 'nt-2'].forEach(id => A.career.setStars(id, 1)); A.refresh(); });
       pos = await at('kanchanaburi');
       if (await p.evaluate(({ x, y }) => { const el = document.elementFromPoint(x, y); return !!(el && el.closest('.mk[data-id="kanchanaburi"]')); }, pos)) await tap(pos.x, pos.y); else await p.evaluate(() => window.__sjApp.router.replace({ screen: 'map', stationId: 'kanchanaburi' }));
       await settle();
@@ -351,7 +358,7 @@ async function browser() {
       const before = await a.evaluate(() => window.__sjApp.progress().totalStars);
       await a.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
       const lab = await a.evaluate(() => ({ total: window.__sjApp.progress().totalStars, label: document.querySelector('.mk[data-id="tha-kilen"]').getAttribute('aria-label') }));
-      check(before === 0 && lab.total === 3 && lab.label.includes('ดาว 3 จาก 9'), `สองแท็บ: แท็บที่กลับมาแสดงไม่อ่านเซฟใหม่ ${JSON.stringify({ before, ...lab })}`);
+      check(before === 0 && lab.total === 3 && lab.label.includes('ดาว 3 จาก 12'), `สองแท็บ: แท็บที่กลับมาแสดงไม่อ่านเซฟใหม่ ${JSON.stringify({ before, ...lab })}`);
       await ctx.close();
     }
 

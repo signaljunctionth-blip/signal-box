@@ -142,6 +142,7 @@ export function mountPlay(host, params, ctx) {
     <p class="pl-score">${ev.score} จาก ${ev.max} คะแนน</p>
     <p class="muted">${ev.stars < 3 ? `ได้ 3 ดาวเมื่อทำคะแนนถึง ${Math.ceil(ev.max * 0.8)} ลดเวลารอของขบวนเพื่อเก็บคะแนน` : 'เดินรถได้ลื่นมาก'}</p>
     ${news.map(t => `<p class="pl-news">${t}</p>`).join('')}
+    ${lv().card ? `<aside class="pl-know"><b>${esc(lv().card.title)}</b><p>${esc(lv().card.text)}</p><a href="${esc(lv().card.source)}" target="_blank" rel="noopener">แหล่งข้อมูล</a></aside>` : ''}
     ${r.note ? `<p class="muted">${esc(r.note)}</p>` : ''}
     ${r.saved === false ? '<p class="muted">เครื่องนี้บันทึกเกมไม่ได้ ดาวจะอยู่ถึงแค่ปิดหน้านี้</p>' : ''}
     <div class="row"><button class="btn sm" type="button" data-act="retry">เล่นซ้ำ</button><button class="btn sm${r.next ? '' : ' go'}" type="button" data-act="exit">${ctx.dev ? 'กลับ' : 'กลับแผนที่'}</button>${r.next ? '<button class="btn go" type="button" data-act="next">ภารกิจถัดไป</button>' : ''}</div>`, 'end');

@@ -4,7 +4,7 @@
 // ตำแหน่งของทุกชิ้นมาจาก panel-geom.js ชุดเดียวกับตัวหาเป้าแตะ สีทุกสีอ่านจาก CSS variable (โหมดมืด)
 // (โหมดประวัติศาสตร์ยังใช้ canvas2d.js ตัวเดิม เพราะมีเทสต์เทียบภาพกับต้นแบบ v2 ทีละพิกเซล)
 import { trackState, blockState, trainInfo, sigName } from '../sim/index.js';
-import { panelGeom, targetCenter, destinations, along } from './panel-geom.js';
+import { panelGeom, targetCenter, destinations, along, tokenBoxes } from './panel-geom.js';
 
 const VARS = { board: '--board', track: '--track', route: '--route', occ: '--occ', ink: '--ink', muted: '--muted', paper: '--paper', line: '--line',
   red: '--red', green: '--green', amber: '--amber', navy: '--navy', lampOff: '--lamp-off', onColor: '--on-color', onAmber: '--on-amber', stripe: '--train-stripe' };
@@ -86,7 +86,9 @@ export function createPanel(cv, styleEl = document.documentElement) {
     for (const b of G.buffers) { cx.strokeStyle = C.ink; cx.lineWidth = 5; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(b.x + b.nx * 11, b.y + b.ny * 11); cx.lineTo(b.x - b.nx * 11, b.y - b.ny * 11); cx.stroke(); }
 
     // ป้ายขา + สถานะตอนทางเดี่ยวของขานั้น
+    const tokens = !!g.lv.token;
     for (const k in G.portals) {
+      if (tokens && g.block[k]) { tokenPortal(g, G, k, hn, blink, bubbles, portalBoxes); continue; }
       const p = G.portals[k], pick = isDest('portal', k) || hinted('portal', k);
       // ป้ายเดียว: เครื่องหมายบอกสถานะตอนทางเดี่ยว + ชื่อขา (ว่าง = จุดเขียว, ให้ทางแล้ว = วงเหลือง, มีขบวน = สามเหลี่ยมแดงชี้ทิศที่ขบวนวิ่ง)
       const blk = blockState(g, k);
@@ -162,7 +164,8 @@ export function createPanel(cv, styleEl = document.documentElement) {
       const mid = tr[Math.floor(tr.length / 2)];
       const want = t.exp ? 'ด่วน' : t.state === 'arriving' ? `เข้าทาง ${t.plat}` : '';
       const lab = info.to && L.portals[info.to] ? L.portals[info.to].label : '', to = !lab || /^ไป/.test(lab) ? lab : `ไป${lab}`;
-      const text = `${t.id} · ${t.state === 'arriving' ? want : t.state === 'dwell' ? 'กำลังจอด' : (t.exp ? 'ด่วน ' : '') + (to || 'พร้อมออก')}`;
+      // ขบวนที่ถือห่วง: เว้นที่หน้าป้ายไว้วาดห่วงเหลือง (ป้ายอยู่ในจอเสมอ แม้ตัวรถยังโผล่ไม่พ้นขอบ)
+      const text = (info.token ? '\u2003\u2002' : '') + `${t.id} · ${t.state === 'arriving' ? want : t.state === 'dwell' ? 'กำลังจอด' : (t.exp ? 'ด่วน ' : '') + (to || 'พร้อมออก')}`;
       // ป้ายอยู่เหนือขบวน ถ้าตรงนั้นทับของที่ต้องแตะหรือป้ายอื่น ลองใต้ขบวน แล้วเลื่อนไปตามแนวขบวน เลือกที่ที่ทับน้อยที่สุด
       cx.font = font(12.5, 600); const bw = cx.measureText(text).width + 18, bh = fs(12.5) + 10;
       let bx = mid.x, by = mid.y - 27, bestScore = Infinity;
@@ -174,7 +177,8 @@ export function createPanel(cv, styleEl = document.documentElement) {
         if (score === 0) break;
       }
       blocked.push({ x: bx - bw / 2, y: by - bh / 2, w: bw, h: bh });
-      tag(text, bx, by, { bg: C.paper, fg: C.ink, border: info.late ? C.red : col, size: 12.5, weight: 600, pad: 9 });
+      const lb = tag(text, bx, by, { bg: C.paper, fg: C.ink, border: info.late ? C.red : col, size: 12.5, weight: 600, pad: 9 });
+      if (info.token) tokenRing(lb.x + 16, by, 5.5); // ห่วงทางสะดวกที่ขบวนถืออยู่
       if (info.late) { cx.strokeStyle = C.red; cx.lineWidth = 3; cx.beginPath(); cx.arc(h.x, h.y, 13, 0, 7); cx.stroke(); }
     }
 
@@ -183,6 +187,33 @@ export function createPanel(cv, styleEl = document.documentElement) {
       cx.font = font(14, 600); const w = cx.measureText(s).width + 18, hh = fs(14) + 12;
       const bx = Math.max(G.view.x0 + w / 2 + 4, Math.min(G.view.x1 - w / 2 - 4, x)), by = Math.max(G.view.y0 + hh / 2 + 2, Math.min(G.view.y1 - hh / 2 - 2, y));
       tag(s, bx, by, { bg: C.amber, fg: C.onAmber, border: null, size: 14, weight: 600, pad: 9, h: hh });
+    }
+  }
+  // ห่วงทางสะดวก: วงกลมเหลืองหนา (สีเดียวกับคำใบ้ แต่เส้นหนากว่าและมีขอบเข้ม อ่านได้ในโหมดมืด)
+  function tokenRing(x, y, r) { cx.strokeStyle = C.ink; cx.lineWidth = 5.5; cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.stroke(); cx.strokeStyle = C.amber; cx.lineWidth = 3.5; cx.stroke(); }
+
+  // ป้ายขาของด่านที่มีห่วง = เครื่องทางสะดวก: เครื่องหมายบอกว่าห่วงอยู่ไหน + ชื่อขา, ปุ่ม "ให้ทาง" เมื่อสถานีข้างเคียงขอทาง
+  //   ว่าง (ห่วงอยู่ในเครื่อง) = จุดเขียว, ห่วงอยู่ที่สถานี = ห่วงเหลือง, ห่วงไปกับขบวน = สามเหลี่ยมแดงชี้ทิศที่ขบวนวิ่ง
+  function tokenPortal(g, G, k, hn, blink, bubbles, portalBoxes) {
+    const p = G.portals[k], blk = blockState(g, k), b = tokenBoxes(G, k), tb = b.token, hot = hn && hn.kind === 'token' && hn.k === k;
+    cx.fillStyle = hot && blink ? C.amber : C.paper; rr(tb.x, tb.y, tb.w, tb.h, tb.h / 2); cx.fill();
+    cx.strokeStyle = hot ? C.amber : blk.token === 'station' ? C.amber : C.ink; cx.lineWidth = blk.token === 'station' ? 2.5 : 1.8; cx.stroke();
+    const mx = tb.x + 16, my = tb.y + tb.h / 2;
+    if (blk.token === 'station') tokenRing(mx, my, 6.5);
+    else if (blk.state === 'free') { cx.fillStyle = C.green; cx.beginPath(); cx.arc(mx, my, 5, 0, 7); cx.fill(); }
+    else { const d = (blk.dir === 'in') === p.east ? -1 : 1; cx.fillStyle = C.red; cx.beginPath(); cx.moveTo(mx + d * 6, my); cx.lineTo(mx - d * 5, my - 6); cx.lineTo(mx - d * 5, my + 6); cx.closePath(); cx.fill(); }
+    cx.fillStyle = hot && blink ? C.onAmber : C.ink; cx.font = font(13); txt(p.label, tb.x + 28, my + 0.5, 'left');
+    portalBoxes.push(tb);
+    if (hot) bubbles.push([hn.text, tb.x + tb.w / 2, my + (my >= p.ty ? -1 : 1) * 36]);
+    if (blk.ask !== null) {
+      const ab = b.accept, on = hn && hn.kind === 'accept' && hn.k === k;
+      cx.fillStyle = blink || !on ? C.amber : C.paper; rr(ab.x, ab.y, ab.w, ab.h, ab.h / 2); cx.fill();
+      cx.strokeStyle = C.ink; cx.lineWidth = 1.8; cx.stroke();
+      cx.fillStyle = blink || !on ? C.onAmber : C.ink; cx.font = font(13, 600); txt(`ให้ทาง ${blk.ask}`, ab.x + ab.w / 2, ab.y + ab.h / 2 + 0.5);
+      portalBoxes.push(ab);
+      const ay = ab.y + ab.h / 2;
+      const away = ab.y > tb.y + 4 ? 1 : ab.y < tb.y - 4 ? -1 : ay >= p.ty ? -1 : 1; // ไม่ให้ข้อความคำใบ้บังป้ายขา
+      if (on) bubbles.push([hn.text, ab.x + ab.w / 2, ay + away * 36]);
     }
   }
   function ring(x, y, r) { cx.strokeStyle = C.amber; cx.lineWidth = 3.5; cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.stroke(); }

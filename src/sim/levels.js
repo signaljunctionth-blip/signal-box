@@ -109,6 +109,9 @@ export function loadLevelPack(j, stations, stationErrors = {}) {
     if (e.nx === true && e.interlock !== true) bad(`${at}.nx`, 'ยุค NX ต้องเปิด interlock ด้วย');
     // ประแจบนทางหยุดเลย: true = ระบบตั้งให้, false = ผู้เล่นสับเอง, ไม่ใส่ = ตั้งให้เฉพาะยุคที่มี tc หรือ nx (ดู overlapAuto)
     if (e.overlapPointsAuto !== undefined && typeof e.overlapPointsAuto !== 'boolean') bad(`${at}.overlapPointsAuto`, 'ต้องเป็น true หรือ false');
+    // approach locking (2.10): ยกเลิกเสาที่มีขบวนเข้าใกล้แล้วเส้นทางยังล็อกอีก T_CANCEL วินาที ไม่ใส่ = ไม่มี (12 ด่านเดิมไม่เปลี่ยน)
+    if (e.approachLock !== undefined && typeof e.approachLock !== 'boolean') bad(`${at}.approachLock`, 'ต้องเป็น true หรือ false');
+    if (e.approachLock === true && e.interlock !== true) bad(`${at}.approachLock`, 'ยุคที่ไม่มีอินเตอร์ล็อกไม่มี approach locking');
     if (e.overlapPointsAuto === false && e.nx === true) bad(`${at}.overlapPointsAuto`, 'ยุค NX ผู้เล่นกดประแจเองไม่ได้ ต้องให้ระบบตั้งประแจปลายไกลให้ (true หรือไม่ใส่)');
     return v2 ? { yr: '', story: '', ...e } : { ...e };
   });
@@ -145,12 +148,18 @@ export function loadLevelPack(j, stations, stationErrors = {}) {
     if (l.holdGrace !== undefined && l.holdGrace !== null && !sec(l.holdGrace)) bad(`${at}.holdGrace`, 'ต้องเป็นจำนวนวินาทีตั้งแต่ 0 หรือ null (กักขบวนที่สถานีข้างเคียงตลอด)');
     if (l.pointsLocked !== undefined && typeof l.pointsLocked !== 'boolean') bad(`${at}.pointsLocked`, 'ต้องเป็น true หรือ false');
     if (!Array.isArray(l.tips) || !l.tips.every(isStr)) bad(`${at}.tips`, 'ต้องเป็นรายการข้อความ');
+    // ห่วงทางสะดวก (M2): ผู้เล่นขอห่วงขาออกและให้ทางขาเข้าเอง ผังต้องมีตอนทางเดี่ยว
+    if (l.token !== undefined && typeof l.token !== 'boolean') bad(`${at}.token`, 'ต้องเป็น true หรือ false');
+    // การ์ดความรู้ "รู้หรือไม่" หลังชนะ: ข้อเท็จจริงต้องมีแหล่งใน data/sources.md
+    if (l.card !== undefined && !(isObj(l.card) && isStr(l.card.title) && isStr(l.card.text) && isStr(l.card.source) && /^https?:\/\//.test(l.card.source)))
+      bad(`${at}.card`, 'ต้องเป็น { "title", "text", "source": ลิงก์ http(s) }');
     const trains = trainsOf(l.trains, `${at}.trains`, bad) || [];
     const lv = { ...l, i, trains, L: null, sched: [], error: null };
     const L = stations[l.station];
     if (!L) lv.error = stationErrors[l.station] ? `ผัง ${l.station} เสีย: ${stationErrors[l.station][0]}` : `ไม่พบผัง ${JSON.stringify(l.station)}`;
     else {
       lv.L = L;
+      if (l.token && !Object.values(L.portals || {}).some(p => p.block)) lv.error = `ภารกิจมีห่วงทางสะดวก แต่ผัง ${l.station} ไม่มีตอนทางเดี่ยว`;
       try { lv.sched = schedOf(trains, L); } catch (e) { lv.error = e.message; }
     }
     return lv;
@@ -166,14 +175,16 @@ export const levelKey = lv => lv.id ?? String(lv.i);
 // สถานะปลดล็อกของชุดภารกิจ (MISSIONS-NAMTOK ข้อ 4): starsOf(lv) = ดาวที่ดีที่สุดของด่านนั้น
 // คืน { total, levels: [{ open, stars }], stations: [{ station, open, need, stars, max }] }
 // - ด่านในสถานีเดียวกันเปิดตามลำดับ  - สถานีถัดไปเปิดเมื่อผ่านทุกด่านของสถานีก่อนหน้า และดาวสะสมถึง needStars
+// - ที่เคยได้ดาวแล้วเปิดเสมอ (เซฟเก่าก่อนแทรกภารกิจใหม่)
 export function unlockState(pack, starsOf) {
   const stars = pack.levels.map(l => starsOf(l) || 0), total = stars.reduce((a, b) => a + b, 0);
   const levels = pack.levels.map((l, i) => ({ open: false, stars: stars[i] }));
   if (!pack.stations) { pack.levels.forEach((l, i) => { levels[i].open = i === 0 || stars[i - 1] > 0; }); return { total, levels, stations: [] }; }
   let prevDone = true;
   const stations = pack.stations.map(s => {
-    const mine = pack.levels.filter(l => l.station === s.station), open = prevDone && total >= s.needStars;
-    mine.forEach((l, n) => { levels[l.i].open = open && (n === 0 || stars[mine[n - 1].i] > 0); });
+    // ภารกิจหรือสถานีที่เคยเล่นผ่านแล้วเปิดค้างไว้เสมอ: แทรกภารกิจใหม่ (เช่น ภารกิจห่วงใน M2) แล้วผู้เล่นเดิมไม่ถูกล็อกย้อนหลัง
+    const mine = pack.levels.filter(l => l.station === s.station), open = (prevDone && total >= s.needStars) || mine.some(l => stars[l.i] > 0);
+    mine.forEach((l, n) => { levels[l.i].open = open && (n === 0 || stars[mine[n - 1].i] > 0 || stars[l.i] > 0); });
     prevDone = prevDone && mine.every(l => stars[l.i] > 0);
     return { station: s.station, tier: s.tier, open, need: s.needStars, stars: mine.reduce((a, l) => a + stars[l.i], 0), max: 3 * mine.length };
   });
