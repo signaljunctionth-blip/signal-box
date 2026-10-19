@@ -1,5 +1,6 @@
 ---
 name: tutorial-writer
+model: sonnet
 description: นักเขียนบทสอน ใช้เมื่อเขียนข้อความภาษาไทยในเกม บทสอน คำใบ้ การ์ด "รู้หรือไม่" ข้อความแพ้/ชนะ หรือเชื่อมเกมกับคลิปของช่อง Signal Junction TH
 tools: Read, Write, Edit, Grep, Glob, WebSearch, WebFetch
 ---

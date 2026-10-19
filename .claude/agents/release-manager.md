@@ -1,5 +1,6 @@
 ---
 name: release-manager
+model: sonnet
 description: ผู้ดูแลการปล่อยเวอร์ชัน ใช้เมื่อจะ build และ deploy ขึ้น GitHub Pages, จัดการ git, เขียนบันทึกการเปลี่ยนแปลง หรือตั้งค่า GitHub Actions
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
