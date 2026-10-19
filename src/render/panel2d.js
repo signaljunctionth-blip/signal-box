@@ -204,16 +204,14 @@ export function createPanel(cv, styleEl = document.documentElement) {
     else { const d = (blk.dir === 'in') === p.east ? -1 : 1; cx.fillStyle = C.red; cx.beginPath(); cx.moveTo(mx + d * 6, my); cx.lineTo(mx - d * 5, my - 6); cx.lineTo(mx - d * 5, my + 6); cx.closePath(); cx.fill(); }
     cx.fillStyle = hot && blink ? C.onAmber : C.ink; cx.font = font(13); txt(p.label, tb.x + 28, my + 0.5, 'left');
     portalBoxes.push(tb);
-    if (hot) bubbles.push([hn.text, tb.x + tb.w / 2, my + (my >= p.ty ? -1 : 1) * 36]);
+    if (hot) bubbles.push([hn.text, b.tokenTip.x, b.tokenTip.y]);
     if (blk.ask !== null) {
       const ab = b.accept, on = hn && hn.kind === 'accept' && hn.k === k;
       cx.fillStyle = blink || !on ? C.amber : C.paper; rr(ab.x, ab.y, ab.w, ab.h, ab.h / 2); cx.fill();
       cx.strokeStyle = C.ink; cx.lineWidth = 1.8; cx.stroke();
       cx.fillStyle = blink || !on ? C.onAmber : C.ink; cx.font = font(13, 600); txt(`ให้ทาง ${blk.ask}`, ab.x + ab.w / 2, ab.y + ab.h / 2 + 0.5);
       portalBoxes.push(ab);
-      const ay = ab.y + ab.h / 2;
-      const away = ab.y > tb.y + 4 ? 1 : ab.y < tb.y - 4 ? -1 : ay >= p.ty ? -1 : 1; // ไม่ให้ข้อความคำใบ้บังป้ายขา
-      if (on) bubbles.push([hn.text, ab.x + ab.w / 2, ay + away * 36]);
+      if (on) bubbles.push([hn.text, b.acceptTip.x, b.acceptTip.y]); // จุดที่ไม่บังเสา ประแจ และป้ายขา (panel-geom)
     }
   }
   function ring(x, y, r) { cx.strokeStyle = C.amber; cx.lineWidth = 3.5; cx.beginPath(); cx.arc(x, y, r, 0, 7); cx.stroke(); }

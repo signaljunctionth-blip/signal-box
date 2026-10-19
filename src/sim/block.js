@@ -129,7 +129,7 @@ export function acceptToken(g, k) {
   const b = g.block[k], side = b ? g.L.portals[k].label : '';
   if (!b || !tokenMode(g) || b.ask === null) return msg(g, T.tokenNoAsk(), '', 'NO_ASK');
   const s = blockState(g, k);
-  if (s.state !== 'free') return msg(g, s.state === 'permit' ? T.acceptTokenHere(side) : s.dir === 'in' ? T.tokenBusyIn(side) : T.tokenBusyOut(side), 'bad', 'BLOCK_NOT_FREE');
+  if (s.state !== 'free') return msg(g, s.state === 'permit' ? T.acceptTokenHere(side) : s.dir === 'in' ? T.acceptBusyIn(side) : T.acceptBusyOut(side), 'bad', 'BLOCK_NOT_FREE');
   const idx = b.ask;
   b.ask = null; b.in = idx; b.inAt = g.time + b.runTime;
   msg(g, T.tokenAccepted(idx + 1, side), 'good');
