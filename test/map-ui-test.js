@@ -69,13 +69,13 @@ async function pure() {
   give(['wp-1', 'wp-token', 'wp-2', 'wp-3', 'nt-1', 'nt-2'], 1); p = prog();   // ผ่านครบ 10 ภารกิจ แต่มีแค่ 10 ดาว: กาญจนบุรีต้อง 12
   assert.strictEqual(p.totalStars, 10); assert.strictEqual(p.lineSelectOpen, true);
   assert.deepStrictEqual(p.stations.map(s => s.state), ['done', 'done', 'done', 'locked', 'locked']);
-  assert.deepStrictEqual(p.byId.kanchanaburi.lock, { prevStation: 'nam-tok', prevRemaining: 0, needStars: 12, haveStars: 10, missingStars: 2 });
+  assert.deepStrictEqual(p.byId.kanchanaburi.lock, { prevStation: 'nam-tok', prevRemaining: 0, needStars: 15, haveStars: 10, missingStars: 5 });
   assert.strictEqual(p.next, null); assert.strictEqual(P.improvable(p).length, 3);
-  give(['tk-1'], 3); p = prog();                                    // 12 ดาวพอดี
-  assert.strictEqual(p.totalStars, 12); assert.strictEqual(p.byId.kanchanaburi.state, 'open');
-  give(['kb-1', 'kb-2', 'kb-3'], 2); p = prog();                    // 18 ดาว: หนองปลาดุกต้อง 20
-  assert.strictEqual(p.byId['nong-pla-duk-jn'].lock.missingStars, 2);
-  give(['kb-1'], 3); give(['tk-3'], 2); p = prog();                 // 20 ดาว
+  give(['tk-1', 'tk-2'], 3); give(['tk-token'], 2); p = prog();     // 15 ดาวพอดี
+  assert.strictEqual(p.totalStars, 15); assert.strictEqual(p.byId.kanchanaburi.state, 'open');
+  give(['kb-1', 'kb-2', 'kb-3'], 2); p = prog();                    // 21 ดาว: หนองปลาดุกต้อง 24
+  assert.strictEqual(p.byId['nong-pla-duk-jn'].lock.missingStars, 3);
+  give(['kb-1'], 3); give(['tk-3'], 3); p = prog();                 // 24 ดาว
   assert.strictEqual(p.byId['nong-pla-duk-jn'].state, 'open');
   assert.deepStrictEqual(p.next, { stationId: 'nong-pla-duk-jn', missionId: 'np-1' });
   // เซฟเก่าก่อนมีภารกิจห่วง (ไม่มีดาว tk-token / wp-token): ที่เคยเล่นแล้วต้องเปิดค้าง ไม่ถูกล็อกย้อนหลัง
@@ -290,7 +290,7 @@ async function browser() {
       pos = await at('kanchanaburi');
       if (await p.evaluate(({ x, y }) => { const el = document.elementFromPoint(x, y); return !!(el && el.closest('.mk[data-id="kanchanaburi"]')); }, pos)) await tap(pos.x, pos.y); else await p.evaluate(() => window.__sjApp.router.replace({ screen: 'map', stationId: 'kanchanaburi' }));
       await settle();
-      check((await p.textContent('.sheet')).includes('ต้องมีดาวสะสม 12 ดวง ตอนนี้มี 11 ขาดอีก 1'), `${tag}: ไม่บอกจำนวนดาวที่ขาด`);
+      check((await p.textContent('.sheet')).includes('ต้องมีดาวสะสม 15 ดวง ตอนนี้มี 11 ขาดอีก 4'), `${tag}: ไม่บอกจำนวนดาวที่ขาด`);
       await audit('แผ่นข้อมูลดาวไม่พอ');
       if (full) await shot('stars-needed');
 
