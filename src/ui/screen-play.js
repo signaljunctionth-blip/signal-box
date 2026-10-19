@@ -68,6 +68,7 @@ export function runWord(L, sp) {
   return (L.portals[sp.from].side === 'W' ? 'E' : 'W') === L.upDir ? 'เที่ยวขึ้น' : 'เที่ยวล่อง';
 }
 
+// ภารกิจห่วงทางสะดวกยังไม่มีปุ่มขอห่วง/ให้ทางในฉาก 3 มิติ จึงเล่นในแผงผังเส้นเท่านั้น (ไม่แสดงปุ่ม 3 มิติ)
 export function mountPlay(host, params, ctx) {
   const G0 = ctx.game, lv0 = G0 && G0.pack.levels[G0.index];
   if (!lv0 || lv0.error) return mountPlayPlaceholder(host, params, { ...ctx, reason: lv0 && lv0.error && ctx.dev ? lv0.error : '' });
@@ -79,7 +80,7 @@ export function mountPlay(host, params, ctx) {
         <button class="btn sm" type="button" data-act="menu">พัก</button>
         <div class="pl-ttl"><b></b><span></span><p class="pl-msg hide" role="status" aria-live="polite"></p></div>
         <dl class="pl-stats"><div><dt>คะแนน</dt><dd id="pl-score">0</dd></div><div><dt>ส่งแล้ว</dt><dd id="pl-done">0/0</dd></div></dl>
-        ${has3D(params.stationId) ? '<button class="btn sm pl-view" type="button" data-act="view" aria-label="สลับเป็นฉาก 3 มิติ">3 มิติ</button>' : ''}
+        ${has3D(params.stationId) && !lv0.token ? '<button class="btn sm pl-view" type="button" data-act="view" aria-label="สลับเป็นฉาก 3 มิติ">3 มิติ</button>' : ''}
         <button class="btn sm" type="button" data-act="fast" aria-pressed="false" aria-label="เร่งเวลา 2 เท่า">×2</button>
         ${fullscreenButton()}
       </header>
@@ -166,6 +167,7 @@ export function mountPlay(host, params, ctx) {
     <p class="pl-score">${ev.score} จาก ${ev.max} คะแนน</p>
     <p class="muted">${ev.stars < 3 ? `ได้ 3 ดาวเมื่อทำคะแนนถึง ${Math.ceil(ev.max * 0.8)} ลดเวลารอของขบวนเพื่อเก็บคะแนน` : 'เดินรถได้ลื่นมาก'}</p>
     ${news.map(t => `<p class="pl-news">${t}</p>`).join('')}
+    ${lv().card ? `<aside class="pl-know"><b>${esc(lv().card.title)}</b><p>${esc(lv().card.text)}</p><a href="${esc(lv().card.source)}" target="_blank" rel="noopener">แหล่งข้อมูล</a></aside>` : ''}
     ${r.note ? `<p class="muted">${esc(r.note)}</p>` : ''}
     ${r.saved === false ? '<p class="muted">เครื่องนี้บันทึกเกมไม่ได้ ดาวจะอยู่ถึงแค่ปิดหน้านี้</p>' : ''}
     <div class="row"><button class="btn sm" type="button" data-act="retry">เล่นซ้ำ</button><button class="btn sm${r.next ? '' : ' go'}" type="button" data-act="exit">${ctx.dev ? 'กลับ' : 'กลับแผนที่'}</button>${r.next ? '<button class="btn go" type="button" data-act="next">ภารกิจถัดไป</button>' : ''}</div>`, 'end');

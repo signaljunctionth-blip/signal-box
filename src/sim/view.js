@@ -14,7 +14,7 @@ export function trainInfo(g, t) {
   const e = g.E[t.edge], P = g.L.portals, to = t.exit ? Object.values(P).find(p => p.exit === t.exit) : null;
   return { id: t.id, plat: t.plat, role: t.plat ? g.L.roleOf[g.L.platEdge[t.plat]] || null : null, express: t.exp, state: t.state, dir: e.dir,
     track: e.track, to: to ? to.id : null, stopped: t.stopped, wait: t.wait, late: t.wait > graceOf(g, t), up: g.L.upDir ? e.dir === g.L.upDir : null,
-    head: t.trail[t.trail.length - 1], tail: t.trail[0] };
+    token: t.token || null, head: t.trail[t.trail.length - 1], tail: t.trail[0] };
 }
 
 // ภาพรวมสถานะแบบข้อมูลล้วน (JSON ได้) สำหรับบอทในเบราว์เซอร์ ตัววาด 3 มิติ และการดีบั๊ก

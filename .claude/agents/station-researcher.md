@@ -1,5 +1,6 @@
 ---
 name: station-researcher
+model: sonnet
 description: นักสำรวจสถานี ใช้เมื่อต้องหาข้อมูลสถานีรถไฟไทยจริง ดึงข้อมูลจาก OpenStreetMap ผ่าน Overpass สร้างไฟล์ data/stations/*.json หรือแผนที่ประเทศไทย และจดแหล่งอ้างอิง
 tools: Read, Write, Edit, Grep, Glob, Bash, WebSearch, WebFetch
 ---

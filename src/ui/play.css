@@ -61,6 +61,11 @@
 .pl-stars .star{width:44px;height:44px;stroke-width:1.4}
 .pl-score{font-family:var(--display);font-size:18px}
 .pl-news{font-family:var(--display);color:var(--link)}
+/* การ์ดความรู้ "รู้หรือไม่" หลังชนะ (ฟิลด์ card ของภารกิจ) */
+.pl-know{background:var(--paper);border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;margin:8px 0;text-align:left}
+.pl-know b{font-family:var(--display)}
+.pl-know p{margin:4px 0}
+.pl-know a{display:inline-flex;align-items:center;min-height:40px;color:var(--link)}
 .eyebrow.bad{color:var(--red)}
 @container (max-height:480px){
   .pl-card{max-width:760px;padding:10px 16px;gap:5px}
