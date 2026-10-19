@@ -87,3 +87,38 @@
 .dev ul{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .dev li{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
 .dev .bad{color:var(--red)}
+
+/* ฉาก 3 มิติ (src/ui/view3d.js) วางทับแผงผังเส้นในกล่องเดียวกัน ค่าแสงของฉากอ่านจากตัวแปรด้านล่าง (โหมดมืด = พลบค่ำ) */
+:root{--scene-exposure:0.96;--scene-fog:0.86;--scene-sun:1;--scene-env:1;--scene-tint:}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--scene-exposure:0.5;--scene-fog:0.5;--scene-sun:0.45;--scene-env:0.55;--scene-tint:#5b4a6e}}
+:root[data-theme="dark"]{--scene-exposure:0.5;--scene-fog:0.5;--scene-sun:0.45;--scene-env:0.55;--scene-tint:#5b4a6e}
+.pl-board canvas.v3d{display:none;cursor:grab}
+.pl-board.is3d canvas.v3d{display:block}
+.pl-board.is3d canvas.v3d:active{cursor:grabbing}
+.v3d-chips{position:absolute;inset:0;pointer-events:none;overflow:hidden;display:none}
+.pl-board.is3d .v3d-chips{display:block}
+/* ป้ายแตะ: ตัวปุ่มสูง 44 px (เป้าแตะ) ป้ายที่เห็นเล็กกว่า จุดยึดคือกึ่งกลางล่างของป้ายเหนือหัวเสา */
+.v3d-chip{position:absolute;left:0;top:0;margin:-22px 0 0 -30px;min-width:60px;height:44px;padding:0;border:0;background:none;pointer-events:auto;display:grid;place-items:center;cursor:pointer;font:inherit;color:var(--ink);-webkit-tap-highlight-color:transparent}
+.v3d-chip .pill{display:flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:999px;background:var(--paper);border:2px solid var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.25);font-family:var(--display);font-size:14px;font-weight:600;white-space:nowrap}
+.v3d-chip .pill i{width:12px;height:12px;border-radius:50%;background:var(--red);flex:none}
+.v3d-chip.go .pill i{background:var(--green)}
+.v3d-chip .pill small{font-size:12px;font-weight:500;color:var(--muted)}
+.v3d-chip .pill small:empty{display:none}
+.v3d-chip.k-point .pill{border-radius:10px}
+.v3d-chip.locked .pill{background:var(--route);color:var(--on-color)}
+.v3d-chip.locked .pill small{color:var(--on-color)}
+.v3d-chip.fixed .pill{border-style:dashed;border-color:var(--muted);color:var(--muted)}
+.v3d-chip.sel .pill{outline:3px solid var(--amber);outline-offset:2px}
+.v3d-chip.dest .pill{border-color:var(--amber);background:var(--cream);color:var(--navy)}
+.v3d-chip.hint .pill{border-color:var(--amber);box-shadow:0 0 0 4px var(--amber)}
+.v3d-chip:focus-visible .pill{outline:3px solid var(--amber);outline-offset:2px}
+.v3d-bubble{position:absolute;left:0;top:0;max-width:180px;margin:-34px 0 0 -90px;width:180px;padding:5px 10px;border-radius:10px;background:var(--amber);color:var(--on-amber);font-size:13px;line-height:1.35;text-align:center;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.v3d-bubble.below{margin-top:0}
+.v3d-home{position:absolute;right:calc(10px + var(--sa-r));bottom:10px;display:none}
+.pl-board.is3d .v3d-home:not([hidden]){display:inline-flex}
+.v3d-load{position:absolute;left:50%;top:12px;transform:translateX(-50%);padding:6px 14px;border-radius:999px;background:var(--paper);border:1.5px solid var(--line);font-size:14px;box-shadow:var(--shadow)}
+.pl-tier{align-items:center;flex-wrap:wrap}
+.pl-tier span{font-family:var(--display);font-size:14px;color:var(--muted)}
+.pl-tier .btn[aria-pressed="true"]{background:var(--cream);border-color:var(--amber);color:var(--navy)}
+@media (prefers-reduced-motion: no-preference){.v3d-chip.hint .pill{animation:v3d-pulse 1.2s ease-in-out infinite}}
+@keyframes v3d-pulse{50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--amber) 40%,transparent)}}

@@ -1,0 +1,104 @@
+// ตรวจฉาก 3 มิติในหน้าเล่น (สถานีท่ากิเลน) — ใช้: node test/view3d-ui-test.js (เปิด dist/ เอง ต้อง build ก่อน หรือตั้ง SJ_URL=http://localhost:5173/)
+// 1) dist: three.js อยู่ในก้อนแยก โหลดเฉพาะตอนเปิด 3 มิติ ก้อนนั้นไม่เกิน 1 MB และหน้าแรกไม่มีโค้ด WebGL
+// 2) 844×390 และ 390×844 (เวทีหมุน): กดปุ่ม "3 มิติ" จริง ฉากขึ้นไม่มี error ของหน้าเว็บหรือ WebGL
+//    บอทเล่น tk-1 จนชนะด้วยการ "แตะป้ายจริงบนจอ" ตามคำใบ้ ป้ายแตะกว้างและสูง >= 40 px
+//    กลับเป็นแผงผังเส้นได้ และจำค่าที่เลือก (เปิดใหม่แล้วยังเป็น 3 มิติ)
+// 3) งบการวาดที่ระดับกลาง: draw call <= 90 สามเหลี่ยม <= 180,000 (docs/ART-3D.md ข้อ 5) ระดับประหยัด <= 50 / 90,000
+// เครื่องที่ไม่มี WebGL: ฉากต้องถอยกลับแผงผังเส้นพร้อมข้อความ ไม่ใช่หน้าพัง (ข้ามข้อ 2–3 ถ้าไม่ได้ตั้ง SJ_REQUIRE_WEBGL=1)
+const fs = require('fs');
+const path = require('path');
+const { chromium } = require('playwright');
+const { serveGame } = require('./lib/serve.js');
+
+const root = path.resolve(__dirname, '..');
+const fails = [];
+const fail = m => { fails.push(m); console.error('  ✗ ' + m); };
+const check = (ok, m) => { if (!ok) fail(m); };
+
+function bundle() {
+  const dir = path.join(root, 'dist/assets');
+  if (process.env.SJ_URL || !fs.existsSync(dir)) return;
+  const js = fs.readdirSync(dir).filter(f => f.endsWith('.js'));
+  const scene = js.filter(f => /^scene3d-/.test(f));
+  check(scene.length === 1, `มีก้อน scene3d-*.js 1 ก้อน (พบ ${scene.join(', ') || 'ไม่มี'})`);
+  if (scene[0]) check(fs.statSync(path.join(dir, scene[0])).size <= 1024 * 1024, `ก้อนฉาก 3 มิติไม่เกิน 1 MB (${fs.statSync(path.join(dir, scene[0])).size} ไบต์)`);
+  for (const f of js.filter(f => !/^scene3d-/.test(f))) check(!fs.readFileSync(path.join(dir, f), 'utf8').includes('WebGLRenderer'), `${f}: มี three.js ปนในก้อนอื่น (ต้องโหลดเฉพาะตอนเปิด 3 มิติ)`);
+}
+
+async function run(b, game, vp) {
+  const ctx = await b.newContext({ viewport: { width: vp.w, height: vp.h }, hasTouch: true, isMobile: false, deviceScaleFactor: 1 });
+  const p = await ctx.newPage(), errs = [];
+  p.on('pageerror', e => errs.push('page error: ' + e.message));
+  p.on('console', m => { if (m.type() === 'error' || /GL_INVALID|WebGL:/.test(m.text())) errs.push(m.text().slice(0, 200)); });
+  const tag = `${vp.w}×${vp.h}`;
+  await p.goto(game.url + '#dev/namtok/tk-1', { waitUntil: 'load' });
+  await p.waitForFunction(() => window.__sjApp && window.__sjApp.play && window.__sjApp.play.view3d);
+  const btn = p.locator('.pl-bar [data-act="view"]');
+  check(await btn.isVisible(), `${tag}: ไม่มีปุ่ม 3 มิติที่ท่ากิเลน`);
+  const bb = await btn.boundingBox(); check(bb && Math.min(bb.width, bb.height) >= 40 - 0.5, `${tag}: ปุ่ม 3 มิติเล็กกว่า 40 px ${JSON.stringify(bb)}`);
+  await btn.tap();
+  const ok = await p.waitForFunction(() => { const v = window.__sjApp.play.view3d, s = v.stats(); return v.active && s && s.calls > 0 ? 'ok' : document.querySelector('.pl-bar [data-act="view"]').hidden ? 'nowebgl' : false; }, null, { timeout: 60000 }).then(h => h.jsonValue()).catch(() => 'timeout');
+  if (ok !== 'ok') {
+    const msg = await p.evaluate(() => document.querySelector('.pl-msg').textContent);
+    if (ok === 'nowebgl' && !process.env.SJ_REQUIRE_WEBGL) { console.log(`  - ${tag}: เครื่องนี้ไม่มี WebGL ถอยกลับแผงผังเส้นแล้ว (${msg}) ข้ามข้อ 2–3`); await ctx.close(); return; }
+    fail(`${tag}: เปิดฉาก 3 มิติไม่ได้ (${ok}) ${msg}`); await ctx.close(); return;
+  }
+  check(await p.evaluate(() => getComputedStyle(document.querySelector('canvas.v3d')).display !== 'none'), `${tag}: canvas 3 มิติไม่แสดง`);
+
+  // บอทแตะป้ายจริงตามคำใบ้จนจบภารกิจ (เวลาเดินเฉพาะตอนบอทสั่ง)
+  await p.evaluate(() => { const a = window.__sjApp.play; a.start(); a.setManual(true); });
+  let taps = 0, small = 0, missed = 0;
+  for (let i = 0; i < 600; i++) {
+    const st = await p.evaluate(() => { const a = window.__sjApp.play; return { state: a.g.state, t: a.nextTarget() }; });
+    if (st.state !== 'play') break;
+    if (st.t) {
+      await p.evaluate(() => window.__sjApp.play.view3d.touch());
+      await p.waitForTimeout(60);
+      const c = await p.evaluate(t => window.__sjApp.play.view3d.targetClient(t), st.t);
+      if (!c) { missed++; await p.evaluate(t => window.__sjApp.play.press(t), st.t); }
+      else {
+        if (Math.min(c.w, c.h) < 40 - 0.5) small++;
+        const before = await p.evaluate(() => JSON.stringify(window.__sjApp.play.snapshot()));
+        await p.touchscreen.tap(c.x, c.y); taps++;
+        const after = await p.evaluate(() => JSON.stringify(window.__sjApp.play.snapshot()));
+        if (before === after) { missed++; await p.evaluate(t => window.__sjApp.play.press(t), st.t); }
+      }
+    }
+    await p.evaluate(() => window.__sjApp.play.step(1));
+  }
+  const end = await p.evaluate(() => window.__sjApp.play.g.state);
+  check(end === 'win', `${tag}: บอทเล่น tk-1 ใน 3 มิติไม่ชนะ (สถานะ ${end})`);
+  check(taps >= 4 && missed === 0, `${tag}: แตะป้ายจริง ${taps} ครั้ง พลาด ${missed} ครั้ง`);
+  check(small === 0, `${tag}: ป้ายแตะเล็กกว่า 40 px ${small} ครั้ง`);
+
+  // งบการวาด (ระดับกลาง และประหยัด) — วัดหลังวาดใหม่
+  for (const [tier, calls, tris] of [['mid', 90, 180000], ['low', 50, 90000]]) {
+    const s = await p.evaluate(async t => { const v = window.__sjApp.play.view3d; v.setTier(t); v.touch(); await new Promise(r => setTimeout(r, 400)); v.touch(); await new Promise(r => setTimeout(r, 400)); return v.stats(); }, tier);
+    check(s.calls <= calls && s.tris <= tris, `${tag}: งบระดับ ${tier} เกิน ${JSON.stringify(s)} (ต้อง <= ${calls} draw call, ${tris} สามเหลี่ยม)`);
+  }
+
+  // กลับเป็นแผงผังเส้น แล้วเปิดหน้าใหม่ต้องจำค่าที่เลือก
+  await p.locator('.pl-ov [data-act="exit"], .pl-ov [data-act="retry"]').first().waitFor({ timeout: 5000 }).catch(() => {});
+  await p.evaluate(() => window.__sjApp.play.restart());
+  await btn.tap();
+  await p.waitForFunction(() => !window.__sjApp.play.view3d.active);
+  check(await p.evaluate(() => getComputedStyle(document.querySelector('canvas.v3d')).display === 'none' && (document.querySelector('.pl-bar [data-act="view"]').textContent.trim() === '3 มิติ')), `${tag}: กลับเป็นแผงผังเส้นไม่ได้`);
+  await btn.tap();
+  await p.waitForFunction(() => window.__sjApp.play.view3d.active);
+  await p.reload({ waitUntil: 'load' });
+  const again = await p.waitForFunction(() => window.__sjApp && window.__sjApp.play && window.__sjApp.play.view3d && window.__sjApp.play.view3d.active, null, { timeout: 60000 }).then(() => true).catch(() => false);
+  check(again, `${tag}: เปิดหน้าใหม่แล้วไม่จำว่าเลือก 3 มิติไว้`);
+  check(!errs.length, `${tag}: มี error ${errs.slice(0, 3).join(' | ')}`);
+  console.log(`  - ${tag}: แตะป้ายจริง ${taps} ครั้ง จบภารกิจ ${end}`);
+  await ctx.close();
+}
+
+(async () => {
+  bundle();
+  const game = await serveGame(), b = await chromium.launch();
+  try {
+    for (const vp of [{ w: 844, h: 390 }, { w: 390, h: 844 }]) await run(b, game, vp);
+  } finally { await b.close(); game.close(); }
+  console.log(fails.length ? `\nไม่ผ่าน ${fails.length} ข้อ` : 'ฉาก 3 มิติในหน้าเล่น: ผ่าน');
+  process.exit(fails.length ? 1 : 0);
+})().catch(e => { console.error(e); process.exit(1); });
