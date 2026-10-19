@@ -91,17 +91,19 @@ export function panelGeom(L) {
     const p = L.portals[k], t = tracks[p.track], east = p.side === 'E';
     const edgeX = east ? W : 0, pt = t.vis ? (east ? t.vis[t.vis.length - 1] : t.vis[0]) : [edgeX, t.pts[0][1]];
     // ลองวางป้าย 3 ที่ (ฝั่งตรงข้ามเสาเข้า อีกฝั่ง บนแนวราง) เลือกที่ทับเสาและป้ายขาอื่นน้อยที่สุด
+    // ทับปุ่มประแจ (เป้าแตะ) แย่กว่าทับป้ายอื่น 4 เท่า และวางบนแนวรางพอดีถือว่าทับราง (ขบวนจะวิ่งทับป้าย) ใช้เมื่อไม่มีที่อื่นจริง ๆ
     const home = sigList.find(s => s.track === p.track && s.type !== 'starter') || sigList.find(s => s.track === p.track);
-    const label = p.label || k, lw = textWidth(label) + 34, first = home ? -home.side : 1, x0 = east ? W - 8 - lw : 8;
+    const label = p.label || k, lw = textWidth(label) + 38, first = home ? -home.side : 1, x0 = east ? W - 8 - lw : 8;
     const overlap = y => {
       let n = 0; const box = (bx, by, bw, bh) => Math.max(0, Math.min(x0 + lw, bx + bw) - Math.max(x0, bx)) * Math.max(0, Math.min(y + 14, by + bh) - Math.max(y - 14, by));
       for (const s of sigList) for (const b of s.boxes) n += box(b.x, b.y, b.w, b.h);
-      for (const q of Object.values(points)) n += box(q.kx - 18, q.ky - 18, 36, 36);
+      for (const q of Object.values(points)) n += box(q.kx - 20, q.ky - 20, 40, 40) * 4;
+      if (Math.abs(y - pt[1]) < 1) n += lw * 14;
       for (const o of Object.values(portals)) if (o.side === p.side) n += box(o.east ? W - 8 - o.lw : 8, o.y - 16, o.lw, 32) * 4;
       return n;
     };
     let y = pt[1] + first * 30, score = overlap(y);
-    for (const c of [pt[1] - first * 30, pt[1] + first * 58, pt[1] - first * 58, pt[1]]) { const sc = overlap(c); if (sc < score - 1) { y = c; score = sc; } }
+    for (const c of [pt[1] - first * 30, pt[1] + first * 58, pt[1] - first * 58, pt[1] + first * 84, pt[1] - first * 84, pt[1]]) { const sc = overlap(c); if (sc < score - 1) { y = c; score = sc; } }
     portals[k] = { id: k, label, lw, side: p.side, east, x: east ? W - 10 : 10, y, ty: pt[1], align: east ? 'right' : 'left', in: p.in, out: p.out };
   }
 
@@ -113,7 +115,9 @@ export function panelGeom(L) {
   let y0 = Infinity, y1 = -Infinity;
   for (const k in tracks) if (tracks[k].vis) for (const p of tracks[k].vis) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
   if (!Number.isFinite(y0)) { y0 = 0; y1 = H; }
-  const view = { x0: 0, x1: W, y0: y0 - MARGIN, y1: y1 + MARGIN };
+  // ป้ายขาที่ต้องหลบไปไกลจากราง: ขยายกรอบให้ป้ายไม่หลุดขอบแผง
+  const pys = Object.values(portals).map(p => p.y);
+  const view = { x0: 0, x1: W, y0: Math.min(y0 - MARGIN, ...pys.map(y => y - 20)), y1: Math.max(y1 + MARGIN, ...pys.map(y => y + 20)) };
 
   const G = { W, H, tracks, signals, points, plats, portals, buffers, view };
   cache.set(L, G);
