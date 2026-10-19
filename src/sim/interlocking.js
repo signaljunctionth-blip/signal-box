@@ -192,7 +192,9 @@ function tokenBlock(g, k, plan = false) {
 // มีขบวนกำลังเข้าใกล้เสา id ไหม (approach locking): ขบวนอยู่บนรางหน้าเสา หรือรางก่อนหน้านั้น หรือกำลังมาในตอนทางเดี่ยวสู่เสาเข้านี้
 function approaching(g, id) {
   const e = g.S[id].edge;
-  if (g.trains.some(t => t.edge === e || g.E[t.edge].next === e)) return true;
+  // รางก่อนหน้าที่จบที่ประแจ: นับว่าเข้าใกล้ถ้าขาใดขาหนึ่งของประแจพามาที่รางนี้ (ระวังไว้ก่อน)
+  const leads = n => !!n && (typeof n === 'string' ? n === e : n.pt ? n.N === e || n.R === e : n.to === e);
+  if (g.trains.some(t => t.edge === e || leads(g.E[t.edge].next))) return true;
   for (const k in g.block) if (g.L.portals[k].entry === e && g.block[k].in !== null) return true;
   return false;
 }

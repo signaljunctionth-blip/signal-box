@@ -119,6 +119,46 @@ function game(levels, i = 0) {
   ok(!sim.press(g2.g, { kind: 'signal', id: 'T1' }) && g2.last().code === 'TOKEN_NEEDED' && /คนขับ/.test(g2.last().text), 'ไม่มีห่วง: คนขับไม่ออก');
 }
 
+// ---------- ช่องที่ signalling-engineer พบ (WP4 รอบตรวจ 1) ----------
+const ORIGIN_E = [{ at: 0, origin: 'loop1', to: 'E', dwell: 0.5 }, { at: 12, from: 'E', to: 'W', track: 'main' }];
+for (const era of [1, 2]) { // หัวขบวนผ่านเสาออกแล้วแต่ยังไม่ถึงขาออก: คืนห่วงไม่ได้ ตอนเป็น occupied(out) แล้ว (ข้อ 4.2)
+  const { g, last } = game([level(era, { trains: ORIGIN_E })]);
+  run(g, 1);
+  ok(sim.setRoute(g, 'T1', g.L.routes.T1.find(r => r.exit)) || (sim.press(g, { kind: 'token', id: 'E' }) && sim.setRoute(g, 'T1', g.L.routes.T1.find(r => r.exit))), `ยุค ${era}: เปิด T1 ด้วยห่วง`);
+  ok(until(g, () => g.trains[0] && g.trains[0].edge !== 'k1' && !g.E[g.trains[0].edge].exit, 10), `ยุค ${era}: หัวขบวนผ่าน T1 อยู่ในคอสถานี`, g.trains[0] && g.trains[0].edge);
+  ok(g.trains[0].token === 'E' && sim.blockState(g, 'E').state === 'occupied', `ยุค ${era}: ผ่านเสาออกแล้วห่วงอยู่กับขบวน ตอนไม่ว่าง`, JSON.stringify(sim.blockState(g, 'E')));
+  ok(!sim.press(g, { kind: 'token', id: 'E' }) && last().code === 'BLOCK_NOT_FREE', `ยุค ${era}: คืนห่วงที่คนขับรับไปแล้วไม่ได้`);
+  run(g, 20);
+  ok(g.state === 'play' || g.state === 'win', `ยุค ${era}: ไม่เกิดเหตุ`, g.result && g.result.code);
+}
+{ // ยุคไม่มีอินเตอร์ล็อก: เปิดเสาก่อนแล้วค่อยสับประแจไปขาออก ขบวนไม่มีห่วงต้องหยุดที่เสา
+  const { g } = game([level(0, { trains: ORIGIN_E })]);
+  run(g, 1);
+  ok(sim.press(g, { kind: 'signal', id: 'T1' }), 'ยุค 0: เปิด T1 ตอนประแจยังไม่พาไปขาออก');
+  until(g, () => sim.blockState(g, 'E').ask === 2, 15); sim.press(g, { kind: 'accept', id: 'E' });
+  sim.press(g, { kind: 'point', id: 'P2' });
+  run(g, 25);
+  ok(g.state === 'play' && g.trains.some(t => t.id === 1 && t.edge === 'k1' && t.stopped), 'ยุค 0: ขบวนไม่มีห่วงหยุดรอที่ T1 ไม่ชน', `${g.state} ${g.result && g.result.code}`);
+}
+{ // ยุคไม่มีอินเตอร์ล็อก: สับประแจออกจากขาออกเพื่อคืนห่วง แล้วสับกลับ ขบวนต้องไม่ออกโดยไม่มีห่วง
+  const { g, ev } = game([level(0, { trains: ORIGIN_E })]);
+  run(g, 1);
+  sim.press(g, { kind: 'token', id: 'E' }); sim.press(g, { kind: 'point', id: 'P2' }); sim.press(g, { kind: 'signal', id: 'T1' });
+  sim.press(g, { kind: 'point', id: 'P2' }); sim.press(g, { kind: 'token', id: 'E' }); sim.press(g, { kind: 'point', id: 'P2' });
+  until(g, () => sim.blockState(g, 'E').ask === 2, 15); sim.press(g, { kind: 'accept', id: 'E' });
+  run(g, 25);
+  ok(g.state === 'play' && g.trains.some(t => t.id === 1 && t.edge === 'k1'), 'ยุค 0: คืนห่วงแล้ว ขบวนหยุดที่ T1 ไม่ชนในตอน', `${g.state} ${g.result && g.result.code}`);
+  ok(ev.some(e => e.type === 'msg' && e.code === 'TOKEN_NEEDED' && /คนขับ/.test(e.text)), 'ยุค 0: บอกผู้เล่นว่าคนขับไม่ออกเพราะไม่มีห่วง');
+}
+{ // T12 แบบมีห่วง: ระหว่างนับ runTime ขาออก สถานีข้างเคียงยังขอทางไม่ได้
+  const { g } = game([level(1, { trains: [{ at: 0, origin: 'loop1', to: 'E', dwell: 0.5 }, { at: 16, from: 'E', to: 'W', track: 'main' }] })]);
+  run(g, 1); sim.press(g, { kind: 'token', id: 'E' }); sim.setRoute(g, 'T1', g.L.routes.T1.find(r => r.exit));
+  until(g, () => g.trains.length === 0 || g.trains.every(t => t.id !== 1), 20);
+  let asked = false; for (let t = 0; t < 7; t += sim.FIXED_DT) { sim.step(g, sim.FIXED_DT); if (sim.blockState(g, 'E').ask !== null) asked = true; }
+  ok(!asked && sim.blockState(g, 'E').state === 'occupied', 'T12 มีห่วง: ห่วงยังไปไม่ถึงสถานีข้างหน้า ยังขอทางไม่ได้');
+  ok(until(g, () => sim.blockState(g, 'E').ask === 2, 5), 'T12 มีห่วง: ห่วงถึงแล้ว สถานีข้างเคียงขอทางส่งขบวน 2');
+}
+
 // ---------- บอทตามคำใบ้เล่นด่านหลีกขบวนแบบมีห่วงผ่านทุกยุค ----------
 {
   const levels = [0, 1, 2, 3].map(e => level(e, { id: `cross-${e}` }));

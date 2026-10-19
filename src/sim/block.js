@@ -57,6 +57,14 @@ export function askPermit(g, k, idx) {
   msg(g, T.tokenAsk(idx + 1, g.L.portals[k].label));
 }
 
+// ด่านที่มีห่วง: หัวขบวน t ผ่านเสาที่พาออกไปขา k คนขับรับห่วงไป (ผู้เล่นคืนห่วงไม่ได้อีก) ตอนเป็น occupied(out)
+export function takeToken(g, k, t) {
+  const b = g.block[k];
+  if (!b || b.permit !== TOKEN) return;
+  b.permit = null; t.token = k; t.noToken = null;
+  if (!b.out.includes(t)) b.out.push(t);
+}
+
 // หัวขบวนเข้ารางของขา k ในทิศออก = เข้าตอน
 export function blockEnter(g, k, t) {
   const b = g.block[k];

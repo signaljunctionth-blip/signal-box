@@ -90,8 +90,8 @@ export const T = {
   hintToken: () => 'แตะขอห่วง',
   hintAccept: () => 'แตะให้ทาง',
   // approach locking (ยุคไฟสี/คอมพิวเตอร์) SIGNALLING-RULES 2.10
-  approachLocked: (sig, sec) => `ยกเลิก ${sig} แล้ว แต่มีขบวนเข้าใกล้ ประแจและเส้นทางยังล็อกอีก ${sec} วินาที`,
+  approachLocked: (sig, sec) => `ยกเลิก ${sig} แล้ว แต่มีขบวนเข้าใกล้ ประแจและเส้นทางยังล็อกอีก ${sec} วินาที (ในเกมนี้)`,
   approachReleased: sig => `ทางของ ${sig} คืนแล้ว`,
   approachLockedRoute: sig => `ไม่ให้สัญญาณ: ทางของ ${sig} เพิ่งยกเลิก ยังล็อกรอขบวนที่เข้าใกล้`,
-  pointApproachLocked: (k, sec) => `ประแจ ${k} ยังล็อก มีขบวนเข้าใกล้เสาที่เพิ่งยกเลิก รออีก ${sec} วินาที`,
+  pointApproachLocked: (k, sec) => `ประแจ ${k} ยังล็อก มีขบวนเข้าใกล้เสาที่เพิ่งยกเลิก รออีก ${sec} วินาที (ในเกมนี้)`,
 };
