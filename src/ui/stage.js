@@ -60,12 +60,40 @@ export function createStage(el, win = window) {
 }
 
 // เต็มจอ: พยายามล็อกแนวนอนด้วย ถูกปฏิเสธก็ไม่เป็นไร (เวทีหมุนเองอยู่แล้ว) คืน true ถ้าเข้าเต็มจอได้
-export const canFullscreen = (doc = document) => !!(doc.fullscreenEnabled && doc.documentElement.requestFullscreen);
+// รองรับชื่อแบบ webkit ของ Safari บน iPad รุ่นเก่า; iPhone Safari ไม่มี API นี้ ปุ่มจึงถูกซ่อน
+const fsEl = doc => doc.fullscreenElement || doc.webkitFullscreenElement || null;
+export const isFullscreen = (doc = document) => !!fsEl(doc);
+export const canFullscreen = (doc = document) => {
+  const el = doc.documentElement;
+  return !!((doc.fullscreenEnabled && el.requestFullscreen) || (doc.webkitFullscreenEnabled && el.webkitRequestFullscreen));
+};
 export async function toggleFullscreen(doc = document) {
+  const el = doc.documentElement;
   try {
-    if (doc.fullscreenElement) { await doc.exitFullscreen(); return false; }
-    await doc.documentElement.requestFullscreen({ navigationUI: 'hide' });
+    if (fsEl(doc)) { await (doc.exitFullscreen ? doc.exitFullscreen() : doc.webkitExitFullscreen()); return false; }
+    if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' }); else el.webkitRequestFullscreen();
   } catch { return false; }
   try { await globalThis.screen.orientation.lock('landscape'); } catch { /* เบราว์เซอร์ไม่ยอมล็อก ใช้การหมุนเวทีแทน */ }
   return true;
+}
+
+// ปุ่มเต็มจอแบบไอคอน (ใช้ทุกหน้าจอ) ไอคอนและชื่อปุ่มสลับตามสถานะผ่านคลาส .is-fs ของ <html> ที่ watchFullscreen ตั้งให้
+export const FULL_ICON = '<svg class="ic-fs-in" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>'
+  + '<svg class="ic-fs-out" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg>';
+export const fullscreenButton = (cls = 'iconbtn') => {
+  if (!canFullscreen()) return '';
+  const on = isFullscreen();
+  return `<button class="${cls} fs-btn" type="button" data-act="full" aria-label="${on ? 'ออกจากเต็มจอ' : 'เต็มจอ'}" aria-pressed="${on}">${FULL_ICON}</button>`;
+};
+// ติดตามสถานะเต็มจอ (รวมกด Esc หรือปัดออกเอง): ตั้งคลาสที่ราก และชื่อปุ่มทุกปุ่ม [data-act="full"]
+export function watchFullscreen(doc = document) {
+  const sync = () => {
+    const on = isFullscreen(doc);
+    doc.documentElement.classList.toggle('is-fs', on);
+    for (const b of doc.querySelectorAll('[data-act="full"]')) { b.setAttribute('aria-label', on ? 'ออกจากเต็มจอ' : 'เต็มจอ'); b.setAttribute('aria-pressed', String(on)); }
+  };
+  doc.addEventListener('fullscreenchange', sync);
+  doc.addEventListener('webkitfullscreenchange', sync);
+  sync();
+  return sync;
 }

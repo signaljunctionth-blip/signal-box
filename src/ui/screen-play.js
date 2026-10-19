@@ -16,12 +16,15 @@
 import { FIXED_DT, createGame, startGame, step, press, hint, nextTarget, snapshot } from '../sim/index.js';
 import { createPanel } from '../render/panel2d.js';
 import { hitTest, targetCenter, panelGeom, minTargetGap } from '../render/panel-geom.js';
-import { esc, starIcon, TIER_NAME, NOTE_LAYOUT, NOTE_SIGNALLING, NOTE_UNOFFICIAL, NOTE_NOT_PROCEDURE } from './station-sheet.js';
+import { esc, starIcon, NOTE_LAYOUT, NOTE_SIGNALLING, NOTE_UNOFFICIAL, NOTE_NOT_PROCEDURE } from './station-sheet.js';
+import { fullscreenButton } from './stage.js';
 import { has3D, mountView3D, pref3D, savePref3D, tierButtons } from './view3d.js';
 import './play.css';
 
 export const NOTE_SIGNAL_NAMES = 'ชื่อเสาในเกมนี้เกมตั้งเอง ไม่ใช่ชื่อจริงของสถานี เลขทางและตารางเดินรถเป็นของสมมุติ';
 const NOTE_FICTIONAL = 'ผังสมมุติที่ทีมวาดเอง ไม่ได้อ้างอิงสถานีจริง';
+// เครดิตข้อมูลผังรางของสถานีจริง (ODbL ต้องให้เครดิตใกล้จุดที่ใช้ข้อมูล) ผังสมมุติไม่ขึ้น
+export const OSM_CREDIT = { text: '© ผู้ร่วมพัฒนา OpenStreetMap', url: 'https://www.openstreetmap.org/copyright' };
 // หัวข้อสาเหตุเมื่อแพ้ ตาม code ของ event fail
 const STALL_AGAIN = 30; // วินาที (เวลาในเกม) หลังกด "เล่นต่อ" ที่แถบช่วยเหลือจะกลับมาถ้ายังไม่มีอะไรขยับ
 const FAIL_TH = { HEAD_ON: 'ชนประสานงา', REAR_END: 'ชนท้าย', SIDE: 'ชนสีข้างที่ประแจ', HEAD_ON_BLOCK: 'ปล่อยรถเข้าตอนที่มีขบวนสวนมา', RUN_THROUGH: 'รถฝ่าประแจ', DERAIL_UNDER: 'สับประแจขณะรถทับอยู่', DEADLOCK: 'ทางตัน ไม่มีทางไหนตั้งได้', MAX_WAIT: 'ขบวนรอนานเกินกำหนด' };
@@ -78,6 +81,7 @@ export function mountPlay(host, params, ctx) {
         <dl class="pl-stats"><div><dt>คะแนน</dt><dd id="pl-score">0</dd></div><div><dt>ส่งแล้ว</dt><dd id="pl-done">0/0</dd></div></dl>
         ${has3D(params.stationId) ? '<button class="btn sm pl-view" type="button" data-act="view" aria-label="สลับเป็นฉาก 3 มิติ">3 มิติ</button>' : ''}
         <button class="btn sm" type="button" data-act="fast" aria-pressed="false" aria-label="เร่งเวลา 2 เท่า">×2</button>
+        ${fullscreenButton()}
       </header>
       <div class="pl-board">
         <canvas tabindex="-1" aria-label="แผงควบคุมสถานี แตะเสา ประแจ หรือทางจอดเพื่อสั่งการ"></canvas>
@@ -121,8 +125,10 @@ export function mountPlay(host, params, ctx) {
   // ข้อความปฏิเสธและข้อจำกัดของข้อมูล: 4 ข้อแรกเป็นค่าคงที่ ขึ้นทุกภารกิจไม่ว่าเข้ามาทางไหน (รวมลิงก์ตรง) ไม่พึ่งข้อความในไฟล์ชุดด่าน
   // ครอบคลุม: ไม่ใช่ผลงานทางการ, ไม่ใช่ขั้นตอนปฏิบัติงานจริง, ผังจำลองจากข้อมูลสาธารณะ, ระบบสัญญาณสมมุติ, ชื่อเสา/เลขทาง/ตารางเดินรถเกมตั้งเอง
   // ตามด้วยหมายเหตุผังย่อของสถานี (stations[].note_th) ส่วน signalling_note_th ของชุดภารกิจจริงพูดเรื่องเดียวกับ 4 ข้อนี้จึงไม่ขึ้นซ้ำ (ชุดด่านอื่นใน #dev ยังขึ้น)
-  const notes = () => `<ul class="notes">${[`${NOTE_UNOFFICIAL} ${NOTE_NOT_PROCEDURE}`, L().fictional ? NOTE_FICTIONAL : NOTE_LAYOUT, NOTE_SIGNALLING, NOTE_SIGNAL_NAMES].concat(ctx.stationNote || [], ctx.dev && pack.note ? pack.note : []).map(t => `<li>${esc(t)}</li>`).join('')}</ul>`;
-  const eyebrow = () => `${esc(ctx.station && ctx.station.name_th ? `สถานี${ctx.station.name_th}` : L().name)}${ctx.station && ctx.station.tier ? ` · ขั้น ${ctx.station.tier} ${esc(TIER_NAME[ctx.station.tier] || '')}` : ''} · ${esc(g.era.name)}`;
+  const osm = () => (L().fictional === false ? `<li class="osm">ข้อมูลผังราง <a href="${OSM_CREDIT.url}" target="_blank" rel="noopener">${esc(OSM_CREDIT.text)}</a> (ODbL)</li>` : '');
+  const notes = () => `<ul class="notes">${[`${NOTE_UNOFFICIAL} ${NOTE_NOT_PROCEDURE}`, L().fictional ? NOTE_FICTIONAL : NOTE_LAYOUT, NOTE_SIGNALLING, NOTE_SIGNAL_NAMES].concat(ctx.stationNote || [], ctx.dev && pack.note ? pack.note : []).map(t => `<li>${esc(t)}</li>`).join('')}${osm()}</ul>`;
+  // หัวการ์ด: ชื่อสถานี · ยุคของระบบสัญญาณ (ชื่อยุคขึ้นต้นด้วย "ขั้น N" อยู่แล้ว ขั้นของสถานีดูได้บนแผนที่ จึงไม่ใส่ซ้ำ)
+  const eyebrow = () => `${esc(ctx.station && ctx.station.name_th ? `สถานี${ctx.station.name_th}` : L().name)} · ${esc(g.era.name)}`;
   const brief = () => `
     ${lv().teaches ? `<p><b>สิ่งที่สอน</b> ${esc(lv().teaches)}</p>` : ''}
     <p><b>เป้าหมาย</b> ${esc(lv().goal)}</p>
@@ -179,7 +185,7 @@ export function mountPlay(host, params, ctx) {
     const key = g.pend.join(',');
     if (key === queueKey) return;
     queueKey = key;
-    const shown = g.pend.slice(0, stage.layout.w < 1000 ? 2 : 3), more = g.pend.length - shown.length;
+    const shown = g.pend.slice(0, stage.layout.h >= 600 ? 4 : stage.layout.w < 1000 ? 2 : 3), more = g.pend.length - shown.length;
     queueEl.innerHTML = shown.map(i => { const sp = g.lv.sched[i], run = runWord(g.L, sp); return `<li><b style="--c:var(${sp.exp ? '--exp' : `--t${1 + (sp.plat - 1) % 3}`})">${i + 1}</b><span>${run ? `${run} · ` : ''}${esc(queueText(g.L, sp))}</span></li>`; }).join('')
       + (more > 0 ? `<li class="more">อีก ${more} ขบวน</li>` : '') || '<li class="more">มาครบทุกขบวนแล้ว</li>';
   }
@@ -245,8 +251,10 @@ export function mountPlay(host, params, ctx) {
   document.addEventListener('visibilitychange', onHide);
 
   /* การแตะ: จุดบนจอจริง -> พิกัดเวที (รวมตอนเวทีหมุน 90°) -> พิกัดในกล่อง canvas -> พิกัดแผง */
-  const toBoard = (clientX, clientY) => { const p = stage.toStage(clientX, clientY), r = stage.rectOf(cv); return panel.toBoard(p.x - r.x, p.y - r.y); };
-  const toClient = (bx, by) => { const l = panel.toLocal(bx, by), r = stage.rectOf(cv); return stage.toClient(r.x + l.x, r.y + l.y); };
+  // มาตราส่วนของแผงต้องตรงกับขนาดกล่องตอนนี้เสมอ (หมุนเครื่องแล้วแตะก่อนเฟรมวาดถัดไปก็ยังแตะถูก)
+  const fresh = () => { if (g) { const z = size(); if (z.w !== lastSize.w || z.h !== lastSize.h || lastSize.L !== g.L) { panel.fitTo(g.L, z); lastSize = { ...z, L: g.L }; dirty = true; } } };
+  const toBoard = (clientX, clientY) => { fresh(); const p = stage.toStage(clientX, clientY), r = stage.rectOf(cv); return panel.toBoard(p.x - r.x, p.y - r.y); };
+  const toClient = (bx, by) => { fresh(); const l = panel.toLocal(bx, by), r = stage.rectOf(cv); return stage.toClient(r.x + l.x, r.y + l.y); };
   const onDown = e => {
     if (!g || g.state !== 'play' || paused || (e.pointerType === 'mouse' && e.button !== 0)) return;
     e.preventDefault();
@@ -257,7 +265,8 @@ export function mountPlay(host, params, ctx) {
   cv.addEventListener('pointerdown', onDown);
 
   /* วงรอบ: เวลาจริงสะสมแล้วเดินตัวจำลองทีละก้าวคงที่ FIXED_DT (×2 = สะสมเร็วเป็น 2 เท่า) วาดเมื่อมีอะไรเปลี่ยน */
-  const size = () => ({ w: board.clientWidth, h: board.clientHeight });
+  let lastSize = { w: -1, h: -1, L: null }; // ขนาดกล่องและผังที่แผงคิดมาตราส่วนไว้ล่าสุด
+  const size = () => ({ w: cv.clientWidth, h: cv.clientHeight });
   function frame(ts) {
     if (!alive) return;
     raf = requestAnimationFrame(frame);
@@ -269,9 +278,10 @@ export function mountPlay(host, params, ctx) {
     }
     if (running) { hudT += dt; if (hudT > 0.15) { hudT = 0; hud(); } }
     if (v3d && v3d.active) { if (dirty) v3d.touch(); dirty = false; v3d.frame(dt, running); }
-    else if (running || dirty) { dirty = false; panel.draw(g, ts / 1000, running ? curHint() : null, size(), { calm: calm() }); }
+    else if (running || dirty) { dirty = false; lastSize = { ...size(), L: g.L }; panel.draw(g, ts / 1000, running ? curHint() : null, lastSize, { calm: calm() }); }
   }
-  const offResize = stage.onResize(() => { dirty = true; });
+  // หมุนเครื่อง/ย่อขยายหน้าต่างกลางเกม: สถานะเกมไม่เปลี่ยน แค่วาดใหม่และจัดคิวขบวนตามขนาดเวทีใหม่
+  const offResize = stage.onResize(() => { dirty = true; queueKey = ''; if (g) hud(); });
   const recolor = () => { panel.refreshColors(); if (v3d) v3d.recolor(); dirty = true; };
   const mq = window.matchMedia('(prefers-color-scheme: dark)');
   mq.addEventListener('change', recolor);

@@ -5,7 +5,7 @@
 import { createMapRenderer, LINE_DASH, EDGED } from '../render/map-draw.js';
 import { fitBounds, centerOn, clampCamera, panBy, zoomAt, pinch, lerpCamera, easeInOut, sameCamera, toScreen, boundsOf, minPairDistance, labelSides, KM_PER_UNIT } from '../render/map-camera.js';
 import { sheetHtml, starCount, starIcon, esc, LOCK_ICON, NOTE_UNOFFICIAL } from './station-sheet.js';
-import { canFullscreen, toggleFullscreen } from './stage.js';
+import { fullscreenButton } from './stage.js';
 
 const CLUSTER_PX = 56;        // ระยะบนจอขั้นต่ำระหว่างจุดสถานีก่อนแยกเป็นปุ่มของตัวเอง
 const MAX_PX_PER_KM = 20;
@@ -18,7 +18,6 @@ const STATE_TH = { locked: 'ยังล็อก', open: 'เปิดแล้
 const ICON = {
   plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   minus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>',
-  full: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>',
   check: '<svg class="ic-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
 
@@ -36,7 +35,7 @@ export function createMapScreen({ root, stage, map, pack, getProgress, onStation
       <button class="btn sm go" type="button" data-act="route">ไปเส้นทางสอน</button>
     </div>
     <div class="map-side">
-      ${canFullscreen() ? `<button class="iconbtn" type="button" data-act="full" aria-label="เต็มจอ">${ICON.full}</button>` : ''}
+      ${fullscreenButton()}
       <button class="iconbtn" type="button" data-act="zin" aria-label="ซูมเข้า">${ICON.plus}</button>
       <button class="iconbtn" type="button" data-act="zout" aria-label="ซูมออก">${ICON.minus}</button>
     </div>
@@ -53,7 +52,7 @@ export function createMapScreen({ root, stage, map, pack, getProgress, onStation
         <a href="${esc(map.credits.natural_earth.url)}" target="_blank" rel="noopener">${esc(map.credits.natural_earth.text)}</a>
       </p>
     </div>
-    <aside class="sheet" role="dialog" aria-modal="false" aria-labelledby="sheet-title" hidden></aside>
+    <aside class="sheet scroll-cue" role="dialog" aria-modal="false" aria-labelledby="sheet-title" hidden></aside>
     <div class="toast" role="status" aria-live="polite"></div>`;
 
   const $ = sel => root.querySelector(sel);
@@ -93,8 +92,12 @@ export function createMapScreen({ root, stage, map, pack, getProgress, onStation
     const c = fitBounds(routeBounds, view, p, limits.maxK);
     return c.k < unclusterK * 1.1 ? centerOn(routeMid[0], routeMid[1], unclusterK * 1.1, pad()) : c;
   };
+  // เปิดแผ่นข้อมูล: ถ้าพื้นที่ข้างแผ่นพอให้เห็นทั้งเส้นทางสอนโดยจุดไม่รวมกัน (จอไอแพด/คอม) ให้เห็นทุกสถานี แตะสถานีอื่นได้โดยไม่ต้องปิดแผ่น
+  // ไม่พอ (จอมือถือ) จัดสถานีที่เลือกไว้กลางพื้นที่ที่เหลือแบบเดิม
   const stationCam = id => {
-    const s = stops.find(x => x.id === id);
+    const s = stops.find(x => x.id === id), p = pad(); p.l += 70; p.r += 150; p.t += 55; p.b += 34;
+    const all = fitBounds(routeBounds, view, p, limits.maxK);
+    if (all.k >= unclusterK * 1.1) return all;
     return centerOn(s.p[0], s.p[1], Math.min(limits.maxK, Math.max(cam.k, unclusterK * 1.3)), pad());
   };
   const clamp = c => clampCamera(c, view, world, limits, pad());
@@ -281,7 +284,6 @@ export function createMapScreen({ root, stage, map, pack, getProgress, onStation
     else if (act === 'route') goRoute(e.detail === 0);
     else if (act === 'zin') zoomStep(1.6);
     else if (act === 'zout') zoomStep(1 / 1.6);
-    else if (act === 'full') toggleFullscreen();
     else if (act === 'lines') setLines(linesList.hidden);
     else if (act === 'line') {
       const id = b.dataset.line, L = map.lines[id];

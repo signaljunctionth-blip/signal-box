@@ -22,7 +22,7 @@ export function mountView3D(board, { stage, getGame, onPress, getHint, say, stat
   home.className = 'btn sm v3d-home'; home.type = 'button'; home.textContent = 'ดูทั้งสถานี'; home.hidden = true;
   let view = null, active = false, alive = true, dirty = true, gov = null, chipEls = new Map(), bubble = null, failed = false;
   const colors = () => { const cs = getComputedStyle(stage.el), o = {}; for (const v of COLOR_VARS) { const x = cs.getPropertyValue(v).trim(); if (x) o[v] = x; } return o; };
-  const size = () => ({ w: board.clientWidth, h: board.clientHeight });
+  const size = () => ({ w: cv.clientWidth, h: cv.clientHeight });   // canvas เว้นขอบปลอดภัยเหมือนแผงผังเส้น ชั้นป้ายแตะก็เว้นเท่ากัน
 
   let ready = null;
   function ensure() {
