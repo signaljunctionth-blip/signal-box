@@ -17,6 +17,7 @@ import { FIXED_DT, createGame, startGame, step, press, hint, nextTarget, snapsho
 import { createPanel } from '../render/panel2d.js';
 import { hitTest, targetCenter, panelGeom, minTargetGap } from '../render/panel-geom.js';
 import { esc, starIcon, TIER_NAME, NOTE_LAYOUT, NOTE_SIGNALLING, NOTE_UNOFFICIAL, NOTE_NOT_PROCEDURE } from './station-sheet.js';
+import { has3D, mountView3D, pref3D, savePref3D, tierButtons } from './view3d.js';
 import './play.css';
 
 export const NOTE_SIGNAL_NAMES = 'ชื่อเสาในเกมนี้เกมตั้งเอง ไม่ใช่ชื่อจริงของสถานี เลขทางและตารางเดินรถเป็นของสมมุติ';
@@ -75,6 +76,7 @@ export function mountPlay(host, params, ctx) {
         <button class="btn sm" type="button" data-act="menu">พัก</button>
         <div class="pl-ttl"><b></b><span></span><p class="pl-msg hide" role="status" aria-live="polite"></p></div>
         <dl class="pl-stats"><div><dt>คะแนน</dt><dd id="pl-score">0</dd></div><div><dt>ส่งแล้ว</dt><dd id="pl-done">0/0</dd></div></dl>
+        ${has3D(params.stationId) ? '<button class="btn sm pl-view" type="button" data-act="view" aria-label="สลับเป็นฉาก 3 มิติ">3 มิติ</button>' : ''}
         <button class="btn sm" type="button" data-act="fast" aria-pressed="false" aria-label="เร่งเวลา 2 เท่า">×2</button>
       </header>
       <div class="pl-board">
@@ -88,6 +90,21 @@ export function mountPlay(host, params, ctx) {
   const $ = s => host.querySelector(s);
   const stallEl = $('.pl-stall'), cv = $('canvas'), board = $('.pl-board'), ov = $('.pl-ov'), msgEl = $('.pl-msg'), queueEl = $('.pl-queue'), fastBtn = $('[data-act="fast"]');
   const panel = createPanel(cv, stage.el);
+  // ฉาก 3 มิติ (เฉพาะสถานีที่มีฉากแล้ว) วางทับแผงผังเส้นในกล่องเดียวกัน สลับกลับได้เสมอ
+  const viewBtn = $('[data-act="view"]');
+  const v3d = viewBtn ? mountView3D(board, { stage, getGame: () => g, onPress: t => { if (g && g.state === 'play' && !paused) press(g, t); }, getHint: () => (g && g.state === 'play' && !paused ? curHint() : null), say: (t, k) => say(t, k), station: ctx.station || {} }) : null;
+  async function setView(on) {
+    if (!v3d) return;
+    viewBtn.disabled = true;
+    const ok = await v3d.setActive(on);
+    if (!alive) return;
+    viewBtn.disabled = false;
+    if (v3d.failed) viewBtn.hidden = true;
+    viewBtn.textContent = ok ? 'ผังเส้น' : '3 มิติ';
+    viewBtn.setAttribute('aria-label', ok ? 'สลับเป็นแผงผังเส้น' : 'สลับเป็นฉาก 3 มิติ');
+    savePref3D({ on: ok });
+    dirty = true;
+  }
   let g = null, paused = false, manual = false, fast = false, alive = true, raf = 0, lastT = 0, acc = 0, hudT = 1, dirty = true, result = null, queueKey = '';
 
   /* ข้อความแจ้งจากตัวจำลอง */
@@ -132,6 +149,7 @@ export function mountPlay(host, params, ctx) {
       <h2 id="pl-card-title" tabindex="-1">${esc(lv().name)}</h2>
       ${brief()}
     </div><div class="pl-side">${notes()}
+      ${v3d && v3d.active ? `<div class="row pl-tier"><span>ภาพ 3 มิติ</span>${tierButtons(v3d.tier)}</div>` : ''}
       <div class="row"><button class="btn sm" type="button" data-act="exit">ออก</button><button class="btn sm" type="button" data-act="retry">เริ่มใหม่</button><button class="btn sm go" type="button" data-act="resume">เล่นต่อ</button></div>
     </div></div>`, 'wide');
   function winCard(ev) {
@@ -211,6 +229,8 @@ export function mountPlay(host, params, ctx) {
     else if (act === 'next' && result && result.next) ctx.play(result.next.missionId, result.next.stationId);
     else if (act === 'unstall') { hideStall(); dismissedAt = g.time; }
     else if (act === 'menu') { if (g.state === 'play') { setPaused(true); menuCard(); } } else if (act === 'fast') setFast(!fast);
+    else if (act === 'view') setView(!(v3d && v3d.active));
+    else if (act === 'tier' && v3d) { v3d.setTier(b.dataset.tier); ov.querySelectorAll('[data-act="tier"]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }
   };
   host.addEventListener('click', onClick);
   const onKey = e => {
@@ -248,10 +268,11 @@ export function mountPlay(host, params, ctx) {
       while (acc >= FIXED_DT && g.state === 'play') { acc -= FIXED_DT; step(g, FIXED_DT); }
     }
     if (running) { hudT += dt; if (hudT > 0.15) { hudT = 0; hud(); } }
-    if (running || dirty) { dirty = false; panel.draw(g, ts / 1000, running ? curHint() : null, size(), { calm: calm() }); }
+    if (v3d && v3d.active) { if (dirty) v3d.touch(); dirty = false; v3d.frame(dt, running); }
+    else if (running || dirty) { dirty = false; panel.draw(g, ts / 1000, running ? curHint() : null, size(), { calm: calm() }); }
   }
   const offResize = stage.onResize(() => { dirty = true; });
-  const recolor = () => { panel.refreshColors(); dirty = true; };
+  const recolor = () => { panel.refreshColors(); if (v3d) v3d.recolor(); dirty = true; };
   const mq = window.matchMedia('(prefers-color-scheme: dark)');
   mq.addEventListener('change', recolor);
   const mo = new MutationObserver(recolor); mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -259,12 +280,14 @@ export function mountPlay(host, params, ctx) {
 
   open();
   raf = requestAnimationFrame(frame);
+  if (v3d && pref3D().on) setView(true);
 
   return {
     destroy() {
       alive = false; cancelAnimationFrame(raf); clearTimeout(toastT);
       host.removeEventListener('click', onClick); document.removeEventListener('keydown', onKey); cv.removeEventListener('pointerdown', onDown);
       document.removeEventListener('visibilitychange', onHide); mq.removeEventListener('change', recolor); mo.disconnect(); offResize();
+      if (v3d) v3d.destroy();
     },
     // hook ของบอท (แบบเดียวกับ window.__sjBox ของต้นแบบ): อ่านสถานะ เดินเวลาเร็ว สั่งการ และหาจุดแตะบนจอจริง
     api: {
@@ -286,6 +309,8 @@ export function mountPlay(host, params, ctx) {
       // จุดกลางเป้าแตะของ target บนจอจริง (หลังหมุน) และขนาดเป้าเป็น px จริง
       targetClient(target) { const c = targetCenter(g.L, target); return c ? toClient(c.x, c.y) : null; },
       scale: () => panel.scale, geom: () => panelGeom(g.L),
+      // ฉาก 3 มิติ: เปิด/ปิด สถิติการวาด และจุดกลางป้ายแตะบนจอจริง
+      view3d: v3d && { setActive: setView, get active() { return v3d.active; }, stats: d => v3d.stats(d), camera: () => v3d.camera(), touch: () => v3d.touch(), targetClient: t => v3d.targetClient(t), setTier: id => v3d.setTier(id) },
     },
   };
 }
