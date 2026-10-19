@@ -64,7 +64,8 @@
 .toast.on{opacity:1}
 
 /* แผ่นข้อมูลสถานี: แผงด้านขวาเต็มความสูง แผนที่ยังเห็นด้านซ้าย */
-.sheet{position:absolute;top:0;right:0;bottom:0;width:calc(var(--sheet-w) + var(--sa-r));display:flex;flex-direction:column;gap:8px;overflow-y:auto;overscroll-behavior:contain;background:var(--paper);border-left:1.5px solid var(--line);box-shadow:var(--shadow);padding:calc(10px + var(--sa-t)) calc(14px + var(--sa-r)) calc(12px + var(--sa-b)) 14px}
+.sheet{position:absolute;top:0;right:0;bottom:0;width:calc(var(--sheet-w) + var(--sa-r));display:flex;flex-direction:column;gap:8px;overflow-y:auto;overscroll-behavior:contain;border-left:1.5px solid var(--line);box-shadow:var(--shadow);padding:calc(10px + var(--sa-t)) calc(14px + var(--sa-r)) calc(12px + var(--sa-b)) 14px}
+.sheet>*{flex:none}
 .sheet-h{display:flex;align-items:flex-start;gap:10px}
 .sheet-ht{flex:1;min-width:0;display:flex;flex-direction:column}
 .sheet-ht .eyebrow{font-size:12px;letter-spacing:.04em}
@@ -117,6 +118,21 @@
   .has-sheet .map-disc{white-space:normal}
   .has-sheet .map-credit a{min-height:40px}
   .has-sheet .map-disc{flex-basis:auto;margin-bottom:-4px}
+  /* สองลิงก์ซ้อนกัน: กรอบแตะสูง 40 px ติดกันไม่ซ้อน แต่ตัวหนังสือชิดรอยต่อ บรรทัดจึงไม่ห่างกันจนดูเป็นช่องว่าง */
+  .has-sheet .map-credit a:nth-of-type(1){align-items:flex-end;padding-bottom:2px}
+  .has-sheet .map-credit a:nth-of-type(2){align-items:flex-start;padding-top:2px}
+}
+/* จอเตี้ยมาก (เช่น 667×375, 568×320): บีบแผ่นข้อมูลอีกขั้นให้ภารกิจสุดท้ายพอดีจอหรือเกือบพอดี (ที่เหลือมีเงาบอกว่าเลื่อนต่อได้) */
+@container (max-height:380px){
+  .sheet{gap:4px;padding-top:calc(6px + var(--sa-t));padding-bottom:calc(6px + var(--sa-b))}
+  .sheet-h h2{font-size:20px}
+  .sheet-en{display:none}
+  .notes{padding:3px 10px;font-size:11.5px}
+  .sheet-sub{font-size:13px;margin-top:0}
+  .missions{gap:4px}
+  .ms{padding:3px 8px;gap:6px}
+  .ms-t b{font-size:14px}
+  .ms-t span{font-size:12px;line-height:1.25}
 }
 
 /* จอเตี้ย: รายการสายรถไฟเป็น 2 คอลัมน์ ไม่สูงจนทับปุ่มแถบบน */
@@ -129,4 +145,12 @@
   .has-sheet .map-top [data-act="route"]{display:none}
   .map-top{gap:6px}
   .map-top .btn{padding-inline:12px}
+}
+/* จอแคบมาก (กว้าง 568 ถือนอน/320×568 ถือตั้ง): รายการสาย 2 คอลัมน์ต้องไม่เกินความกว้างเวทีและไม่ทับคอลัมน์ปุ่มซูมด้านขวา คำอธิบายสายตัดขึ้นบรรทัดใหม่แทนล้นขอบ */
+@container (max-width:700px) and (max-height:480px){
+  #map-lines-list:not([hidden]){grid-template-columns:minmax(0,1fr) minmax(0,1fr);max-width:calc(100cqw - 68px - var(--sa-l) - var(--sa-r))}
+  .map-lines li button{grid-template-columns:24px auto minmax(0,1fr);gap:6px;padding:0 6px}
+  .map-lines li .ln{width:24px}
+  .map-lines li b{font-size:13px}
+  .map-lines li span{white-space:normal;line-height:1.2;font-size:11.5px;padding-left:4px}
 }

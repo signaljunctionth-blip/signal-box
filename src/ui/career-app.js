@@ -1,7 +1,7 @@
 // โครงแอปของเกมใหม่ (โหมดอาชีพ): เวทีแนวนอน + ตัวสลับหน้าจอ หน้าแรก -> แผนที่ -> แผ่นข้อมูลสถานี -> หน้าจอเล่นด่าน
 // หน้าแรกโหลดเบา: แผนที่ ตัวจำลอง ผังสถานี และชุดด่าน โหลดครั้งเดียวตอนออกจากหน้าแรก (dynamic import)
 // ดาวอ่าน/เขียนผ่าน src/save ด้วย key = levelKey(lv) ของ sim และสถานะปลดล็อกใช้ unlockState ของ sim: แผนที่กับหน้าเล่นจึงตรงกันเสมอ
-import { createStage, canFullscreen, toggleFullscreen } from './stage.js';
+import { createStage, canFullscreen, toggleFullscreen, watchFullscreen } from './stage.js';
 import { createRouter } from './router.js';
 import { computeProgress, canPlay } from './progress.js';
 import { createCareerSave } from './career-save.js';
@@ -164,8 +164,11 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
     credits.addEventListener('toggle', () => { if (credits.open) credits.querySelector('#credits-title').setAttribute('tabindex', '-1'), credits.querySelector('#credits-title').focus({ preventScroll: true }); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && shown !== 'map' && shown !== 'play') close(); });
   }
+  // ปุ่มเต็มจอทุกหน้าจอ (หน้าแรก แผนที่ หน้าเล่น) ใช้ data-act="full" ตัวเดียวกัน: ดักที่เวทีที่เดียว
   const bFull = $('b-full');
-  if (bFull) { bFull.hidden = !canFullscreen(); bFull.addEventListener('click', () => toggleFullscreen()); }
+  if (bFull) bFull.hidden = !canFullscreen();
+  stage.el.addEventListener('click', e => { if (e.target.closest('[data-act="full"]')) toggleFullscreen(); });
+  watchFullscreen();
 
   // แท็บกลับมาแสดง: อีกแท็บอาจเขียนเซฟไปแล้ว อ่านใหม่แล้ววาดความคืบหน้า (หน้าแรก ป้ายสถานี แผ่นข้อมูล)
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { reloadSave(); paintHome(); if (mapScreen && shown === 'map') mapScreen.refresh(); } });

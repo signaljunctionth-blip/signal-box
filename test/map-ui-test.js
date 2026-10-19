@@ -377,6 +377,9 @@ async function browser() {
     await p.waitForFunction(() => window.__sjApp && window.__sjApp.map && window.__sjApp.map.openId() === 'wang-pho');
     check(await p.evaluate(() => location.hash) === '#map/wang-pho', 'ลิงก์ตรงเข้าภารกิจที่ยังล็อกต้องพากลับไปแผ่นข้อมูลสถานี');
     await ctx.close();
+
+    // ชุดงาน WP2: หมุนเครื่องกลางเกม เลื่อนด้วยนิ้วตอนหมุน แผ่นข้อมูลไม่บังสถานี ปุ่มเต็มจอ เครดิต ขอบปลอดภัย
+    await require('./lib/wp2-checks.js').wp2Checks(b, URL0, check);
   } finally { await b.close(); game.close(); }
 }
 
