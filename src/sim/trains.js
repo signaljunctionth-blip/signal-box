@@ -3,7 +3,8 @@ import { posAt } from './geometry.js';
 import { T, way } from './messages.js';
 import { msg, fail, addScore, emit } from './events.js';
 import { TL, STOP_GAP } from './station2.js';
-import { blockEnter, blockLeave } from './block.js';
+import { blockEnter, blockLeave, tokenMode, hasToken, takeToken } from './block.js';
+import { walk } from './interlocking.js';
 
 export { TL };
 // วินาทีที่รอได้ก่อนเริ่มเสียคะแนน: ค่าเดิมของต้นแบบ 6 (รอเสาเข้า) / 4 (พร้อมออก) ด่านกำหนดเองได้ด้วย waitGrace: เลขเดียว หรือ { entry, ready }
@@ -47,12 +48,27 @@ function turnIfNeeded(g, t) {
   if (rev && !want.some(x => R[t.edge].has(x)) && want.some(x => R[rev].has(x))) reverseTrain(g, t);
 }
 
+// ด่านที่มีห่วง: ขาที่มีตอนทางเดี่ยวซึ่งทางจากเสา sig พาไปตามท่าประแจตอนนี้ (null = ไม่ได้ออกไปตอนทางเดี่ยว)
+// ทางข้างหน้ายังไม่ครบ (ประแจด้านหลังยังไม่ตั้ง) = ถือว่าไปขาออกตามตารางของขบวน t ไว้ก่อน ผู้เล่นอาจสับประแจทีหลังขณะขบวนวิ่ง
+function exitBlockOf(g, sig, t = null) {
+  const w = walk(g, sig), e = g.E[w.edges[w.edges.length - 1]];
+  if (e && e.exit && e.portal && g.block[e.portal]) return e.portal;
+  if (w.ok || !t || !t.exit) return null;
+  const k = Object.keys(g.L.portals).find(x => g.L.portals[x].exit === t.exit);
+  return k && g.block[k] ? k : null;
+}
+
 // ระยะบนขอบปัจจุบันที่ขบวนต้องหยุด (Infinity = วิ่งต่อได้)
 function stopLimit(g, t) {
   const E = g.E, e = E[t.edge]; let lim = Infinity;
   if (e.sig) {
     const s = g.S[e.sig];
     if (s.aspect === 'R' || (e.plat && t.state === 'arriving')) lim = e.len - 6;
+    // ด่านที่มีห่วง: คนขับไม่ผ่านเสาที่พาออกไปตอนทางเดี่ยวถ้ายังไม่มีห่วงของตอนนั้น (ยุคไม่มีอินเตอร์ล็อกเปิดเสาได้เสมอ จึงตรวจที่ตัวขบวนอีกชั้น)
+    else if (tokenMode(g)) {
+      const k = exitBlockOf(g, e.sig, t);
+      if (k && !hasToken(g, k)) { lim = e.len - 6; if (t.noToken !== k && t.s >= e.len - 40) { t.noToken = k; msg(g, T.tokenNeededDriver(g.L.portals[k].label), 'bad', 'TOKEN_NEEDED'); } }
+    }
   }
   if (e.plat && t.state === 'dwell') lim = t.s;
   if (e.buffer) lim = Math.min(lim, e.len - STOP_GAP); // ทางตัน
@@ -68,6 +84,8 @@ function stopLimit(g, t) {
 function passEdge(g, t) {
   const e = g.E[t.edge];
   if (e.sig) {
+    // ด่านที่มีห่วง: หัวขบวนผ่านเสาที่พาออกไปตอนทางเดี่ยว = คนขับรับห่วงไป ตอนเป็น occupied(out) ตั้งแต่ตอนนี้ (ข้อ 4.2)
+    if (tokenMode(g)) { const k = exitBlockOf(g, e.sig, t); if (k) takeToken(g, k, t); }
     const s = g.S[e.sig]; s.aspect = 'R';
     if (s.route) { s.route.passed = true; s.route.train = t; s.route = null; }
     if (e.plat) t.state = 'leaving';
