@@ -6,6 +6,8 @@ import { createRouter } from './router.js';
 import { computeProgress, canPlay } from './progress.js';
 import { createCareerSave } from './career-save.js';
 import { CAREER_PACK_ID } from './career-id.js';
+import { scene } from '../audio/index.js';
+import { installSoundMenu } from '../audio/ui.js';
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -13,6 +15,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 export function startCareerApp({ save, loadMap, mountPlay = null }) {
   const $ = id => document.getElementById(id);
   const stage = createStage($('stage'));
+  installSoundMenu(stage);
   const screens = { home: $('s-home'), map: $('s-map'), play: $('s-play') };
   const career = createCareerSave(save, CAREER_PACK_ID);
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -42,6 +45,8 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
     if (name !== 'map' && mapScreen) mapScreen.hide();
     if (name !== 'play') closePlay();
     stage.el.scrollTop = 0; stage.el.scrollLeft = 0;
+    // เพลงหน้าแผนที่เล่นทั้งหน้าแรกและแผนที่ หน้าเล่นเลือกเพลงเอง (screen-play.js)
+    if (name !== 'play') scene('map');
     shown = name;
   }
   function paintHome() {
