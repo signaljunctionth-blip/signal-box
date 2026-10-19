@@ -1,10 +1,12 @@
 // คำใบ้ = ตัวตั้งทางอัตโนมัติแบบปลอดภัย: บอกสิ่งถัดไปที่ควรแตะ คืน null หรือ { k, kind, text }
 //   kind: 'p' ประแจ | 's' สัญญาณ | 'plat' ทางจอด (k = เลขทาง) | 'portal' ป้ายขาออก (k = ชื่อขา) | 'track' รางปลายทาง
+//         | 'token' เครื่องทางสะดวก ขอห่วง (k = ชื่อขา) | 'accept' ให้ทางสถานีข้างเคียง (k = ชื่อขา)
 // ปกติทำงานเฉพาะด่านที่เปิด hints; hint(g, { force: true }) ใช้กับบอทและ ARS ได้ทุกด่าน
 // nextTarget(g) คืน target ที่ส่งเข้า press() ได้ทันที
 import { canRoute, walk, onTrack, sigName, edgeOccupied, overlapMoves } from './interlocking.js';
 import { needsDestination } from './control.js';
 import { T, way } from './messages.js';
+import { tokenMode, hasToken } from './block.js';
 
 // เส้นทางที่ขบวน t ต้องการจากสัญญาณที่มันจอดรออยู่ (ไม่ดูว่าตั้งได้ไหม)
 export function wantedRoute(g, t) {
@@ -31,7 +33,7 @@ export function wantedRoute(g, t) {
 // (ถ้าสถานะนี้ไม่มีเส้นทางที่เป็นประโยชน์เหลือเลย = ทางตัน)
 export function isStatic(g) {
   if (!g.L.bidir || !g.trains.length || g.overlaps.length || g.routes.length) return false;
-  for (const k in g.block) { const b = g.block[k]; if (b.tails.length || b.in !== null || b.permit) return false; }
+  for (const k in g.block) { const b = g.block[k]; if (b.tails.length || b.in !== null || b.permit || b.ask !== null) return false; }
   for (const idx of g.pend) { const sp = g.lv.sched[idx]; if (sp.origin !== null || !g.block[sp.from]) return false; }
   for (const t of g.trains) {
     const sig = g.E[t.edge].sig;
@@ -48,6 +50,23 @@ export function leadsOut(g, t, r) {
   if (r.exit) return exits.includes(r.to);
   const from = e.rev && (e.plat || e.buffer) ? [r.to, e.rev] : [r.to];
   return from.some(a => exits.some(x => L.reach[a].has(x)));
+}
+
+// สถานีรับขบวนในตาราง sp จากขา k ไม่ได้ในตอนนี้: ทุกทางที่ขบวนนั้นใช้ได้ มีขบวนที่ต้องออกไปทางขา k เดียวกันจอดอยู่หรือกำลังเข้า
+// ถ้าให้ทางสะดวกไป ขบวนใหม่จะมาครองตอนค้างอยู่หน้าเสาเข้า ขบวนข้างในก็ออกไม่ได้ = ทางตันที่ผู้เล่นแก้ไม่ได้
+// เอนจินจึงให้สถานีข้างเคียงกักขบวนไว้ก่อน (เหมือนนายสถานียังไม่ให้ทางสะดวก) ไม่คิดโทษเวลารอ
+// แต่กักเฉพาะช่วงที่ผู้เล่นยังไม่มีโอกาสปล่อยขบวนข้างใน: ถ้าขบวนนั้นพร้อมออกและรอเกินช่วงผ่อนเวลาแล้ว ถือว่าผู้เล่นช้าเอง ขบวนใหม่จะมาตามปกติ
+// strict = ไม่มีช่วงผ่อน (คำใบ้ให้ทางในด่านที่มีห่วง: ไม่ชวนผู้เล่นให้ทางที่จะขังขบวนตัวเอง)
+export function cannotReceive(g, sp, k, strict = false) {
+  const L = g.L, P = L.portals[k], home = g.E[P.entry].sig;
+  if (!home) return false;
+  const berths = L.routes[home].filter(r => !r.exit && leadsOut(g, sp, r));
+  if (!berths.length) return false;
+  // ช่วงผ่อน: ด่านกำหนดเองได้ด้วย holdGrace (null = กักตลอด) ไม่กำหนด = ช่วงผ่อนตอนพร้อมออกของด่าน + 10 วินาที
+  const w = g.lv.waitGrace, hold = strict ? null : g.lv.holdGrace !== undefined ? g.lv.holdGrace : (w === undefined ? 4 : typeof w === 'number' ? w : w.ready) + 10;
+  const leavingVia = tk => g.trains.some(t => t.exit === P.exit && (onTrack(g, t, tk) || (t.state === 'arriving' && L.platEdge[t.plat] === tk))
+    && !(t.state === 'ready' && hold !== null && t.wait > hold));
+  return berths.every(r => leavingVia(r.track));
 }
 
 // รับขบวน t เข้าราง track แล้วจะขังตัวเองไหม: ขาที่ t ต้องออกมีขบวนกำลังเข้ามา และขบวนนั้นเข้าได้เฉพาะรางนี้ (หรือรางที่มีรถอยู่)
@@ -107,6 +126,8 @@ export function hint(g, { force = false } = {}) {
   };
   // ขั้นถัดไปของการตั้งเส้นทาง r: สับประแจทีละตัว แล้วแตะสัญญาณ (ยุค NX: แตะสัญญาณ แล้วแตะปลายทาง)
   const stepOf = (sig, r, pointText, sigText) => {
+    // ด่านที่มีห่วง: ขอห่วงของขาที่จะออกก่อนเปิดเสาออก
+    if (r.exit && r.portal && tokenMode(g) && g.block[r.portal] && !hasToken(g, r.portal)) return { k: r.portal, kind: 'token', text: T.hintToken() };
     if (g.era.nx) {
       if (!needsDestination(g, sig)) return { k: sig, kind: 's', text: sigText };
       if (g.nxSel !== sig) return { k: sig, kind: 's', text: r.exit || r.plat === null ? sigText : T.hintNxEntrance(sigName(g, sig)) };
@@ -142,6 +163,13 @@ export function hint(g, { force = false } = {}) {
     }
     if (!safe(t, sig, r) || (!r.exit && trapsItself(g, t, r.track))) continue;
     return stepOf(sig, r, k => (t.exp ? T.hintSetTrailing(k) : T.hintSetFacing(k, t.plat, way(g))), T.hintAdmit());
+  }
+  // 2.5) ด่านที่มีห่วง: สถานีข้างเคียงขอทาง ให้ทางเมื่อตอนว่างและรับเข้ามาแล้วไม่ขังขบวนของเราไว้
+  if (tokenMode(g)) for (const k in g.block) {
+    const b = g.block[k];
+    if (b.ask === null || b.permit || b.in !== null || b.inTrain || b.out.length || b.tails.length) continue;
+    if (cannotReceive(g, g.lv.sched[b.ask], k, true)) continue;
+    return { k, kind: 'accept', text: T.hintAccept() };
   }
   // 3) ทุกอย่างหยุดนิ่งและทางที่ตารางกำหนดใช้ไม่ได้: ชี้ทางสำรองที่ยังพาขบวนไปต่อได้ (เช่น รับเข้าทางอื่นแทน)
   if (isStatic(g)) for (const { t, sig, r } of escapeRoutes(g)) {

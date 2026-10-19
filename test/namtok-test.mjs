@@ -1,6 +1,6 @@
 // เทสต์ชุดภารกิจเส้นทางสอนสายน้ำตก ใน Node ล้วน — ใช้: node test/namtok-test.mjs  (เพิ่ม -v เพื่อดูเหตุการณ์ของภารกิจที่ไม่ผ่าน)
 // โหลด data/levels/namtok.json กับผังจริงใน data/stations แล้วให้บอทตามคำใบ้ (playHints) เล่นครบทุกภารกิจ
-// เกณฑ์: ไม่มี error, บอทชนะทุกภารกิจด้วยคะแนนตั้งแต่ 80% (3 ดาว), ทุกภารกิจจบใน 6 นาที, tk-1 จบใน 3 นาที
+// เกณฑ์: ไม่มี error, บอทชนะทุกภารกิจด้วยคะแนนตั้งแต่ 80% (3 ดาว), ทุกภารกิจจบใน 6 นาที, บทสอนพื้นฐาน tk-1 + tk-2 รวมจบใน 3 นาที (เกณฑ์ M2 ตามที่เจตัดสิน 2026-10-19)
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -15,8 +15,8 @@ const verbose = process.argv.includes('-v');
 let fails = 0, checks = 0;
 const ok = (cond, name, detail = '') => { checks++; if (!cond) { fails++; console.error(`  ✗ ${name}${detail ? ' — ' + detail : ''}`); } };
 
-const IDS = ['tk-1', 'tk-2', 'tk-3', 'wp-1', 'wp-2', 'wp-3', 'nt-1', 'nt-2', 'kb-1', 'kb-2', 'kb-3', 'np-1', 'np-2', 'np-3'];
-const STATIONS = [['tha-kilen', 0], ['wang-pho', 0], ['nam-tok', 0], ['kanchanaburi', 12], ['nong-pla-duk-jn', 20]];
+const IDS = ['tk-1', 'tk-2', 'tk-token', 'tk-3', 'wp-1', 'wp-token', 'wp-2', 'wp-3', 'nt-1', 'nt-2', 'kb-1', 'kb-2', 'kb-3', 'np-1', 'np-2', 'np-3'];
+const STATIONS = [['tha-kilen', 0], ['wang-pho', 0], ['nam-tok', 0], ['kanchanaburi', 15], ['nong-pla-duk-jn', 24]];
 const MIN_PCT = 80, MAX_TIME = 360, MAX_TIME_FIRST = 180;
 
 const stationJson = fs.readdirSync(path.join(root, 'data/stations')).filter(f => f.endsWith('.json')).sort().map(f => ({ name: f, json: readJson('data/stations/' + f) }));
@@ -29,8 +29,8 @@ if (!res.ok) { console.error(`\nไม่ผ่าน ${fails}/${checks}`); proc
 const pack = res.pack;
 
 ok(pack.id === 'namtok', 'id ของชุดคือ namtok');
-ok(JSON.stringify(pack.levels.map(l => l.id)) === JSON.stringify(IDS), 'มี 14 ภารกิจ id tk-1 ถึง np-3 ตามลำดับ', pack.levels.map(l => l.id).join(','));
-ok(JSON.stringify(pack.stations.map(s => [s.station, s.needStars])) === JSON.stringify(STATIONS), 'stations[] เรียงตามลำดับปลดล็อก needStars 0/0/0/12/20');
+ok(JSON.stringify(pack.levels.map(l => l.id)) === JSON.stringify(IDS), 'มี 16 ภารกิจ id tk-1 ถึง np-3 ตามลำดับ (ภารกิจห่วงแทรกหลัง tk-2 และ wp-1)', pack.levels.map(l => l.id).join(','));
+ok(JSON.stringify(pack.stations.map(s => [s.station, s.needStars])) === JSON.stringify(STATIONS), 'stations[] เรียงตามลำดับปลดล็อก needStars 0/0/0/15/24');
 const NO_EMOJI = /\p{Extended_Pictographic}/u;
 for (const lv of pack.levels) {
   ok(!lv.error, `${lv.id} ไม่มี error`, lv.error || '');
@@ -48,6 +48,7 @@ ok(u3.levels.every(l => l.open), 'ได้ดาวครบแล้วทุ�
 if (!pack.levels.some(l => l.error)) {
   console.log('\nภารกิจ   ผล    ขบวน   คะแนน     %   ดาว  เวลา    แตะ  ถูกปฏิเสธ');
   const fmt = s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+  const basics = {};
   pack.levels.forEach((lv, i) => {
     const events = [], [r] = playHints(sim, pack, { events, from: i, to: i + 1 });
     const stars = r.state !== 'win' ? 0 : r.pct >= 80 ? 3 : r.pct >= 55 ? 2 : 1;
@@ -56,9 +57,13 @@ if (!pack.levels.some(l => l.error)) {
     ok(r.state !== 'win' || r.pct >= MIN_PCT, `${r.id} บอทได้ตั้งแต่ ${MIN_PCT}%`, `ได้ ${r.pct}%`);
     const wrong = events.filter(ev => ev.type === 'score' && (ev.reason === 'wrong-platform' || ev.reason === 'wrong-exit')).map(ev => ev.train);
     ok(!wrong.length, `${r.id} ตารางไม่บังคับให้บอทเข้าผิดทางหรือออกผิดขา`, `ขบวน ${wrong.join(', ')}`);
-    ok(r.time <= (r.id === 'tk-1' ? MAX_TIME_FIRST : MAX_TIME), `${r.id} จบในเวลา`, `${r.time} วินาที`);
+    ok(r.time <= MAX_TIME, `${r.id} จบในเวลา`, `${r.time} วินาที`);
+    if (r.id === 'tk-1' || r.id === 'tk-2') basics[r.id] = r.time;
     if (verbose && (r.state !== 'win' || r.pct < MIN_PCT)) for (const ev of events) if (ev.type !== 'score') console.log('     ', JSON.stringify(ev));
   });
+  const first = basics['tk-1'] + basics['tk-2'];
+  ok(first <= MAX_TIME_FIRST, 'บทสอนพื้นฐาน tk-1 + tk-2 รวมจบใน 3 นาที', `${first.toFixed(1)} วินาที`);
+  console.log(`บทสอนพื้นฐาน tk-1 + tk-2: ${fmt(first)}`);
 }
 
 // บอทมือช้า: เล่นตามคำใบ้เหมือนกัน แต่แตะได้ครั้งละ 1 อย่างทุก lag วินาที (แทนผู้เล่นที่เล่นถูกแต่ช้า)
