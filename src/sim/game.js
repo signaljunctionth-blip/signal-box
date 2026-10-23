@@ -1,12 +1,14 @@
 // สถานะเกม 1 ด่าน และการเดินเวลา — ไม่มีตัวแปร global: ทุกอย่างอยู่ในอ็อบเจกต์ g ที่ createGame คืนมา
 import { createRng } from './rng.js';
 import { TL, spawn, moveTrain, checkCollisions } from './trains.js';
-import { occEdges, release, edgeOccupied, stepOverlaps, onTrack } from './interlocking.js';
-import { isStatic, escapeRoutes, leadsOut } from './hint.js';
-import { createBlocks, blockFree, requestPermit, stepBlocks } from './block.js';
+import { occEdges, release, edgeOccupied, stepOverlaps, stepCancels } from './interlocking.js';
+import { isStatic, escapeRoutes, cannotReceive } from './hint.js';
+import { createBlocks, blockState, requestPermit, stepBlocks, tokenMode, askPermit } from './block.js';
 import { T } from './messages.js';
 import { msg, win, fail, emit } from './events.js';
 
+// สถานีข้างเคียงขอทางได้เมื่อห่วงทั้งสองอันอยู่ในเครื่อง (ตอนว่าง ไม่มีห่วงออกมาค้างที่สถานีเรา)
+const requestable = (g, k) => blockState(g, k).state === 'free';
 const DEADLOCK_T = 3; // วินาทีที่ทุกอย่างนิ่งและไม่มีเส้นทางใดตั้งได้ ก่อนตัดสินว่าทางตัน
 
 export const FIXED_DT = 1 / 120; // ช่วงเวลามาตรฐานของ 1 ก้าว (ผู้เรียกควรใช้ค่านี้เสมอเพื่อให้ผลซ้ำได้)
@@ -48,22 +50,6 @@ function dueTime(g, sp) {
   return c === undefined ? null : c + sp.after.delay;
 }
 
-// สถานีรับขบวนในตาราง sp จากขา k ไม่ได้ในตอนนี้: ทุกทางที่ขบวนนั้นใช้ได้ มีขบวนที่ต้องออกไปทางขา k เดียวกันจอดอยู่หรือกำลังเข้า
-// ถ้าให้ทางสะดวกไป ขบวนใหม่จะมาครองตอนค้างอยู่หน้าเสาเข้า ขบวนข้างในก็ออกไม่ได้ = ทางตันที่ผู้เล่นแก้ไม่ได้
-// เอนจินจึงให้สถานีข้างเคียงกักขบวนไว้ก่อน (เหมือนนายสถานียังไม่ให้ทางสะดวก) ไม่คิดโทษเวลารอ
-// แต่กักเฉพาะช่วงที่ผู้เล่นยังไม่มีโอกาสปล่อยขบวนข้างใน: ถ้าขบวนนั้นพร้อมออกและรอเกินช่วงผ่อนเวลาแล้ว ถือว่าผู้เล่นช้าเอง ขบวนใหม่จะมาตามปกติ
-function cannotReceive(g, sp, k) {
-  const L = g.L, P = L.portals[k], home = g.E[P.entry].sig;
-  if (!home) return false;
-  const berths = L.routes[home].filter(r => !r.exit && leadsOut(g, sp, r));
-  if (!berths.length) return false;
-  // ช่วงผ่อน: ด่านกำหนดเองได้ด้วย holdGrace (null = กักตลอด) ไม่กำหนด = ช่วงผ่อนตอนพร้อมออกของด่าน + 10 วินาที
-  const w = g.lv.waitGrace, hold = g.lv.holdGrace !== undefined ? g.lv.holdGrace : (w === undefined ? 4 : typeof w === 'number' ? w : w.ready) + 10;
-  const leavingVia = tk => g.trains.some(t => t.exit === P.exit && (onTrack(g, t, tk) || (t.state === 'arriving' && L.platEdge[t.plat] === tk))
-    && !(t.state === 'ready' && hold !== null && t.wait > hold));
-  return berths.every(r => leavingVia(r.track));
-}
-
 // ปล่อยขบวนตามตาราง: ขาที่มีตอนทางเดี่ยวต้องได้ตอนว่างก่อน (ข้อ 4.3), ขาแบบเดิมต่อคิวตามลำดับเหมือนต้นแบบ
 function spawnDue(g) {
   let queueBlocked = false; const waitingAt = {};
@@ -80,10 +66,12 @@ function spawnDue(g) {
       if (due !== null && g.time >= due && !g.trains.some(t => t.edge === sp.entry && t.s < TL + 24)) go(); else queueBlocked = true;
       continue;
     }
-    if (b.in === idx) { if (g.time >= b.inAt) { b.in = null; b.inTrain = go(); } continue; }
+    if (b.in === idx) { if (g.time >= b.inAt) { b.in = null; b.inTrain = go(); if (tokenMode(g)) b.inTrain.token = sp.from; } continue; }
     if (due === null || waitingAt[sp.from]) { waitingAt[sp.from] = true; continue; }
     waitingAt[sp.from] = true;
     if (g.time < due - b.runTime) continue;
+    // ด่านที่มีห่วง: สถานีข้างเคียงขอทางสะดวก ผู้เล่นเป็นคนให้ทางเอง (ไม่กักแทนผู้เล่น ให้ทางผิดจังหวะก็ติดเอง)
+    if (tokenMode(g)) { if (requestable(g, sp.from)) askPermit(g, sp.from, idx); continue; }
     // สถานีข้างเคียงขอทาง: ได้ทันที = มาตรงเวลา, ต้องรอ = ถูกกักไว้ แล้วใช้เวลาวิ่ง runTime หลังตอนว่าง
     if (cannotReceive(g, sp, sp.from)) { b.held[idx] = true; continue; }
     if (!requestPermit(g, sp.from, 'in', idx, b.held[idx] ? g.time + b.runTime : Math.max(due, g.time))) b.held[idx] = true;
@@ -107,6 +95,7 @@ export function step(g, dt = FIXED_DT) {
     if (!r.edges.slice(0, -1).some(e => occ.has(e))) release(g, r);
   }
   stepOverlaps(g, dt);
+  stepCancels(g);
   stepBlocks(g, dt);
   checkCollisions(g);
   if (g.state === 'play' && g.L.bidir) {

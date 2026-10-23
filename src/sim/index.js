@@ -14,11 +14,11 @@ export { STATION_SCHEMA, STATION_SCHEMAS, validateStation, loadStation, loadStat
 export { STOP_GAP, FOUL_CLEAR, REV } from './station2.js';
 export { LEVELS_SCHEMA, LEVELS_SCHEMAS, loadLevelPack, sched, levelKey, unlockState } from './levels.js';
 export { FIXED_DT, createGame, startGame, step } from './game.js';
-export { T_OVL, sigName, walk, release, tapSignal, tapPoint, autoRoute, setRoute, canRoute, routeConflict, edgeOccupied, occEdges, onTrack, nearPoint, pointBusy, underPoint, overlapPath, overlapFor, overlapAuto, overlapMoves } from './interlocking.js';
-export { blockState, blockFree, requestPermit, returnPermit } from './block.js';
+export { T_OVL, T_CANCEL, sigName, walk, release, tapSignal, tapPoint, autoRoute, setRoute, canRoute, routeConflict, edgeOccupied, occEdges, onTrack, nearPoint, pointBusy, underPoint, overlapPath, overlapFor, overlapAuto, overlapMoves } from './interlocking.js';
+export { blockState, blockFree, requestPermit, returnPermit, tokenMode, hasToken, tapToken, acceptToken } from './block.js';
 export { TL, spawn, moveTrain, checkCollisions, reverseTrain, graceOf } from './trains.js';
 export { press, routeTo, needsDestination } from './control.js';
-export { hint, nextTarget, wantedRoute, isStatic, escapeRoutes, trapsItself } from './hint.js';
+export { hint, nextTarget, wantedRoute, isStatic, escapeRoutes, trapsItself, cannotReceive } from './hint.js';
 export { trackState, trainInfo, snapshot } from './view.js';
 export { createRng } from './rng.js';
 export { T as MESSAGES, way } from './messages.js';

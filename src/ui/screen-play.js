@@ -16,10 +16,11 @@
 import { FIXED_DT, createGame, startGame, step, press, hint, nextTarget, snapshot } from '../sim/index.js';
 import { createPanel } from '../render/panel2d.js';
 import { hitTest, targetCenter, panelGeom, minTargetGap } from '../render/panel-geom.js';
-import { esc, starIcon, NOTE_LAYOUT, NOTE_SIGNALLING, NOTE_UNOFFICIAL, NOTE_NOT_PROCEDURE } from './station-sheet.js';
+import { esc, starIcon, TIER_NAME, NOTE_LAYOUT, NOTE_SIGNALLING, NOTE_UNOFFICIAL, NOTE_NOT_PROCEDURE } from './station-sheet.js';
 import { fullscreenButton } from './stage.js';
 import { scene, sfx } from '../audio/index.js';
 import { soundButton } from '../audio/ui.js';
+import { has3D, mountView3D, pref3D, savePref3D, tierButtons } from './view3d.js';
 import './play.css';
 
 export const NOTE_SIGNAL_NAMES = 'ชื่อเสาในเกมนี้เกมตั้งเอง ไม่ใช่ชื่อจริงของสถานี เลขทางและตารางเดินรถเป็นของสมมุติ';
@@ -71,6 +72,7 @@ export function runWord(L, sp) {
   return (L.portals[sp.from].side === 'W' ? 'E' : 'W') === L.upDir ? 'เที่ยวขึ้น' : 'เที่ยวล่อง';
 }
 
+// ภารกิจห่วงทางสะดวกยังไม่มีปุ่มขอห่วง/ให้ทางในฉาก 3 มิติ จึงเล่นในแผงผังเส้นเท่านั้น (ไม่แสดงปุ่ม 3 มิติ)
 export function mountPlay(host, params, ctx) {
   const G0 = ctx.game, lv0 = G0 && G0.pack.levels[G0.index];
   if (!lv0 || lv0.error) return mountPlayPlaceholder(host, params, { ...ctx, reason: lv0 && lv0.error && ctx.dev ? lv0.error : '' });
@@ -82,6 +84,7 @@ export function mountPlay(host, params, ctx) {
         <button class="btn sm" type="button" data-act="menu">พัก</button>
         <div class="pl-ttl"><b></b><span></span><p class="pl-msg hide" role="status" aria-live="polite"></p></div>
         <dl class="pl-stats"><div><dt>คะแนน</dt><dd id="pl-score">0</dd></div><div><dt>ส่งแล้ว</dt><dd id="pl-done">0/0</dd></div></dl>
+        ${has3D(params.stationId) && !lv0.token ? '<button class="btn sm pl-view" type="button" data-act="view" aria-label="สลับเป็นฉาก 3 มิติ">3 มิติ</button>' : ''}
         <button class="btn sm" type="button" data-act="fast" aria-pressed="false" aria-label="เร่งเวลา 2 เท่า">×2</button>
         ${soundButton()}
         ${fullscreenButton()}
@@ -95,8 +98,23 @@ export function mountPlay(host, params, ctx) {
       </footer>
     </div>`;
   const $ = s => host.querySelector(s);
-  const stallEl = $('.pl-stall'), cv = $('canvas'), ov = $('.pl-ov'), msgEl = $('.pl-msg'), queueEl = $('.pl-queue'), fastBtn = $('[data-act="fast"]');
+  const stallEl = $('.pl-stall'), cv = $('canvas'), board = $('.pl-board'), ov = $('.pl-ov'), msgEl = $('.pl-msg'), queueEl = $('.pl-queue'), fastBtn = $('[data-act="fast"]');
   const panel = createPanel(cv, stage.el);
+  // ฉาก 3 มิติ (เฉพาะสถานีที่มีฉากแล้ว) วางทับแผงผังเส้นในกล่องเดียวกัน สลับกลับได้เสมอ
+  const viewBtn = $('[data-act="view"]');
+  const v3d = viewBtn ? mountView3D(board, { stage, getGame: () => g, onPress: t => { if (g && g.state === 'play' && !paused) { if (press(g, t) && t && t.kind === 'point') sfx('lever'); watchSignals(); } }, getHint: () => (g && g.state === 'play' && !paused ? curHint() : null), say: (t, k) => say(t, k), station: ctx.station || {} }) : null;
+  async function setView(on) {
+    if (!v3d) return;
+    viewBtn.disabled = true;
+    const ok = await v3d.setActive(on);
+    if (!alive) return;
+    viewBtn.disabled = false;
+    if (v3d.failed) viewBtn.hidden = true;
+    viewBtn.textContent = ok ? 'ผังเส้น' : '3 มิติ';
+    viewBtn.setAttribute('aria-label', ok ? 'สลับเป็นแผงผังเส้น' : 'สลับเป็นฉาก 3 มิติ');
+    savePref3D({ on: ok });
+    dirty = true;
+  }
   let g = null, paused = false, manual = false, fast = false, alive = true, raf = 0, lastT = 0, acc = 0, hudT = 1, dirty = true, result = null, queueKey = '';
 
   /* ข้อความแจ้งจากตัวจำลอง */
@@ -143,6 +161,7 @@ export function mountPlay(host, params, ctx) {
       <h2 id="pl-card-title" tabindex="-1">${esc(lv().name)}</h2>
       ${brief()}
     </div><div class="pl-side">${notes()}
+      ${v3d && v3d.active ? `<div class="row pl-tier"><span>ภาพ 3 มิติ</span>${tierButtons(v3d.tier)}</div>` : ''}
       <div class="row"><button class="btn sm" type="button" data-act="exit">ออก</button><button class="btn sm" type="button" data-act="retry">เริ่มใหม่</button><button class="btn sm go" type="button" data-act="resume">เล่นต่อ</button></div>
     </div></div>`, 'wide');
   function winCard(ev) {
@@ -153,6 +172,7 @@ export function mountPlay(host, params, ctx) {
     <p class="pl-score">${ev.score} จาก ${ev.max} คะแนน</p>
     <p class="muted">${ev.stars < 3 ? `ได้ 3 ดาวเมื่อทำคะแนนถึง ${Math.ceil(ev.max * 0.8)} ลดเวลารอของขบวนเพื่อเก็บคะแนน` : 'เดินรถได้ลื่นมาก'}</p>
     ${news.map(t => `<p class="pl-news">${t}</p>`).join('')}
+    ${lv().card ? `<aside class="pl-know"><b>${esc(lv().card.title)}</b><p>${esc(lv().card.text)}</p><a href="${esc(lv().card.source)}" target="_blank" rel="noopener">แหล่งข้อมูล</a></aside>` : ''}
     ${r.note ? `<p class="muted">${esc(r.note)}</p>` : ''}
     ${r.saved === false ? '<p class="muted">เครื่องนี้บันทึกเกมไม่ได้ ดาวจะอยู่ถึงแค่ปิดหน้านี้</p>' : ''}
     <div class="row"><button class="btn sm" type="button" data-act="retry">เล่นซ้ำ</button><button class="btn sm${r.next ? '' : ' go'}" type="button" data-act="exit">${ctx.dev ? 'กลับ' : 'กลับแผนที่'}</button>${r.next ? '<button class="btn go" type="button" data-act="next">ภารกิจถัดไป</button>' : ''}</div>`, 'end');
@@ -237,6 +257,8 @@ export function mountPlay(host, params, ctx) {
     else if (act === 'next' && result && result.next) ctx.play(result.next.missionId, result.next.stationId);
     else if (act === 'unstall') { hideStall(); dismissedAt = g.time; }
     else if (act === 'menu') { if (g.state === 'play') { setPaused(true); menuCard(); } } else if (act === 'fast') setFast(!fast);
+    else if (act === 'view') setView(!(v3d && v3d.active));
+    else if (act === 'tier' && v3d) { v3d.setTier(b.dataset.tier); ov.querySelectorAll('[data-act="tier"]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }
   };
   host.addEventListener('click', onClick);
   const onKey = e => {
@@ -280,11 +302,12 @@ export function mountPlay(host, params, ctx) {
       watchSignals();
     }
     if (running) { hudT += dt; if (hudT > 0.15) { hudT = 0; hud(); } }
-    if (running || dirty) { dirty = false; lastSize = { ...size(), L: g.L }; panel.draw(g, ts / 1000, running ? curHint() : null, lastSize, { calm: calm() }); }
+    if (v3d && v3d.active) { if (dirty) v3d.touch(); dirty = false; v3d.frame(dt, running); }
+    else if (running || dirty) { dirty = false; lastSize = { ...size(), L: g.L }; panel.draw(g, ts / 1000, running ? curHint() : null, lastSize, { calm: calm() }); }
   }
-  // หมุนเครื่อง/ย่อขยายหน้าต่างกลางเกม: สถานะเกมไม่เปลี่ยน แค่วาดใหม่และจัดคิวขบวนตามขนาดเวทีใหม่
+  // หมุนเครื่อง/ย่อขยายหน้าต่างกลางเกม: สถานะเกมไม่เปลี่ยน แค่วาดใหม่
   const offResize = stage.onResize(() => { dirty = true; queueKey = ''; if (g) hud(); });
-  const recolor = () => { panel.refreshColors(); dirty = true; };
+  const recolor = () => { panel.refreshColors(); if (v3d) v3d.recolor(); dirty = true; };
   const mq = window.matchMedia('(prefers-color-scheme: dark)');
   mq.addEventListener('change', recolor);
   const mo = new MutationObserver(recolor); mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
@@ -292,6 +315,7 @@ export function mountPlay(host, params, ctx) {
 
   open();
   raf = requestAnimationFrame(frame);
+  if (v3d && pref3D().on) setView(true);
 
   return {
     destroy() {
@@ -299,6 +323,7 @@ export function mountPlay(host, params, ctx) {
       scene(null);
       host.removeEventListener('click', onClick); document.removeEventListener('keydown', onKey); cv.removeEventListener('pointerdown', onDown);
       document.removeEventListener('visibilitychange', onHide); mq.removeEventListener('change', recolor); mo.disconnect(); offResize();
+      if (v3d) v3d.destroy();
     },
     // hook ของบอท (แบบเดียวกับ window.__sjBox ของต้นแบบ): อ่านสถานะ เดินเวลาเร็ว สั่งการ และหาจุดแตะบนจอจริง
     api: {
@@ -320,6 +345,8 @@ export function mountPlay(host, params, ctx) {
       // จุดกลางเป้าแตะของ target บนจอจริง (หลังหมุน) และขนาดเป้าเป็น px จริง
       targetClient(target) { const c = targetCenter(g.L, target); return c ? toClient(c.x, c.y) : null; },
       scale: () => panel.scale, geom: () => panelGeom(g.L),
+      // ฉาก 3 มิติ: เปิด/ปิด สถิติการวาด และจุดกลางป้ายแตะบนจอจริง
+      view3d: v3d && { setActive: setView, get active() { return v3d.active; }, stats: d => v3d.stats(d), camera: () => v3d.camera(), touch: () => v3d.touch(), targetClient: t => v3d.targetClient(t), setTier: id => v3d.setTier(id) },
     },
   };
 }

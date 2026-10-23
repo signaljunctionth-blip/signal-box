@@ -241,7 +241,7 @@ async function browser() {
         await p.evaluate(() => window.__sjApp.router.go({ screen: 'map', stationId: 'tha-kilen' }));
         await p.waitForSelector('#s-map:not([hidden]) .sheet .ms');
         const lab = await p.getAttribute('.mk[data-id="tha-kilen"]', 'aria-label'), tot = await p.evaluate(() => window.__sjApp.progress().byId['tha-kilen'].stars);
-        check(lab.includes(`ดาว ${tot} จาก 9`) && tot > 0, `career: ป้ายท่ากิเลนบนแผนที่ไม่ขึ้นดาวจากหน้าเล่น (${lab})`);
+        check(lab.includes(`ดาว ${tot} จาก 12`) && tot > 0, `career: ป้ายท่ากิเลนบนแผนที่ไม่ขึ้นดาวจากหน้าเล่น (${lab})`);
         await sleep(900); await shot(p, `career-map-after-${v.name}-light`);
       }
       // จ) โหมดประวัติศาสตร์ (ผัง schema 1) บนตัววาดใหม่: ด่าน 1 และด่าน 10 (NX แตะชานชาลา)
@@ -253,7 +253,7 @@ async function browser() {
         console.log(`  history ด่าน ${+key + 1} (schema 1) บนตัววาดใหม่: แตะจริง ${r.taps} ครั้ง -> ${r.state} ${r.done}/${r.total}`);
       }
       // ข้อ 9: ชนะภารกิจสุดท้ายของสถานี -> "ภารกิจถัดไป" (ข้ามไปสถานีถัดไป) -> "กลับ" ต้องไปแผ่นข้อมูลของสถานีของภารกิจปัจจุบัน
-      await p.evaluate(() => { const A = window.__sjApp; A.save.reset(); A.career.setStars('tk-1', 3); A.career.setStars('tk-2', 3); A.refresh(); A.router.go({ screen: 'map', stationId: 'tha-kilen' }); });
+      await p.evaluate(() => { const A = window.__sjApp; A.save.reset(); A.career.setStars('tk-1', 3); A.career.setStars('tk-2', 3); A.career.setStars('tk-token', 3); A.refresh(); A.router.go({ screen: 'map', stationId: 'tha-kilen' }); });
       await p.waitForSelector('#s-map:not([hidden]) .sheet [data-mission="tk-3"]');
       await p.locator('.sheet [data-mission="tk-3"]').tap();
       await p.waitForFunction(() => window.__sjApp.play && window.__sjApp.play.id === 'tk-3');

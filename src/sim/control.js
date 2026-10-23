@@ -1,9 +1,11 @@
 // คำสั่งจากผู้เล่น: ตัววาด (2 มิติ/3 มิติ) หาเองว่าแตะโดนอะไร แล้วส่งมาเป็น target
 //   { kind: 'signal', id } | { kind: 'point', id } | { kind: 'platform', no } | { kind: 'portal', id } | { kind: 'track', id } | null (แตะที่ว่าง)
+//   ด่านที่มีห่วง: { kind: 'token', id: ขา } = เครื่องทางสะดวก (ขอ/คืนห่วง), { kind: 'accept', id: ขา } = ให้ทางสถานีข้างเคียง
 // portal = ป้ายขาออก, track = รางปลายทางที่ไม่ใช่ทางจอด (ใช้เลือกปลายทางในยุค NX)
 import { T, way } from './messages.js';
 import { msg } from './events.js';
-import { tapSignal, tapPoint, autoRoute } from './interlocking.js';
+import { tapSignal, tapPoint, autoRoute, walk } from './interlocking.js';
+import { tapToken, acceptToken } from './block.js';
 
 // สัญญาณที่ต้องเลือกปลายทาง (ยุค NX): มีเส้นทางมากกว่า 1 หรือเส้นทางไปจบที่ชานชาลา (แบบต้นแบบ)
 export const needsDestination = (g, sig) => !Array.isArray(g.L.REQ[sig]) || g.L.routes[sig].length > 1;
@@ -17,6 +19,7 @@ export function routeTo(g, sig, target) {
 
 export function press(g, target) {
   if (g.state !== 'play') return false;
+  if (target && (target.kind === 'token' || target.kind === 'accept')) { if (g.nxSel) g.nxSel = null; return target.kind === 'token' ? tapToken(g, target.id, walk) : acceptToken(g, target.id); }
   if (target && target.kind === 'point') return tapPoint(g, target.id);
   if (target && target.kind === 'signal') {
     const k = target.id;
