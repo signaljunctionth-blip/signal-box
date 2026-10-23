@@ -68,7 +68,8 @@ export function sheetHtml(st, info, progress, nameOf, stationNote = '') {
       <button class="btn sm go" type="button" data-act="skip">เปิดทุกสถานี</button>
     </details>` : '';
 
-  return `${head}${lock}
+  // วางใต้กล่องล็อก ไม่ใช่ท้ายรายการ: จอ 844×390 ไม่ต้องเลื่อนก็เห็นปุ่ม
+  return `${head}${lock}${skip}
     <h3 class="sheet-sub">ภารกิจ ${st.passed}/${st.missions.length} · ชนะได้ 1 ดาวก็เปิดภารกิจถัดไป</h3>
-    <ol class="missions">${rows}</ol>${skip}`;
+    <ol class="missions">${rows}</ol>`;
 }

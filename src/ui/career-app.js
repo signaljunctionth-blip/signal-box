@@ -39,7 +39,7 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
   const starsOf = lv => career.stars(D.levelKey(lv));
   // ธง "ข้ามบทสอน" (WP4.5) อยู่ในเซฟ: เปิดทุกสถานีของเส้นทางสอน ไม่ให้ดาว
   const SKIP_FLAG = 'skipTutorial';
-  const progress = () => computeProgress(D.career, starsOf, D.unlockState, { skip: !!(memFlags[SKIP_FLAG] || (save.getFlag && save.getFlag(SKIP_FLAG))) });
+  const progress = () => computeProgress(D.career, starsOf, D.unlockState, { skip: memFlags[SKIP_FLAG] === true || (!!save.getFlag && save.getFlag(SKIP_FLAG) === true) });
 
   function closePlay() { if (play) { play.destroy(); play = null; } screens.play.innerHTML = ''; }
   function showOnly(name) {

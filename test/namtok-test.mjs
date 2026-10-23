@@ -116,6 +116,36 @@ if (!pack.levels.some(l => l.error)) {
   ok(!wrongIdle, 'เร่งอัตโนมัติไม่ทำงานตอนที่มีเรื่องให้ตัดสินใจ', `${wrongIdle} ก้าว`);
   ok(real <= OLD_TUTORIAL * 0.7, 'เวลาเล่นจริงของเส้นทางสอนสั้นลงอย่างน้อย 30%', `${Math.round(real)} วิ เทียบเดิม ${OLD_TUTORIAL}`);
   console.log(`\nเส้นทางสอนขั้น 1–2 (บอทมือช้า 2 วิ + เร่งอัตโนมัติ): ${(real / 60).toFixed(1)} นาที เดิม ${(OLD_TUTORIAL / 60).toFixed(1)} นาที (สั้นลง ${Math.round(100 * (1 - real / OLD_TUTORIAL))}%)`);
+
+  // ไม่เร่งตอนขบวนวิ่งไปหาสิ่งที่ผู้เล่นยังแก้ทัน (signalling-engineer ตรวจ WP4.5)
+  // tk-3 ยุคไม่มีอินเตอร์ล็อก: เปิดเสาออกโดยไม่สับประแจรับ ขบวนวิ่งไปหาประแจที่ตั้งผิด ต้องไม่เร่งจนรถฝ่าประแจ
+  {
+    const g = sim.createGame(pack, pack.levels.find(l => l.id === 'tk-3').i); sim.startGame(g);
+    let leaving = 0, calm = 0;
+    while (g.state === 'play' && g.time < 600) {
+      const rd = g.trains.find(t => t.state === 'ready' && t.stopped && g.E[t.edge].sig && g.S[g.E[t.edge].sig].aspect === 'R');
+      const tg = rd ? { kind: 'signal', id: g.E[rd.edge].sig } : sim.nextTarget(g);
+      if (tg) sim.press(g, tg);
+      if (g.trains.some(t => t.state === 'leaving' && !t.stopped)) { leaving++; if (sim.idle(g)) calm++; }
+      sim.step(g, sim.FIXED_DT);
+    }
+    ok(leaving > 0 && !calm, 'tk-3 ไม่เร่งตอนขบวนวิ่งไปหาประแจที่ตั้งผิด', `${calm}/${leaving} ก้าว`);
+  }
+  // wp-3 ขบวนด่วน: เปิดเสาเข้าแล้วแต่เสาออกยังห้าม ระหว่างวิ่งบนรางที่ไม่มีเสา ต้องไม่เร่ง (ผู้เล่นยังเปิดเสาออกให้ผ่านโดยไม่หยุดได้)
+  {
+    const g = sim.createGame(pack, pack.levels.find(l => l.id === 'wp-3').i); sim.startGame(g);
+    let runs = 0, calm = 0;
+    while (g.state === 'play' && g.time < 600) {
+      for (const t of g.trains) if (t.exp && t.edge === t.entry && t.stopped && g.S[g.E[t.edge].sig].aspect === 'R') {
+        const r = sim.wantedRoute(g, t);
+        if (r) { for (const [k, p] of r.req) if (g.P[k].pos !== p) sim.press(g, { kind: 'point', id: k }); sim.press(g, { kind: 'signal', id: g.E[t.edge].sig }); }
+      }
+      const ex = g.trains.find(t => t.exp && !t.stopped && t.edge !== t.entry && t.state === 'through');
+      if (ex && !g.E[ex.edge].sig) { runs++; if (sim.idle(g)) calm++; } else { const tg = sim.nextTarget(g); if (tg) sim.press(g, tg); }
+      sim.step(g, sim.FIXED_DT);
+    }
+    ok(runs > 0 && !calm, 'wp-3 ไม่เร่งตอนขบวนด่วนวิ่งไปหาเสาออกที่ห้ามอยู่', `${calm}/${runs} ก้าว`);
+  }
 }
 
 // กันทางตันจากตาราง: ขบวนที่เข้าจากขา X ต้องไม่ถูกกำหนดให้จอดทางที่ผู้ใช้คนก่อนจะออกไปขา X

@@ -93,7 +93,7 @@
 .lockbox h3{display:flex;align-items:center;gap:6px;font-size:16px}
 .lockbox h3 svg{width:17px;height:17px}
 /* ข้ามบทสอน (WP4.5): ปุ่มเปิดกล่องยืนยัน เป้าแตะสูงอย่างน้อย 40 px ทุกจอ */
-.skipbox{display:block;font-size:14px;line-height:1.45}
+.skipbox{display:block;margin:4px 0 0;font-size:14px;line-height:1.45}
 .skipbox summary{list-style:none;display:inline-flex;align-items:center;min-height:40px!important;color:var(--muted)}
 .skipbox summary::-webkit-details-marker{display:none}
 .skipbox[open] summary{color:var(--ink)}

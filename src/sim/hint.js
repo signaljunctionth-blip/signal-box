@@ -194,9 +194,19 @@ export function idle(g) {
   for (const k in g.block) if (g.block[k].ask !== null) return false;
   for (const t of g.trains) {
     if (t.state === 'ready' || (t.stopped && t.state !== 'dwell')) return false;
-    // วิ่งเข้าหาเสาที่ห้ามอยู่ = ผู้เล่นควรตั้งทางรอ ยกเว้นขบวนที่กำลังเข้าจอดทางจอด (จะจอดตามเวลาเอง)
-    const e = g.E[t.edge];
-    if (e.sig && g.S[e.sig].aspect === 'R' && !(t.state === 'arriving' && e.plat)) return false;
+    if (t.stopped) continue;
+    // มองทางข้างหน้าตามท่าประแจตอนนี้จนถึงเสาถัดไป (แบบ claimed):
+    // - เสาห้ามข้างหน้า = ผู้เล่นควรตั้งทางรอ ยกเว้นขบวนที่กำลังเข้าจอดทางจอด (จะจอดตามเวลาเอง)
+    // - ประแจด้านหลังตั้งไม่ตรง = จะรถฝ่าประแจ ผู้เล่นยังสับแก้ทันได้ (ยุคไม่มีอินเตอร์ล็อก เช่น tk-3)
+    let e = g.E[t.edge];
+    for (let n = 0; n < g.L.edgeCount; n++) {
+      if (t.state === 'arriving' && e.plat) break;
+      if (e.sig) { if (g.S[e.sig].aspect === 'R') return false; break; }
+      if (e.exit || !e.next) break;
+      const nx = e.next;
+      if (typeof nx !== 'string' && !nx.pt && g.P[nx.trail].pos !== nx.as) return false;
+      e = g.E[typeof nx === 'string' ? nx : nx.pt ? nx[g.P[nx.pt].pos] : nx.to];
+    }
   }
   return !hint(g, { force: true });
 }
