@@ -161,3 +161,7 @@
   .map-lines li b{font-size:13px}
   .map-lines li span{white-space:normal;line-height:1.2;font-size:11.5px;padding-left:4px}
 }
+/* จอเตี้ยตอนเปิดแผ่นข้อมูล: ปุ่มด้านขวา 4 ปุ่ม (เสียง เต็มจอ ซูมเข้า/ออก) เรียงเป็นตาราง 2×2 ไม่ให้ลงไปทับข้อความแหล่งข้อมูลด้านล่าง */
+@container (max-height:400px){
+  .has-sheet .map-side{display:grid;grid-template-columns:44px 44px;direction:rtl}
+}
