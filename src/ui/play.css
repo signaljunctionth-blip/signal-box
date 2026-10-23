@@ -101,7 +101,7 @@
 .v3d-chips{position:absolute;top:0;bottom:0;left:var(--sa-l);right:var(--sa-r);pointer-events:none;overflow:hidden;display:none}
 .pl-board.is3d .v3d-chips{display:block}
 /* ป้ายแตะ: ตัวปุ่มสูง 44 px (เป้าแตะ) ป้ายที่เห็นเล็กกว่า จุดยึดคือกึ่งกลางล่างของป้ายเหนือหัวเสา */
-.v3d-chip{position:absolute;left:0;top:0;margin:-22px 0 0 -30px;min-width:60px;height:44px;padding:0;border:0;background:none;pointer-events:auto;display:grid;place-items:center;cursor:pointer;font:inherit;color:var(--ink);-webkit-tap-highlight-color:transparent}
+.v3d-chip{position:absolute;left:0;top:0;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;margin:-22px 0 0 -30px;min-width:60px;height:44px;padding:0;border:0;background:none;pointer-events:auto;display:grid;place-items:center;cursor:pointer;font:inherit;color:var(--ink);-webkit-tap-highlight-color:transparent}
 .v3d-chip .pill{display:flex;align-items:center;gap:5px;height:30px;padding:0 10px;border-radius:999px;background:var(--paper);border:2px solid var(--ink);box-shadow:0 2px 6px rgba(0,0,0,.25);font-family:var(--display);font-size:14px;font-weight:600;white-space:nowrap}
 .v3d-chip .pill i{width:12px;height:12px;border-radius:50%;background:var(--red);flex:none}
 .v3d-chip.go .pill i{background:var(--green)}
@@ -115,6 +115,14 @@
 .v3d-chip.dest .pill{border-color:var(--amber);background:var(--cream);color:var(--navy)}
 .v3d-chip.hint .pill{border-color:var(--amber);box-shadow:0 0 0 4px var(--amber)}
 .v3d-chip:focus-visible .pill{outline:3px solid var(--amber);outline-offset:2px}
+/* ด่านที่มีห่วง: ป้ายขาเกาะขอบจอ จุดเขียว = ห่วงอยู่ในเครื่อง, ห่วงเหลือง = ห่วงอยู่ที่สถานี, สามเหลี่ยมแดง = ขบวนในตอน (ชี้ทิศที่วิ่ง) */
+.v3d-chip.k-token,.v3d-chip.k-accept{margin-left:0}
+.v3d-chip.k-token .pill i{background:var(--green)}
+.v3d-chip.tk-station .pill{border-color:var(--amber)}
+.v3d-chip.tk-station .pill i{width:14px;height:14px;box-sizing:border-box;background:none;border:3.5px solid var(--amber)}
+.v3d-chip.tk-train .pill i,.v3d-chip.tk-away .pill i{background:var(--red);border-radius:0;clip-path:polygon(0 0,100% 50%,0 100%)}
+.v3d-chip.tk-l .pill i{transform:scaleX(-1)}
+.v3d-chip.k-accept .pill{background:var(--amber);color:var(--on-amber)}
 .v3d-bubble{position:absolute;left:0;top:0;max-width:180px;margin:-34px 0 0 -90px;width:180px;padding:5px 10px;border-radius:10px;background:var(--amber);color:var(--on-amber);font-size:13px;line-height:1.35;text-align:center;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.25)}
 .v3d-bubble.below{margin-top:0}
 .v3d-home{position:absolute;right:calc(10px + var(--sa-r));bottom:10px;display:none}

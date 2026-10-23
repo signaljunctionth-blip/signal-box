@@ -80,7 +80,6 @@ export function runWord(L, sp) {
   return (L.portals[sp.from].side === 'W' ? 'E' : 'W') === L.upDir ? 'เที่ยวขึ้น' : 'เที่ยวล่อง';
 }
 
-// ภารกิจห่วงทางสะดวกยังไม่มีปุ่มขอห่วง/ให้ทางในฉาก 3 มิติ จึงเล่นในแผงผังเส้นเท่านั้น (ไม่แสดงปุ่ม 3 มิติ)
 export function mountPlay(host, params, ctx) {
   const G0 = ctx.game, lv0 = G0 && G0.pack.levels[G0.index];
   if (!lv0 || lv0.error) return mountPlayPlaceholder(host, params, { ...ctx, reason: lv0 && lv0.error && ctx.dev ? lv0.error : '' });
@@ -92,7 +91,7 @@ export function mountPlay(host, params, ctx) {
         <button class="btn sm" type="button" data-act="menu">พัก</button>
         <div class="pl-ttl"><b></b><span></span><p class="pl-msg hide" role="status" aria-live="polite"></p></div>
         <dl class="pl-stats"><div><dt>คะแนน</dt><dd id="pl-score">0</dd></div><div><dt>ส่งแล้ว</dt><dd id="pl-done">0/0</dd></div></dl>
-        ${has3D(params.stationId) && !lv0.token ? '<button class="btn sm pl-view" type="button" data-act="view" aria-label="สลับเป็นฉาก 3 มิติ">3 มิติ</button>' : ''}
+        ${has3D(params.stationId) ? '<button class="btn sm pl-view" type="button" data-act="view" aria-label="สลับเป็นฉาก 3 มิติ">3 มิติ</button>' : ''}
         <button class="btn sm" type="button" data-act="fast" aria-pressed="false" aria-label="เร่งเวลา 2 เท่า">×2</button>
         ${soundButton()}
         ${fullscreenButton()}

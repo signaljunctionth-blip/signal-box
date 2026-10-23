@@ -1,12 +1,13 @@
-// ชั้นหน้าจอของฉาก 3 มิติในหน้าเล่น: canvas WebGL + ป้ายแตะ (เสา ประแจ ปลายทาง) + การลาก/ซูมกล้อง
+// ชั้นหน้าจอของฉาก 3 มิติในหน้าเล่น: canvas WebGL + ป้ายแตะ (เสา ประแจ ปลายทาง เครื่องทางสะดวก) + กล้องอิสระ (หมุน ซูม เลื่อน)
 // โหลด three.js และชิ้นงานแบบแยกก้อน (dynamic import) เฉพาะตอนผู้เล่นเปิด 3 มิติ ระหว่างรอยังเห็นแผงผังเส้นตามปกติ
 // ไม่แตะสถานะเกม: ส่งคำสั่งออกทาง onPress(target) แบบเดียวกับแผงผังเส้น
 import { readPref, writePref, initialTier, createGovernor, tierOf, TIERS } from '../render3d/quality.js';
 import { destinations } from '../render/panel-geom.js';
+import { blockState } from '../sim/index.js';
 import { esc } from './station-sheet.js';
 
 // สถานีที่มีฉาก 3 มิติแล้ว (M1.5 เริ่มที่ท่ากิเลน) สถานีอื่นยังเป็นแผงผังเส้นอย่างเดียว
-export const SCENE_STATIONS = ['tha-kilen'];
+export const SCENE_STATIONS = ['tha-kilen', 'wang-pho', 'nam-tok', 'kanchanaburi', 'nong-pla-duk-jn'];
 export const has3D = id => SCENE_STATIONS.includes(id);
 export const pref3D = () => readPref() || {};
 export const savePref3D = v => writePref(undefined, { ...pref3D(), ...v });
@@ -17,9 +18,9 @@ const TAP = 44, DRAG = 8;
 
 export function mountView3D(board, { stage, getGame, onPress, getHint, say, station }) {
   const cv = document.createElement('canvas'), chips = document.createElement('div'), load = document.createElement('div'), home = document.createElement('button');
-  cv.className = 'v3d'; cv.setAttribute('aria-label', 'ฉากสถานี 3 มิติ แตะป้ายชื่อเสาหรือประแจเพื่อสั่งการ ลากเพื่อเลื่อนมุมมอง');
+  cv.className = 'v3d'; cv.setAttribute('aria-label', 'ฉากสถานี 3 มิติ แตะป้ายชื่อเสาหรือประแจเพื่อสั่งการ ลากเพื่อหมุนมุมมอง สองนิ้วเพื่อซูมและเลื่อน');
   chips.className = 'v3d-chips'; load.className = 'v3d-load'; load.setAttribute('role', 'status'); load.textContent = 'กำลังสร้างฉาก 3 มิติ';
-  home.className = 'btn sm v3d-home'; home.type = 'button'; home.textContent = 'ดูทั้งสถานี'; home.hidden = true;
+  home.className = 'btn sm v3d-home'; home.type = 'button'; home.textContent = 'มุมมาตรฐาน'; home.hidden = true;
   let view = null, active = false, alive = true, dirty = true, gov = null, chipEls = new Map(), bubble = null, failed = false;
   const colors = () => { const cs = getComputedStyle(stage.el), o = {}; for (const v of COLOR_VARS) { const x = cs.getPropertyValue(v).trim(); if (x) o[v] = x; } return o; };
   const size = () => ({ w: cv.clientWidth, h: cv.clientHeight });   // canvas เว้นขอบปลอดภัยเหมือนแผงผังเส้น ชั้นป้ายแตะก็เว้นเท่ากัน
@@ -52,16 +53,45 @@ export function mountView3D(board, { stage, getGame, onPress, getHint, say, stat
     if (!el) {
       el = document.createElement('button'); el.type = 'button'; el.className = 'v3d-chip k-' + a.target.kind; el.dataset.key = key;
       el.innerHTML = '<span class="pill"><i></i><b></b><small></small></span>';
-      el.addEventListener('click', e => { e.stopPropagation(); onPress(a.target); dirty = true; });
+      el.addEventListener('click', e => { e.stopPropagation(); if (performance.now() - dragEnd < 250) return; onPress(a.target); dirty = true; });   // เพิ่งลากกล้องจบ = ไม่ใช่การแตะ
       chips.append(el); chipEls.set(key, el);
     }
     return el;
   }
   const isHinted = (hn, t) => !!hn && ((hn.kind === 's' && t.kind === 'signal' && hn.k === t.id) || (hn.kind === 'p' && t.kind === 'point' && hn.k === t.id) || (hn.kind === 'plat' && t.kind === 'platform' && hn.k === t.no) || (hn.kind === t.kind && hn.k === t.id));
+  // ด่านที่มีห่วง: ป้ายขา (เครื่องทางสะดวก) เกาะขอบจอด้านของขานั้น ระดับเดียวกับราง แสดงว่าห่วงอยู่ไหน
+  // และปุ่ม "ให้ทาง N" ใต้ป้ายเมื่อสถานีข้างเคียงขอทาง (ตรงกับแผงผังเส้น)
+  const TOKEN_TH = { station: 'ห่วงอยู่ที่สถานี', train: 'ห่วงไปกับขบวน', away: 'มีขบวนในตอน' };
+  function layoutTokens(g, w, h, hn, used, seen) {
+    let hintEl = null;
+    if (!g.lv.token || !g.block) return null;
+    const ports = new Map(view.anchors().filter(a => a.target.kind === 'portal').map(a => [a.target.id, a]));
+    for (const k in g.L.portals) {
+      const blk = blockState(g, k), a = ports.get(k); if (!blk || !a) continue;
+      const east = g.L.portals[k].side === 'E', q = view.project(a.base, w, h);
+      let y = Math.max(28, Math.min(h - 70, q.on ? q.y : h / 2));
+      const x = east ? w - 8 : 8;
+      const place = (kind, yy, text, cls, aria) => {
+        const t = { kind, id: k }, key = kind + ':' + k, el = chipFor({ target: t }); seen.add(key);
+        el.style.transform = `translate(${x}px, ${yy.toFixed(1)}px)${east ? ' translateX(-100%)' : ''}`;
+        const pill = el.firstChild, label = pill.children[1];
+        if (label.textContent !== text) label.textContent = text;
+        pill.children[0].hidden = kind !== 'token'; pill.children[2].textContent = '';
+        el.className = `v3d-chip k-${kind} ${east ? 'east' : 'west'} ${cls}`;
+        el.setAttribute('aria-label', aria);
+        used.push([east ? x - 60 : x + 60, yy]);
+        if (isHinted(hn, t)) { el.classList.add('hint'); hintEl = [east ? x - 70 : x + 70, yy, hn.text]; }
+      };
+      const st = blk.token || 'free', arrow = st === 'train' || st === 'away' ? (((blk.dir === 'in') === east) ? ' tk-l' : ' tk-r') : '';
+      place('token', y, g.L.portals[k].label || k, `tk-${st}${arrow}`, `เครื่องทางสะดวก ${g.L.portals[k].label || k} ${TOKEN_TH[st] || 'ห่วงอยู่ในเครื่อง'}`);
+      if (blk.ask !== null) place('accept', y + 42, `ให้ทาง ${blk.ask}`, '', `ให้ทางขบวน ${blk.ask} จาก${String(g.L.portals[k].label || k).replace(/^ไป/, '')}`);
+    }
+    return hintEl;
+  }
   function layoutChips() {
     const g = getGame(), { w, h } = size(), hn = getHint(), dest = destinations(g), destKeys = new Set(dest.map(t => t.kind + ':' + (t.id ?? t.no)));
     const used = [], seen = new Set();
-    let hintEl = null;
+    let hintEl = layoutTokens(g, w, h, hn, used, seen);
     for (const a of view.anchors()) {
       const k = a.target.kind, key = k + ':' + (a.target.id ?? a.target.no);
       const show = k === 'signal' || k === 'point' || destKeys.has(key);
@@ -103,9 +133,13 @@ export function mountView3D(board, { stage, getGame, onPress, getHint, say, stat
     home.hidden = !view.camera.zoomed;
   }
 
-  /* ---------- การแตะ ลาก ซูม บน canvas ---------- */
-  const ptrs = new Map(); let downAt = null, moved = false, pinch = 0;
+  /* ---------- การแตะ ลาก ซูม บน canvas ----------
+     แตะ (ขยับไม่เกิน DRAG px) = สั่งเสาหรือประแจที่ใกล้จุดแตะ, ลากนิ้วเดียว/ลากเมาส์ซ้าย = หมุนกล้อง,
+     สองนิ้ว = บีบซูมและเลื่อน, ลากเมาส์ขวา (หรือ Shift + ลาก) = เลื่อน, ล้อเมาส์ = ซูม
+     เริ่มลากบนป้ายแตะก็หมุนกล้องได้ ป้ายนั้นไม่ถูกกด (ลากกล้องต้องไม่กดเสาหรือประแจโดยไม่ตั้งใจ) */
+  const ptrs = new Map(); let downAt = null, moved = false, pinch = 0, mid = null, mode = 'orbit', chipDown = null, dragEnd = -1e9;
   const local = e => { const p = stage.toStage(e.clientX, e.clientY), r = stage.rectOf(cv); return { x: p.x - r.x, y: p.y - r.y }; };
+  const mean = () => { const [a, b] = [...ptrs.values()]; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
   function tapAt(x, y) {
     const { w, h } = size(), g = getGame(); let best = null, bd = TAP;
     const dest = new Set(destinations(g).map(t => t.kind + ':' + (t.id ?? t.no)));
@@ -115,28 +149,53 @@ export function mountView3D(board, { stage, getGame, onPress, getHint, say, stat
     }
     if (best) { onPress(best); dirty = true; }
   }
+  function begin(e, p) {
+    ptrs.set(e.pointerId, p);
+    if (ptrs.size === 1) { downAt = p; moved = false; mode = e.pointerType === 'mouse' && (e.button === 2 || e.button === 1 || e.shiftKey) ? 'pan' : 'orbit'; }
+    else { moved = true; const [a, b] = [...ptrs.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); mid = mean(); }
+  }
   const onDown = e => {
-    if (!view || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    if (!view || (e.pointerType === 'mouse' && e.button > 2)) return;
     e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch { /* ไม่เป็นไร */ }
-    const p = local(e); ptrs.set(e.pointerId, p);
-    if (ptrs.size === 1) { downAt = p; moved = false; } else { moved = true; const [a, b] = [...ptrs.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); }
+    begin(e, local(e));
   };
   const onMove = e => {
     if (!view || !ptrs.has(e.pointerId)) return;
-    const p = local(e), q = ptrs.get(e.pointerId); ptrs.set(e.pointerId, p);
-    if (ptrs.size >= 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch > 0 && d > 0) view.camera.zoom(pinch / d); pinch = d; dirty = true; return; }
+    const p = local(e), q = ptrs.get(e.pointerId), h = size().h; ptrs.set(e.pointerId, p);
+    if (ptrs.size >= 2) {
+      const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), m = mean();
+      if (pinch > 0 && d > 0) view.camera.zoom(pinch / d);
+      if (mid) view.camera.pan(m.x - mid.x, m.y - mid.y, h);
+      pinch = d; mid = m; dirty = true; return;
+    }
     if (!moved && downAt && Math.hypot(p.x - downAt.x, p.y - downAt.y) > DRAG) moved = true;
-    if (moved) { view.camera.pan(p.x - q.x, p.y - q.y, size().h); dirty = true; }
+    if (!moved || mode === 'none') return;
+    if (mode === 'pan') view.camera.pan(p.x - q.x, p.y - q.y, h); else view.camera.orbit(p.x - q.x, p.y - q.y, h);
+    dirty = true;
   };
   const onUp = e => {
     if (!ptrs.has(e.pointerId)) return;
     ptrs.delete(e.pointerId);
-    if (e.type === 'pointerup' && !moved && downAt && ptrs.size === 0) { const g = getGame(); if (g && g.state === 'play') tapAt(downAt.x, downAt.y); }
-    if (!ptrs.size) { downAt = null; pinch = 0; }
+    if (e.type === 'pointerup' && !moved && downAt && ptrs.size === 0 && mode === 'orbit') { const g = getGame(); if (g && g.state === 'play') tapAt(downAt.x, downAt.y); }
+    if (moved) dragEnd = performance.now();
+    if (ptrs.size === 1) { pinch = 0; mid = null; mode = 'none'; }   // ยกนิ้วหนึ่งจากการบีบ: นิ้วที่เหลือไม่หมุนกล้องจนกว่าจะยกออก (กันภาพกระตุก)
+    if (!ptrs.size) { downAt = null; pinch = 0; mid = null; }
   };
-  const onWheel = e => { if (!view) return; e.preventDefault(); view.camera.zoom(Math.exp(e.deltaY * 0.0012)); dirty = true; };
+  // ลากที่เริ่มบนป้ายแตะ: ขยับเกิน DRAG = โอนการลากให้กล้อง (จับ pointer ไว้ที่ canvas ป้ายจึงไม่ได้ click)
+  const onChipDown = e => { if (view && e.target.closest('.v3d-chip') && !(e.pointerType === 'mouse' && e.button !== 0)) chipDown = { e, p: local(e) }; };
+  const onChipMove = e => {
+    if (!chipDown || chipDown.e.pointerId !== e.pointerId) return;
+    if (Math.hypot(local(e).x - chipDown.p.x, local(e).y - chipDown.p.y) <= DRAG) return;
+    try { cv.setPointerCapture(e.pointerId); } catch { /* ไม่เป็นไร */ }
+    begin(chipDown.e, chipDown.p); moved = true; chipDown = null; dragEnd = performance.now();
+  };
+  const onChipUp = e => { if (chipDown && chipDown.e.pointerId === e.pointerId) chipDown = null; };
+  const onWheel = e => { if (!view) return; e.preventDefault(); view.camera.zoom(Math.exp(e.deltaY * (e.ctrlKey ? 0.01 : 0.0012))); dirty = true; };
+  const noMenu = e => e.preventDefault();
   cv.addEventListener('pointerdown', onDown); cv.addEventListener('pointermove', onMove);
-  cv.addEventListener('pointerup', onUp); cv.addEventListener('pointercancel', onUp); cv.addEventListener('wheel', onWheel, { passive: false });
+  cv.addEventListener('pointerup', onUp); cv.addEventListener('pointercancel', onUp); cv.addEventListener('wheel', onWheel, { passive: false }); cv.addEventListener('contextmenu', noMenu);
+  chips.addEventListener('pointerdown', onChipDown); chips.addEventListener('pointermove', onChipMove);
+  chips.addEventListener('pointerup', onChipUp); chips.addEventListener('pointercancel', onChipUp);
   home.addEventListener('click', () => { if (view) { view.camera.reset(); dirty = true; } });
 
   return {
@@ -175,7 +234,7 @@ export function mountView3D(board, { stage, getGame, onPress, getHint, say, stat
     },
     destroy() {
       alive = false; cv.removeEventListener('pointerdown', onDown); cv.removeEventListener('pointermove', onMove);
-      cv.removeEventListener('pointerup', onUp); cv.removeEventListener('pointercancel', onUp); cv.removeEventListener('wheel', onWheel);
+      cv.removeEventListener('pointerup', onUp); cv.removeEventListener('pointercancel', onUp); cv.removeEventListener('wheel', onWheel); cv.removeEventListener('contextmenu', noMenu);
       if (view) view.dispose(); cv.remove(); chips.remove(); load.remove(); home.remove();
     },
   };
