@@ -15,8 +15,11 @@
 <!-- เวทีแนวนอนเดียวทุกจอ: ถือเครื่องแนวตั้ง src/ui/stage.js หมุนทั้งเวที 90° ที่ element นี้ชั้นเดียว -->
 <div class="stage" id="stage">
   <main class="screen home" id="s-home">
-    <!-- ปุ่มเต็มจอมุมขวาบน (ซ่อนไว้ก่อน career-app.js เปิดเมื่อเบราว์เซอร์รองรับ) -->
-    <button class="iconbtn fs-btn home-fs" id="b-full" type="button" data-act="full" aria-label="เต็มจอ" aria-pressed="false" hidden><svg class="ic-fs-in" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><svg class="ic-fs-out" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg></button>
+    <!-- มุมขวาบน: ปุ่มเสียง (audio/ui.js) และปุ่มเต็มจอ (ซ่อนไว้ก่อน career-app.js เปิดเมื่อเบราว์เซอร์รองรับ) -->
+    <div class="home-tools">
+      <button class="iconbtn snd-btn" type="button" data-act="sound" aria-label="เพลงและเสียง" aria-haspopup="true" aria-expanded="false"><svg class="ic-snd-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg><svg class="ic-snd-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg></button>
+      <button class="iconbtn fs-btn" id="b-full" type="button" data-act="full" aria-label="เต็มจอ" aria-pressed="false" hidden><svg class="ic-fs-in" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg><svg class="ic-fs-out" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5"/></svg></button>
+    </div>
     <section class="hero" aria-labelledby="title">
       <svg class="mascot" viewBox="0 0 96 160" role="img" aria-label="น้องเสาสัญญาณ">
         <rect class="m-post" x="43" y="96" width="10" height="52" rx="3"/>

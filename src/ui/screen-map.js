@@ -6,6 +6,7 @@ import { createMapRenderer, LINE_DASH, EDGED } from '../render/map-draw.js';
 import { fitBounds, centerOn, clampCamera, panBy, zoomAt, pinch, lerpCamera, easeInOut, sameCamera, toScreen, boundsOf, minPairDistance, labelSides, KM_PER_UNIT } from '../render/map-camera.js';
 import { sheetHtml, starCount, starIcon, esc, LOCK_ICON, NOTE_UNOFFICIAL } from './station-sheet.js';
 import { fullscreenButton } from './stage.js';
+import { soundButton } from '../audio/ui.js';
 
 const CLUSTER_PX = 56;        // ระยะบนจอขั้นต่ำระหว่างจุดสถานีก่อนแยกเป็นปุ่มของตัวเอง
 const MAX_PX_PER_KM = 20;
@@ -35,6 +36,7 @@ export function createMapScreen({ root, stage, map, pack, getProgress, onStation
       <button class="btn sm go" type="button" data-act="route">ไปเส้นทางสอน</button>
     </div>
     <div class="map-side">
+      ${soundButton()}
       ${fullscreenButton()}
       <button class="iconbtn" type="button" data-act="zin" aria-label="ซูมเข้า">${ICON.plus}</button>
       <button class="iconbtn" type="button" data-act="zout" aria-label="ซูมออก">${ICON.minus}</button>

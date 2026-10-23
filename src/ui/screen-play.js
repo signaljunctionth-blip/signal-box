@@ -18,12 +18,16 @@ import { createPanel } from '../render/panel2d.js';
 import { hitTest, targetCenter, panelGeom, minTargetGap } from '../render/panel-geom.js';
 import { esc, starIcon, TIER_NAME, NOTE_LAYOUT, NOTE_SIGNALLING, NOTE_UNOFFICIAL, NOTE_NOT_PROCEDURE } from './station-sheet.js';
 import { fullscreenButton } from './stage.js';
+import { scene, sfx } from '../audio/index.js';
+import { soundButton } from '../audio/ui.js';
 import { has3D, mountView3D, pref3D, savePref3D, tierButtons } from './view3d.js';
 import './play.css';
 
 export const NOTE_SIGNAL_NAMES = 'ชื่อเสาในเกมนี้เกมตั้งเอง ไม่ใช่ชื่อจริงของสถานี เลขทางและตารางเดินรถเป็นของสมมุติ';
 const NOTE_FICTIONAL = 'ผังสมมุติที่ทีมวาดเอง ไม่ได้อ้างอิงสถานีจริง';
 // เครดิตข้อมูลผังรางของสถานีจริง (ODbL ต้องให้เครดิตใกล้จุดที่ใช้ข้อมูล) ผังสมมุติไม่ขึ้น
+// ขบวนปรากฏ = กระดิ่งสถานีบอกว่ามีขบวนมา, เข้าจอด = เบรก, ออกพ้นสถานี = ล้อวิ่ง
+const TRAIN_SFX = { spawn: 'bell', arrive: 'trainStop', exit: 'trainRun' };
 export const OSM_CREDIT = { text: '© ผู้ร่วมพัฒนา OpenStreetMap', url: 'https://www.openstreetmap.org/copyright' };
 // หัวข้อสาเหตุเมื่อแพ้ ตาม code ของ event fail
 const STALL_AGAIN = 30; // วินาที (เวลาในเกม) หลังกด "เล่นต่อ" ที่แถบช่วยเหลือจะกลับมาถ้ายังไม่มีอะไรขยับ
@@ -82,6 +86,7 @@ export function mountPlay(host, params, ctx) {
         <dl class="pl-stats"><div><dt>คะแนน</dt><dd id="pl-score">0</dd></div><div><dt>ส่งแล้ว</dt><dd id="pl-done">0/0</dd></div></dl>
         ${has3D(params.stationId) && !lv0.token ? '<button class="btn sm pl-view" type="button" data-act="view" aria-label="สลับเป็นฉาก 3 มิติ">3 มิติ</button>' : ''}
         <button class="btn sm" type="button" data-act="fast" aria-pressed="false" aria-label="เร่งเวลา 2 เท่า">×2</button>
+        ${soundButton()}
         ${fullscreenButton()}
       </header>
       <div class="pl-board">
@@ -97,7 +102,7 @@ export function mountPlay(host, params, ctx) {
   const panel = createPanel(cv, stage.el);
   // ฉาก 3 มิติ (เฉพาะสถานีที่มีฉากแล้ว) วางทับแผงผังเส้นในกล่องเดียวกัน สลับกลับได้เสมอ
   const viewBtn = $('[data-act="view"]');
-  const v3d = viewBtn ? mountView3D(board, { stage, getGame: () => g, onPress: t => { if (g && g.state === 'play' && !paused) press(g, t); }, getHint: () => (g && g.state === 'play' && !paused ? curHint() : null), say: (t, k) => say(t, k), station: ctx.station || {} }) : null;
+  const v3d = viewBtn ? mountView3D(board, { stage, getGame: () => g, onPress: t => { if (g && g.state === 'play' && !paused) { if (press(g, t) && t && t.kind === 'point') sfx('lever'); watchSignals(); } }, getHint: () => (g && g.state === 'play' && !paused ? curHint() : null), say: (t, k) => say(t, k), station: ctx.station || {} }) : null;
   async function setView(on) {
     if (!v3d) return;
     viewBtn.disabled = true;
@@ -191,7 +196,8 @@ export function mountPlay(host, params, ctx) {
     queueEl.innerHTML = shown.map(i => { const sp = g.lv.sched[i], run = runWord(g.L, sp); return `<li><b style="--c:var(${sp.exp ? '--exp' : `--t${1 + (sp.plat - 1) % 3}`})">${i + 1}</b><span>${run ? `${run} · ` : ''}${esc(queueText(g.L, sp))}</span></li>`; }).join('')
       + (more > 0 ? `<li class="more">อีก ${more} ขบวน</li>` : '') || '<li class="more">มาครบทุกขบวนแล้ว</li>';
   }
-  function setPaused(p) { paused = p; dirty = true; }
+  // พักเกม = เพลงเงียบ (ตอนกลับจากแท็บอื่นเกมค้างที่เมนูพัก เพลงจึงไม่ดังขึ้นเอง)
+  function setPaused(p) { paused = p; dirty = true; if (g && g.state === 'play') scene(p ? null : 'play'); }
   function setFast(f) { fast = f; fastBtn.setAttribute('aria-pressed', String(f)); }
 
   /* ไม่มีขบวนขยับนานผิดปกติ (event 'stall' ไม่ใช่การแพ้): ขึ้นแถบบอก เปิดคำใบ้บนแผงให้ทุกด่าน และให้เริ่มใหม่ได้ */
@@ -209,19 +215,33 @@ export function mountPlay(host, params, ctx) {
     if (stallEl.hidden && helped && g.time - dismissedAt >= STALL_AGAIN) showStall({ seconds: g.stall });
   }
 
+  /* เสียง: เสาเปลี่ยนท่าดูจากสถานะเสาที่เปลี่ยนไป (ตัวจำลองไม่ส่ง event นี้) หลายต้นในเฟรมเดียวเล่นครั้งเดียว */
+  let aspects = {};
+  function watchSignals(quiet = false) {
+    let open = false, shut = false;
+    for (const k in g.S) {
+      const a = g.S[k].aspect, was = aspects[k];
+      if (was !== undefined && a !== was) { if (a === 'R') shut = true; else open = true; }
+      aspects[k] = a;
+    }
+    if (quiet) return;
+    if (open) sfx('signalClear'); else if (shut) sfx('signalStop');
+  }
+
   /* event จากตัวจำลอง */
   function onEvent(ev, game) {
     if (game !== g || !alive) return;
-    if (ev.type === 'msg') say(ev.text, ev.kind);
+    if (ev.type === 'msg') { say(ev.text, ev.kind); if (ev.code) sfx('deny'); } else if (ev.type === 'train') sfx(TRAIN_SFX[ev.what]);
     else if (ev.type === 'stall') showStall(ev);
-    else if (ev.type === 'fail') { hideStall(); hud(); failCard(ev); } else if (ev.type === 'win') {
-      hideStall();
+    else if (ev.type === 'fail') { hideStall(); hud(); scene(null); sfx('lose'); failCard(ev); } else if (ev.type === 'win') {
+      hideStall(); scene(null); sfx('win');
       result = ctx.finish({ stars: ev.stars, score: ev.score }) || {};
       hud(); winCard(ev);
     }
   }
   function open() {
     g = createGame(pack, index, { onEvent });
+    aspects = {}; watchSignals(true); scene('play');
     result = null; acc = 0; queueKey = ''; helped = false; dismissedAt = 0; hideStall(); setPaused(false); hideMsg();
     $('.pl-ttl b').textContent = g.lv.name;
     $('.pl-ttl span').textContent = `${ctx.station && ctx.station.name_th ? ctx.station.name_th : g.L.name} · ${g.era.name}`;
@@ -261,7 +281,9 @@ export function mountPlay(host, params, ctx) {
     if (!g || g.state !== 'play' || paused || (e.pointerType === 'mouse' && e.button !== 0)) return;
     e.preventDefault();
     const p = toBoard(e.clientX, e.clientY);
-    press(g, hitTest(g, p.x, p.y));
+    const t = hitTest(g, p.x, p.y);
+    if (press(g, t) && t && t.kind === 'point') sfx('lever');
+    watchSignals();
     dirty = true;
   };
   cv.addEventListener('pointerdown', onDown);
@@ -277,6 +299,7 @@ export function mountPlay(host, params, ctx) {
     if (running && !manual) {
       acc += dt * (fast ? 2 : 1);
       while (acc >= FIXED_DT && g.state === 'play') { acc -= FIXED_DT; step(g, FIXED_DT); }
+      watchSignals();
     }
     if (running) { hudT += dt; if (hudT > 0.15) { hudT = 0; hud(); } }
     if (v3d && v3d.active) { if (dirty) v3d.touch(); dirty = false; v3d.frame(dt, running); }
@@ -297,6 +320,7 @@ export function mountPlay(host, params, ctx) {
   return {
     destroy() {
       alive = false; cancelAnimationFrame(raf); clearTimeout(toastT);
+      scene(null);
       host.removeEventListener('click', onClick); document.removeEventListener('keydown', onKey); cv.removeEventListener('pointerdown', onDown);
       document.removeEventListener('visibilitychange', onHide); mq.removeEventListener('change', recolor); mo.disconnect(); offResize();
       if (v3d) v3d.destroy();
@@ -311,8 +335,8 @@ export function mountPlay(host, params, ctx) {
       // true = เวลาเดินเฉพาะเมื่อบอทเรียก step() (ยังแตะจอได้ตามปกติ) ใช้ให้ผลทดสอบซ้ำได้
       setManual(m) { manual = !!m; },
       // เดินตัวจำลองตรง ๆ ทีละก้าวคงที่ (ไม่รอเวลาจริง) คืนสถานะเกม
-      step(seconds = FIXED_DT) { for (let n = Math.max(1, Math.round(seconds / FIXED_DT)); n > 0 && g.state === 'play'; n--) step(g, FIXED_DT); hud(); dirty = true; return g.state; },
-      press(target) { const r = press(g, target); dirty = true; return r; },
+      step(seconds = FIXED_DT) { for (let n = Math.max(1, Math.round(seconds / FIXED_DT)); n > 0 && g.state === 'play'; n--) step(g, FIXED_DT); watchSignals(); hud(); dirty = true; return g.state; },
+      press(target) { const r = press(g, target); if (r && target && target.kind === 'point') sfx('lever'); watchSignals(); dirty = true; return r; },
       hint: () => curHint(), nextTarget: () => nextTarget(g),
       hitTest: (bx, by) => hitTest(g, bx, by),
       // ระยะบนจอจริง (px) ระหว่างศูนย์กลางเป้าแตะ (เสา ปุ่มประแจ) คู่ที่ใกล้กันที่สุดของผังนี้
