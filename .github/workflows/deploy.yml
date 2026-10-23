@@ -18,7 +18,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 2026-10-23 รอบ WP9 ติดตั้งเบราว์เซอร์ช้า 8 นาที แล้วถูกตัดที่ 15 นาทีระหว่าง npm test จึงเผื่อเป็น 25
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -26,7 +27,17 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # เก็บเบราว์เซอร์ของ Playwright ไว้ข้ามรอบ (ผูกกับ package-lock.json เปลี่ยนรุ่นเมื่อไรโหลดใหม่)
+      - id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      # มีเบราว์เซอร์ในแคชแล้ว ลงแค่ไลบรารีของระบบ
+      - if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
       # npm test = บอทเล่น 12 ด่าน + test:build (vite build แล้วตรวจ dist/)
       - run: npm test
       - run: npm run build
