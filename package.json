@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "npm run test:sim && npm run test:bot && npm run test:build && npm run test:game && npm run test:ui",
-    "test:sim": "node test/sim-test.mjs && node test/sim2-test.mjs && node test/token-test.mjs && node test/namtok-test.mjs && node test/render3d-test.mjs",
+    "test:sim": "node test/sim-test.mjs && node test/sim2-test.mjs && node test/token-test.mjs && node test/namtok-test.mjs && node test/render3d-test.mjs && node test/editor-test.mjs",
     "test:bot": "node test/bot-test.js",
     "test:build": "vite build && node test/build-test.js",
     "test:game": "node test/game-bot-test.js",
