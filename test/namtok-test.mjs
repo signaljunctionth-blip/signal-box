@@ -42,8 +42,16 @@ for (const lv of pack.levels) {
 // ปลดล็อก: เริ่มเกมเปิดแค่ tk-1, ได้ 1 ดาวทุกภารกิจของขั้น 1–2 (8 ดาว) ยังเข้ากาญจนบุรีไม่ได้, 3 ดาวทุกภารกิจเปิดครบ
 const u0 = sim.unlockState(pack, () => 0), u1 = sim.unlockState(pack, l => (l.i < 8 ? 1 : 0)), u3 = sim.unlockState(pack, () => 3);
 ok(u0.levels.filter(l => l.open).length === 1 && u0.levels[0].open, 'เริ่มเกมเปิดแค่ tk-1');
-ok(!u1.stations[3].open, 'ดาวสะสม 8 ยังเข้ากาญจนบุรีไม่ได้ (ต้อง 12)');
+ok(!u1.stations[3].open, 'ดาวสะสม 8 ยังเข้ากาญจนบุรีไม่ได้ (ต้อง 15)');
 ok(u3.levels.every(l => l.open), 'ได้ดาวครบแล้วทุกภารกิจเปิด');
+// ข้ามบทสอน (WP4.5): ไม่มีดาวเลยก็เปิดทุกสถานีและทุกภารกิจ แต่ไม่ให้ดาว
+const us = sim.unlockState(pack, () => 0, { skip: true });
+ok(us.levels.every(l => l.open) && us.stations.every(s => s.open) && us.total === 0, 'ข้ามบทสอน: เปิดทุกสถานีและทุกภารกิจ ดาวรวมยังเป็น 0');
+// ดาวเต็มก่อนเข้าแต่ละสถานีเปลี่ยนไม่ได้ ถ้าเปลี่ยนต้องปรับ needStars ให้สัดส่วนคงเดิม (15/30, 24/39)
+const maxBefore = k => 3 * pack.levels.filter(l => pack.stations.findIndex(s => s.station === l.station) < k).length;
+ok(maxBefore(3) === 30 && maxBefore(4) === 39, 'ดาวเต็มก่อนกาญจนบุรี 30 ก่อนหนองปลาดุก 39', `${maxBefore(3)} / ${maxBefore(4)}`);
+// ภารกิจต้น ๆ ที่ผู้ทดสอบบอกว่าขบวนเยอะไป (WP4.5) มีไม่เกิน 3 ขบวน
+for (const id of ['tk-3', 'wp-2', 'wp-3', 'nt-2']) { const lv = pack.levels.find(l => l.id === id); ok(lv.trains.length >= 2 && lv.trains.length <= 3, `${id} มี 2–3 ขบวน`, `${lv.trains.length} ขบวน`); }
 
 if (!pack.levels.some(l => l.error)) {
   console.log('\nภารกิจ   ผล    ขบวน   คะแนน     %   ดาว  เวลา    แตะ  ถูกปฏิเสธ');
@@ -85,6 +93,59 @@ if (!pack.levels.some(l => l.error)) {
     ok(a.state === 'win', `${lv.id} บอทมือช้า 2 วิ ชนะ`, show(a));
     ok(b.state === 'win' || (b.code === 'MAX_WAIT' && lv.maxWait), `${lv.id} บอทมือช้า 4 วิ ไม่ค้าง ไม่ชน ไม่เจอทางตัน`, show(b));
   });
+}
+
+// เร่งเวลาอัตโนมัติ (WP4.5): หน้าจอเร่ง ×3 เมื่อ sim.idle(g) ไม่มีอะไรให้ตัดสินใจ วัดเวลาจริงของเส้นทางสอน (ขั้น 1–2) ด้วยบอทมือช้า 2 วิ
+// เกณฑ์: สั้นกว่าเวอร์ชันก่อน WP4.5 อย่างน้อย 30% (เดิม 14.6 นาที วัด 2026-10-19 ด้วยวิธีเดียวกันแต่ไม่เร่ง)
+// และ idle ต้องเป็น false ทุกครั้งที่คำใบ้มีอะไรให้แตะ หรือมีขบวนพร้อมออก/รอเสา หรือสถานีข้างเคียงขอทาง
+const AUTO = 3, OLD_TUTORIAL = 876;
+if (!pack.levels.some(l => l.error)) {
+  let real = 0, wrongIdle = 0;
+  pack.levels.filter(l => l.tier === undefined && pack.stations.findIndex(s => s.station === l.station) < 3).forEach(lv => {
+    const g = sim.createGame(pack, lv.i); sim.startGame(g);
+    let last = -2;
+    while (g.state === 'play' && g.time < 600) {
+      if (g.time - last >= 2) { const t = sim.nextTarget(g); if (t) { sim.press(g, t); last = g.time; } }
+      const calm = sim.idle(g);
+      if (calm && (sim.hint(g, { force: true }) || g.trains.some(t => t.state === 'ready') || Object.values(g.block).some(b => b.ask !== null))) wrongIdle++;
+      real += calm ? sim.FIXED_DT / AUTO : sim.FIXED_DT;
+      sim.step(g, sim.FIXED_DT);
+    }
+    ok(g.state === 'win', `${lv.id} เล่นแบบเร่งอัตโนมัติชนะ`);
+  });
+  ok(!wrongIdle, 'เร่งอัตโนมัติไม่ทำงานตอนที่มีเรื่องให้ตัดสินใจ', `${wrongIdle} ก้าว`);
+  ok(real <= OLD_TUTORIAL * 0.7, 'เวลาเล่นจริงของเส้นทางสอนสั้นลงอย่างน้อย 30%', `${Math.round(real)} วิ เทียบเดิม ${OLD_TUTORIAL}`);
+  console.log(`\nเส้นทางสอนขั้น 1–2 (บอทมือช้า 2 วิ + เร่งอัตโนมัติ): ${(real / 60).toFixed(1)} นาที เดิม ${(OLD_TUTORIAL / 60).toFixed(1)} นาที (สั้นลง ${Math.round(100 * (1 - real / OLD_TUTORIAL))}%)`);
+
+  // ไม่เร่งตอนขบวนวิ่งไปหาสิ่งที่ผู้เล่นยังแก้ทัน (signalling-engineer ตรวจ WP4.5)
+  // tk-3 ยุคไม่มีอินเตอร์ล็อก: เปิดเสาออกโดยไม่สับประแจรับ ขบวนวิ่งไปหาประแจที่ตั้งผิด ต้องไม่เร่งจนรถฝ่าประแจ
+  {
+    const g = sim.createGame(pack, pack.levels.find(l => l.id === 'tk-3').i); sim.startGame(g);
+    let leaving = 0, calm = 0;
+    while (g.state === 'play' && g.time < 600) {
+      const rd = g.trains.find(t => t.state === 'ready' && t.stopped && g.E[t.edge].sig && g.S[g.E[t.edge].sig].aspect === 'R');
+      const tg = rd ? { kind: 'signal', id: g.E[rd.edge].sig } : sim.nextTarget(g);
+      if (tg) sim.press(g, tg);
+      if (g.trains.some(t => t.state === 'leaving' && !t.stopped)) { leaving++; if (sim.idle(g)) calm++; }
+      sim.step(g, sim.FIXED_DT);
+    }
+    ok(leaving > 0 && !calm, 'tk-3 ไม่เร่งตอนขบวนวิ่งไปหาประแจที่ตั้งผิด', `${calm}/${leaving} ก้าว`);
+  }
+  // wp-3 ขบวนด่วน: เปิดเสาเข้าแล้วแต่เสาออกยังห้าม ระหว่างวิ่งบนรางที่ไม่มีเสา ต้องไม่เร่ง (ผู้เล่นยังเปิดเสาออกให้ผ่านโดยไม่หยุดได้)
+  {
+    const g = sim.createGame(pack, pack.levels.find(l => l.id === 'wp-3').i); sim.startGame(g);
+    let runs = 0, calm = 0;
+    while (g.state === 'play' && g.time < 600) {
+      for (const t of g.trains) if (t.exp && t.edge === t.entry && t.stopped && g.S[g.E[t.edge].sig].aspect === 'R') {
+        const r = sim.wantedRoute(g, t);
+        if (r) { for (const [k, p] of r.req) if (g.P[k].pos !== p) sim.press(g, { kind: 'point', id: k }); sim.press(g, { kind: 'signal', id: g.E[t.edge].sig }); }
+      }
+      const ex = g.trains.find(t => t.exp && !t.stopped && t.edge !== t.entry && t.state === 'through');
+      if (ex && !g.E[ex.edge].sig) { runs++; if (sim.idle(g)) calm++; } else { const tg = sim.nextTarget(g); if (tg) sim.press(g, tg); }
+      sim.step(g, sim.FIXED_DT);
+    }
+    ok(runs > 0 && !calm, 'wp-3 ไม่เร่งตอนขบวนด่วนวิ่งไปหาเสาออกที่ห้ามอยู่', `${calm}/${runs} ก้าว`);
+  }
 }
 
 // กันทางตันจากตาราง: ขบวนที่เข้าจากขา X ต้องไม่ถูกกำหนดให้จอดทางที่ผู้ใช้คนก่อนจะออกไปขา X

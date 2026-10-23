@@ -18,6 +18,9 @@
 /* แผงเว้นขอบปลอดภัยซ้ายขวา (รอยบาก): ป้ายขาและเป้าแตะที่ชิดขอบแผงจึงไม่ถูกบัง พื้นแผงยังเต็มจอ */
 .pl-board canvas{position:absolute;left:var(--sa-l);top:0;width:calc(100% - var(--sa-l) - var(--sa-r));height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:pointer}
 .pl-board canvas:focus{outline:none}
+/* ป้ายเร่งเวลาอัตโนมัติ: แค่บอก ไม่รับการแตะ (การแตะทะลุไปที่แผง) */
+.pl-auto{position:absolute;z-index:1;top:6px;right:calc(8px + var(--sa-r));padding:1px 10px;border-radius:999px;border:1.5px solid var(--amber);background:var(--cream);color:var(--navy);font-family:var(--display);font-size:13px;line-height:1.6;pointer-events:none}
+.pl-auto[hidden]{display:none}
 .pl-foot{flex:none;display:flex;align-items:center;gap:10px;min-height:40px;padding:4px calc(10px + var(--sa-r)) calc(4px + var(--sa-b)) calc(10px + var(--sa-l));background:var(--paper);border-top:1.5px solid var(--line);overflow:hidden}
 .pl-next{flex:none;font-family:var(--display);font-size:13px;color:var(--muted)}
 .pl-queue{display:flex;gap:8px;min-width:0;flex:1;overflow:hidden}

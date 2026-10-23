@@ -36,7 +36,7 @@ export function sheetHtml(st, info, progress, nameOf, stationNote = '') {
   let lock = '';
   if (st.lock) {
     const L = st.lock, lines = [];
-    if (L.prevRemaining > 0) lines.push(`ผ่านภารกิจของสถานี${esc(nameOf(L.prevStation))}ให้ครบก่อน เหลืออีก ${L.prevRemaining} ภารกิจ`);
+    if (L.prevRemaining > 0) lines.push(`ผ่านภารกิจของสถานี${esc(nameOf(L.prevStation))}ให้ครบก่อน เหลืออีก ${L.prevRemaining} ภารกิจ (ได้ 1 ดาวก็นับว่าผ่าน)`);
     if (L.needStars > 0) lines.push(L.missingStars > 0
       ? `ต้องมีดาวสะสม ${L.needStars} ดวง ตอนนี้มี ${L.haveStars} ขาดอีก ${L.missingStars}`
       : `ดาวสะสมครบ ${L.needStars} ดวงแล้ว`);
@@ -60,7 +60,16 @@ export function sheetHtml(st, info, progress, nameOf, stationNote = '') {
     : `<span class="ms-lock">${LOCK_ICON}<span>ยังล็อก</span></span>`}
       </li>`).join('');
 
-  return `${head}${lock}
-    <h3 class="sheet-sub">ภารกิจ ${st.passed}/${st.missions.length} · เปิดทีละข้อตามลำดับ</h3>
+  // ข้ามบทสอน (WP4.5) สำหรับคนที่รู้เรื่องรถไฟ: กดแล้วต้องยืนยันอีกครั้งในกล่องเดียวกัน
+  const skip = progress.canSkip ? `
+    <details class="skipbox">
+      <summary class="btn sm">รู้เรื่องรถไฟอยู่แล้ว? ข้ามบทสอน</summary>
+      <p>เปิดทุกสถานีและทุกภารกิจของเส้นทางสอนทันที ข้ามแล้วไม่ได้ดาว ดาวได้จากการเล่นแต่ละภารกิจเหมือนเดิม</p>
+      <button class="btn sm go" type="button" data-act="skip">เปิดทุกสถานี</button>
+    </details>` : '';
+
+  // วางใต้กล่องล็อก ไม่ใช่ท้ายรายการ: จอ 844×390 ไม่ต้องเลื่อนก็เห็นปุ่ม
+  return `${head}${lock}${skip}
+    <h3 class="sheet-sub">ภารกิจ ${st.passed}/${st.missions.length} · ชนะได้ 1 ดาวก็เปิดภารกิจถัดไป</h3>
     <ol class="missions">${rows}</ol>`;
 }

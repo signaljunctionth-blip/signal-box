@@ -176,15 +176,16 @@ export const levelKey = lv => lv.id ?? String(lv.i);
 // คืน { total, levels: [{ open, stars }], stations: [{ station, open, need, stars, max }] }
 // - ด่านในสถานีเดียวกันเปิดตามลำดับ  - สถานีถัดไปเปิดเมื่อผ่านทุกด่านของสถานีก่อนหน้า และดาวสะสมถึง needStars
 // - ที่เคยได้ดาวแล้วเปิดเสมอ (เซฟเก่าก่อนแทรกภารกิจใหม่)
-export function unlockState(pack, starsOf) {
+// - opts.skip = ผู้เล่นกด "ข้ามบทสอน" (WP4.5): ทุกสถานีและทุกภารกิจของชุดเปิดหมด ไม่ให้ดาว (total นับเฉพาะดาวที่เล่นได้จริง)
+export function unlockState(pack, starsOf, { skip = false } = {}) {
   const stars = pack.levels.map(l => starsOf(l) || 0), total = stars.reduce((a, b) => a + b, 0);
   const levels = pack.levels.map((l, i) => ({ open: false, stars: stars[i] }));
   if (!pack.stations) { pack.levels.forEach((l, i) => { levels[i].open = i === 0 || stars[i - 1] > 0; }); return { total, levels, stations: [] }; }
   let prevDone = true;
   const stations = pack.stations.map(s => {
     // ภารกิจหรือสถานีที่เคยเล่นผ่านแล้วเปิดค้างไว้เสมอ: แทรกภารกิจใหม่ (เช่น ภารกิจห่วงใน M2) แล้วผู้เล่นเดิมไม่ถูกล็อกย้อนหลัง
-    const mine = pack.levels.filter(l => l.station === s.station), open = (prevDone && total >= s.needStars) || mine.some(l => stars[l.i] > 0);
-    mine.forEach((l, n) => { levels[l.i].open = open && (n === 0 || stars[mine[n - 1].i] > 0 || stars[l.i] > 0); });
+    const mine = pack.levels.filter(l => l.station === s.station), open = skip || (prevDone && total >= s.needStars) || mine.some(l => stars[l.i] > 0);
+    mine.forEach((l, n) => { levels[l.i].open = skip || (open && (n === 0 || stars[mine[n - 1].i] > 0 || stars[l.i] > 0)); });
     prevDone = prevDone && mine.every(l => stars[l.i] > 0);
     return { station: s.station, tier: s.tier, open, need: s.needStars, stars: mine.reduce((a, l) => a + stars[l.i], 0), max: 3 * mine.length };
   });

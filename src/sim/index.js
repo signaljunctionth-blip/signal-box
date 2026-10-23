@@ -18,7 +18,7 @@ export { T_OVL, T_CANCEL, sigName, walk, release, tapSignal, tapPoint, autoRoute
 export { blockState, blockFree, requestPermit, returnPermit, tokenMode, hasToken, tapToken, acceptToken } from './block.js';
 export { TL, spawn, moveTrain, checkCollisions, reverseTrain, graceOf } from './trains.js';
 export { press, routeTo, needsDestination } from './control.js';
-export { hint, nextTarget, wantedRoute, isStatic, escapeRoutes, trapsItself, cannotReceive } from './hint.js';
+export { hint, nextTarget, idle, wantedRoute, isStatic, escapeRoutes, trapsItself, cannotReceive } from './hint.js';
 export { trackState, trainInfo, snapshot } from './view.js';
 export { createRng } from './rng.js';
 export { T as MESSAGES, way } from './messages.js';

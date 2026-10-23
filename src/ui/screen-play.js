@@ -13,7 +13,7 @@
 //   api   = hook ของบอท (ดู return ท้ายไฟล์) ออกทาง window.__sjApp.play
 //
 // ตัวจำลองอยู่ใน sim/ ไฟล์นี้แค่ส่งคำสั่งเข้า (press, step) รับ event ออก (msg, fail, win) และวาดด้วย render/panel2d.js
-import { FIXED_DT, createGame, startGame, step, press, hint, nextTarget, snapshot } from '../sim/index.js';
+import { FIXED_DT, createGame, startGame, step, press, hint, nextTarget, idle, snapshot } from '../sim/index.js';
 import { createPanel } from '../render/panel2d.js';
 import { hitTest, targetCenter, panelGeom, minTargetGap } from '../render/panel-geom.js';
 import { esc, starIcon, TIER_NAME, NOTE_LAYOUT, NOTE_SIGNALLING, NOTE_UNOFFICIAL, NOTE_NOT_PROCEDURE } from './station-sheet.js';
@@ -30,6 +30,14 @@ const NOTE_FICTIONAL = 'ผังสมมุติที่ทีมวาด�
 const TRAIN_SFX = { spawn: 'bell', arrive: 'trainStop', exit: 'trainRun' };
 export const OSM_CREDIT = { text: '© ผู้ร่วมพัฒนา OpenStreetMap', url: 'https://www.openstreetmap.org/copyright' };
 // หัวข้อสาเหตุเมื่อแพ้ ตาม code ของ event fail
+// เร่งเวลาอัตโนมัติ (WP4.5): ช่วงที่ไม่มีอะไรให้ผู้เล่นตัดสินใจ (sim idle) เวลาเดินเร็ว AUTO_RATE เท่า กลับเป็นปกติทันทีเมื่อมีเรื่องให้ตัดสินใจ
+// ใช้ก้าว FIXED_DT เดิม แค่เดินหลายก้าวต่อเฟรม ผลของตัวจำลองจึงเหมือนเดิมทุกอย่าง
+export const AUTO_RATE = 3;
+const MAX_STEPS = 48; // ก้าวสูงสุดต่อเฟรม (กันเครื่องช้าค้าง)
+// ค่า ×2 ที่ผู้เล่นเลือกไว้ จำข้ามภารกิจและข้ามการเปิดเกม (เก็บไม่ได้ก็เล่นได้ตามปกติ)
+export const FAST_KEY = 'sj-play-fast';
+const loadFast = () => { try { return globalThis.localStorage.getItem(FAST_KEY) === '1'; } catch { return false; } };
+const saveFast = f => { try { globalThis.localStorage.setItem(FAST_KEY, f ? '1' : '0'); } catch { /* เก็บไม่ได้ ใช้ค่าในหน้านี้ไป */ } };
 const STALL_AGAIN = 30; // วินาที (เวลาในเกม) หลังกด "เล่นต่อ" ที่แถบช่วยเหลือจะกลับมาถ้ายังไม่มีอะไรขยับ
 const FAIL_TH = { HEAD_ON: 'ชนประสานงา', REAR_END: 'ชนท้าย', SIDE: 'ชนสีข้างที่ประแจ', HEAD_ON_BLOCK: 'ปล่อยรถเข้าตอนที่มีขบวนสวนมา', RUN_THROUGH: 'รถฝ่าประแจ', DERAIL_UNDER: 'สับประแจขณะรถทับอยู่', DEADLOCK: 'ทางตัน ไม่มีทางไหนตั้งได้', MAX_WAIT: 'ขบวนรอนานเกินกำหนด' };
 const MASCOT = `<svg class="mascot" viewBox="0 0 96 160" aria-hidden="true"><rect class="m-post" x="43" y="96" width="10" height="52" rx="3"/><rect class="m-base" x="26" y="144" width="44" height="10" rx="5"/><rect class="m-head" x="22" y="6" width="52" height="98" rx="26"/><circle class="m-red" cx="48" cy="32" r="11"/><circle class="m-amber" cx="48" cy="56" r="11"/><circle class="m-green" cx="48" cy="80" r="11"/></svg>`;
@@ -91,6 +99,7 @@ export function mountPlay(host, params, ctx) {
       </header>
       <div class="pl-board">
         <canvas tabindex="-1" aria-label="แผงควบคุมสถานี แตะเสา ประแจ หรือทางจอดเพื่อสั่งการ"></canvas>
+        <span class="pl-auto" hidden>เร่งเวลา ×${AUTO_RATE}</span>
         <div class="pl-ov" hidden></div>
       </div>
       <footer class="pl-foot"><span class="pl-next">คันถัดไป</span><ol class="pl-queue"></ol>
@@ -98,7 +107,7 @@ export function mountPlay(host, params, ctx) {
       </footer>
     </div>`;
   const $ = s => host.querySelector(s);
-  const stallEl = $('.pl-stall'), cv = $('canvas'), board = $('.pl-board'), ov = $('.pl-ov'), msgEl = $('.pl-msg'), queueEl = $('.pl-queue'), fastBtn = $('[data-act="fast"]');
+  const stallEl = $('.pl-stall'), cv = $('canvas'), board = $('.pl-board'), ov = $('.pl-ov'), msgEl = $('.pl-msg'), queueEl = $('.pl-queue'), fastBtn = $('[data-act="fast"]'), autoEl = $('.pl-auto');
   const panel = createPanel(cv, stage.el);
   // ฉาก 3 มิติ (เฉพาะสถานีที่มีฉากแล้ว) วางทับแผงผังเส้นในกล่องเดียวกัน สลับกลับได้เสมอ
   const viewBtn = $('[data-act="view"]');
@@ -115,7 +124,7 @@ export function mountPlay(host, params, ctx) {
     savePref3D({ on: ok });
     dirty = true;
   }
-  let g = null, paused = false, manual = false, fast = false, alive = true, raf = 0, lastT = 0, acc = 0, hudT = 1, dirty = true, result = null, queueKey = '';
+  let g = null, paused = false, manual = false, fast = false, auto = false, alive = true, raf = 0, lastT = 0, acc = 0, hudT = 1, dirty = true, result = null, queueKey = '';
 
   /* ข้อความแจ้งจากตัวจำลอง */
   let toastT = 0;
@@ -198,7 +207,8 @@ export function mountPlay(host, params, ctx) {
   }
   // พักเกม = เพลงเงียบ (ตอนกลับจากแท็บอื่นเกมค้างที่เมนูพัก เพลงจึงไม่ดังขึ้นเอง)
   function setPaused(p) { paused = p; dirty = true; if (g && g.state === 'play') scene(p ? null : 'play'); }
-  function setFast(f) { fast = f; fastBtn.setAttribute('aria-pressed', String(f)); }
+  function setFast(f, remember = false) { fast = f; fastBtn.setAttribute('aria-pressed', String(f)); if (remember) saveFast(f); }
+  function setAuto(a) { if (a === auto) return; auto = a; autoEl.hidden = !a; }
 
   /* ไม่มีขบวนขยับนานผิดปกติ (event 'stall' ไม่ใช่การแพ้): ขึ้นแถบบอก เปิดคำใบ้บนแผงให้ทุกด่าน และให้เริ่มใหม่ได้ */
   let helped = false, dismissedAt = 0;
@@ -256,7 +266,7 @@ export function mountPlay(host, params, ctx) {
     else if (act === 'exit') ctx.exit();
     else if (act === 'next' && result && result.next) ctx.play(result.next.missionId, result.next.stationId);
     else if (act === 'unstall') { hideStall(); dismissedAt = g.time; }
-    else if (act === 'menu') { if (g.state === 'play') { setPaused(true); menuCard(); } } else if (act === 'fast') setFast(!fast);
+    else if (act === 'menu') { if (g.state === 'play') { setPaused(true); menuCard(); } } else if (act === 'fast') setFast(!fast, true);
     else if (act === 'view') setView(!(v3d && v3d.active));
     else if (act === 'tier' && v3d) { v3d.setTier(b.dataset.tier); ov.querySelectorAll('[data-act="tier"]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); }
   };
@@ -288,7 +298,8 @@ export function mountPlay(host, params, ctx) {
   };
   cv.addEventListener('pointerdown', onDown);
 
-  /* วงรอบ: เวลาจริงสะสมแล้วเดินตัวจำลองทีละก้าวคงที่ FIXED_DT (×2 = สะสมเร็วเป็น 2 เท่า) วาดเมื่อมีอะไรเปลี่ยน */
+  /* วงรอบ: เวลาจริงสะสมแล้วเดินตัวจำลองทีละก้าวคงที่ FIXED_DT วาดเมื่อมีอะไรเปลี่ยน
+     แต่ละก้าวกินเวลาจริง FIXED_DT / อัตรา: ปกติ 1, ×2 = 2, ไม่มีอะไรให้ตัดสินใจ = AUTO_RATE (ตรวจทุกก้าว จึงช้าลงทันทีที่มีเรื่อง) */
   let lastSize = { w: -1, h: -1, L: null }; // ขนาดกล่องและผังที่แผงคิดมาตราส่วนไว้ล่าสุด
   const size = () => ({ w: cv.clientWidth, h: cv.clientHeight });
   function frame(ts) {
@@ -297,10 +308,16 @@ export function mountPlay(host, params, ctx) {
     const dt = Math.min(0.05, (ts - lastT) / 1000 || 0); lastT = ts;
     const running = g.state === 'play' && !paused;
     if (running && !manual) {
-      acc += dt * (fast ? 2 : 1);
-      while (acc >= FIXED_DT && g.state === 'play') { acc -= FIXED_DT; step(g, FIXED_DT); }
+      acc += dt;
+      for (let n = 0; n < MAX_STEPS && g.state === 'play'; n++) {
+        const quiet = idle(g), cost = FIXED_DT / Math.max(fast ? 2 : 1, quiet ? AUTO_RATE : 1);
+        setAuto(quiet);
+        if (acc < cost) break;
+        acc -= cost; step(g, FIXED_DT);
+      }
+      if (acc > FIXED_DT) acc = FIXED_DT; // เครื่องช้าเกิน MAX_STEPS: ทิ้งส่วนเกิน ไม่เร่งไล่ทีหลัง
       watchSignals();
-    }
+    } else setAuto(false);
     if (running) { hudT += dt; if (hudT > 0.15) { hudT = 0; hud(); } }
     if (v3d && v3d.active) { if (dirty) v3d.touch(); dirty = false; v3d.frame(dt, running); }
     else if (running || dirty) { dirty = false; lastSize = { ...size(), L: g.L }; panel.draw(g, ts / 1000, running ? curHint() : null, lastSize, { calm: calm() }); }
@@ -313,6 +330,7 @@ export function mountPlay(host, params, ctx) {
   const mo = new MutationObserver(recolor); mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   if (document.fonts) document.fonts.ready.then(() => { dirty = true; });
 
+  setFast(loadFast());
   open();
   raf = requestAnimationFrame(frame);
   if (v3d && pref3D().on) setView(true);
@@ -327,7 +345,7 @@ export function mountPlay(host, params, ctx) {
     },
     // hook ของบอท (แบบเดียวกับ window.__sjBox ของต้นแบบ): อ่านสถานะ เดินเวลาเร็ว สั่งการ และหาจุดแตะบนจอจริง
     api: {
-      get g() { return g; }, get paused() { return paused; }, pack, index, id: lv0.id ?? String(index),
+      get g() { return g; }, get paused() { return paused; }, get fast() { return fast; }, get auto() { return auto; }, pack, index, id: lv0.id ?? String(index),
       snapshot: () => snapshot(g),
       start() { if (g.state === 'intro') { closeCard(); startGame(g); } return g.state; },
       restart: open,
