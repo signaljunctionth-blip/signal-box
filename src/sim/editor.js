@@ -188,6 +188,7 @@ export function planToStation(input, id = 'custom') {
     } else buffers.push((startAt[k] || endAt[k])[0]);
   }
   const portalTrack = new Set(Object.values(portals).map(v => v.track));
+  const portalSide = Object.fromEntries(Object.entries(portals).map(([k, v]) => [v.track, k[0]]));
   // รางท่อนที่ปลายลอยทั้งสองข้าง (ไม่ต่อกับรางอื่นเลย)
   const twice = buffers.filter((t, n) => buffers.indexOf(t) !== n);
   for (const t of new Set([...twice, ...buffers.filter(t => portalTrack.has(t))])) {
@@ -213,7 +214,9 @@ export function planToStation(input, id = 'custom') {
     const n = nodes[nodeKey(i, j)];
     if (!n || !n.sig[dir]) continue;
     const k = nodeKey(i, j), track = dir === 'E' ? endAt[k][0] : startAt[k][0];
-    const home = portalTrack.has(track), end = home ? (dir === 'E' ? 'W' : 'E') : dir;
+    // เสาเข้า = อยู่บนรางขาเข้าออกและหันเข้าสถานี (ขาฝั่งซ้ายหันขวา ขาฝั่งขวาหันซ้าย) ที่เหลือนับตามทิศที่หัน
+    const side = portalSide[track] || null;
+    const home = side !== null && dir === (side === 'W' ? 'E' : 'W'), end = home ? side : dir;
     sigs.push({ i, j, dir, track, home, end, plat: platNo[track] ?? 99 });
   }
   const down = plan.upDir === 'E' ? 'W' : 'E', signals = {}, signalCells = {};

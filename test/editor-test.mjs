@@ -109,7 +109,8 @@ section('ตารางอินเตอร์ล็อกอัตโนม�
   const want = { 'S1>1': 'S2>1 S2>2 S1>2 T2 U1 U2', 'S1>2': 'S2>1 S2>2 S1>1 T1 U1 U2', 'S2>1': 'S1>1 S1>2 S2>2 T1 T2 U2', 'S2>2': 'S1>1 S1>2 S2>1 T1 T2 U1',
     T1: 'S1>2 S2>1 S2>2 T2', T2: 'S1>1 S2>1 S2>2 T1', U1: 'S1>1 S1>2 S2>2 U2', U2: 'S1>1 S1>2 S2>1 U1' };
   // ชื่อในข้อ 8: E1 = S1>1, W1 = S2>1, DE1 = T1, DW1 = U1 (เสาเดียวกันนับว่าขัดด้วย)
-  for (const r of T.rows) same(r.conflicts.map(id => by[id]).sort().join(' '), want[name(r)].split(' ').sort().join(' '), `${name(r)} ขัดกับ ${want[name(r)]}`);
+  // เสาเดียวกันไม่นับในช่องขัดกัน (อยู่ใน sameSignal)
+  for (const r of T.rows) same(r.conflicts.map(id => by[id]).sort().join(' '), want[name(r)].split(' ').filter(x => x.split('>')[0] !== r.label).sort().join(' '), `${name(r)} ขัดกับ ${want[name(r)]}`);
   const e1 = T.rows.find(r => name(r) === 'S1>1');
   same(e1.points, [['P1', 'R']], 'S1 → ทาง 1 ต้องตั้ง P1 ท่า R');
   same(e1.overlap && e1.overlap.tracks, ['x1', 'bp'], 'S1 → ทาง 1 ทางหยุดเลย = x1, bp (คอสถานีฝั่ง E)');
@@ -138,7 +139,9 @@ section('ตารางอินเตอร์ล็อกอัตโนม�
       sim.startGame(g);
       if (!sim.setRoute(g, A.sig, routeOf(A))) { bad.push(`${A.label}→ ตั้งบนผังว่างไม่ได้`); continue; }
       const engine = !!sim.canRoute(g, B.sig, routeOf(B)), table = A.conflicts.includes(B.id);
-      if (engine !== table) bad.push(`${A.id}(${A.label}) + ${B.id}(${B.label}): เอนจิน ${engine ? 'ขัด' : 'ไม่ขัด'} ตาราง ${table ? 'ขัด' : 'ไม่ขัด'} ${sim.conflictOf(A, B) || ''}`);
+      // ประแจด้านหน้าบนทางเผื่อหยุดเลย: ตารางคิดทั้งสองท่า จึงเข้มกว่าเอนจินที่เริ่มจากท่า N ได้ (ห้ามหลวมกว่า)
+      const loose = table && !engine && ((A.overlap && A.overlap.facing.length) || (B.overlap && B.overlap.facing.length));
+      if (engine !== table && !loose) bad.push(`${A.id}(${A.label}) + ${B.id}(${B.label}): เอนจิน ${engine ? 'ขัด' : 'ไม่ขัด'} ตาราง ${table ? 'ขัด' : 'ไม่ขัด'} ${sim.conflictOf(A, B) || ''}`);
     }
     ok(!bad.length, `${st.id}: ${T.rows.length} เส้นทาง ตารางตรงกับเอนจินทุกคู่`, bad.slice(0, 6).join(' | ') + (bad.length > 6 ? ` …อีก ${bad.length - 6}` : ''));
   }
