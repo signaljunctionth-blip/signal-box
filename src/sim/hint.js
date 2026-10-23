@@ -185,3 +185,18 @@ export function nextTarget(g, opts = { force: true }) {
   if (!h) return null;
   return h.kind === 'p' ? { kind: 'point', id: h.k } : h.kind === 's' ? { kind: 'signal', id: h.k } : h.kind === 'plat' ? { kind: 'platform', no: h.k } : { kind: h.kind, id: h.k };
 }
+
+// ตอนนี้ไม่มีอะไรให้ผู้เล่นตัดสินใจ (WP4.5): หน้าจอใช้เร่งเวลาเอง อ่านสถานะอย่างเดียว ไม่เปลี่ยนผลของตัวจำลอง
+// ทุกขบวนวิ่งอยู่หรือจอดตามเวลา ไม่มีขบวนรอเสาหรือกำลังวิ่งเข้าหาเสาที่ห้ามอยู่ ไม่มีขบวนพร้อมออก (รวมขบวนที่ต้องขอห่วง)
+// ไม่มีสถานีข้างเคียงขอทาง ไม่ได้นิ่งค้าง และคำใบ้ไม่มีอะไรให้แตะ
+export function idle(g) {
+  if (g.state !== 'play' || g.stalled) return false;
+  for (const k in g.block) if (g.block[k].ask !== null) return false;
+  for (const t of g.trains) {
+    if (t.state === 'ready' || (t.stopped && t.state !== 'dwell')) return false;
+    // วิ่งเข้าหาเสาที่ห้ามอยู่ = ผู้เล่นควรตั้งทางรอ ยกเว้นขบวนที่กำลังเข้าจอดทางจอด (จะจอดตามเวลาเอง)
+    const e = g.E[t.edge];
+    if (e.sig && g.S[e.sig].aspect === 'R' && !(t.state === 'arriving' && e.plat)) return false;
+  }
+  return !hint(g, { force: true });
+}

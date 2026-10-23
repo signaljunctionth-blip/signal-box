@@ -4,8 +4,9 @@
 //   pack     = ชุดภารกิจ ({ stations:[{station,tier,needStars}], levels:[{ i, id, station, name, teaches, error }] })
 //   starsOf  = lv => ดาวที่ดีที่สุดของด่านนั้น (อ่านจากเซฟด้วย levelKey(lv))
 //   unlockState = ฟังก์ชันจาก src/sim (ส่งเข้ามาเพื่อให้ไฟล์นี้ไม่ผูกกับ sim)
-export function computeProgress(pack, starsOf, unlockState) {
-  const U = unlockState(pack, starsOf);
+//   opts.skip   = ผู้เล่นกด "ข้ามบทสอน" แล้ว (ธงในเซฟ) ทุกสถานีของเส้นทางสอนเปิด ไม่ได้ดาว
+export function computeProgress(pack, starsOf, unlockState, { skip = false } = {}) {
+  const U = unlockState(pack, starsOf, { skip });
   const stations = [];
   let prev = null;
   pack.stations.forEach((s, index) => {
@@ -30,7 +31,9 @@ export function computeProgress(pack, starsOf, unlockState) {
   return {
     stations, byId: Object.fromEntries(stations.map(s => [s.id, s])),
     totalStars: U.total, maxStars: pack.levels.length * 3,
-    next, current, hasProgress: U.total > 0,
+    next, current, hasProgress: U.total > 0, skipped: !!skip,
+    // ปุ่ม "ข้ามบทสอน" ขึ้นเมื่อยังไม่ได้กดและยังมีสถานีล็อกอยู่
+    canSkip: !skip && stations.some(s => !s.unlocked),
     // หน้าเลือกสายเปิดเมื่อผ่านสถานีขั้น 1–2 ของเส้นทางสอนครบ (ตอนนี้คือผ่านน้ำตกครบ)
     lineSelectOpen: stations.some(s => s.tier <= 2) && stations.filter(s => s.tier <= 2).every(s => s.done),
   };

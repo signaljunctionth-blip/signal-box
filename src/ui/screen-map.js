@@ -21,7 +21,7 @@ const ICON = {
   check: '<svg class="ic-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
 
-export function createMapScreen({ root, stage, map, pack, getProgress, onStation, onPlay, onHome, reducedMotion = () => false, flags = { get: () => false, set() {} } }) {
+export function createMapScreen({ root, stage, map, pack, getProgress, onStation, onPlay, onHome, onSkip = () => {}, reducedMotion = () => false, flags = { get: () => false, set() {} } }) {
   const lineIds = Object.keys(map.lines);
   root.innerHTML = `
     <div class="map-view" tabindex="0" role="group" aria-label="แผนที่ประเทศไทย ลากเพื่อเลื่อน ใช้ปุ่มลูกศรเลื่อน ปุ่มบวกลบซูม">
@@ -293,6 +293,7 @@ export function createMapScreen({ root, stage, map, pack, getProgress, onStation
     } else if (act === 'close') onStation(null);
     else if (act === 'station') onStation(b.dataset.station);
     else if (act === 'play') onPlay(openId, b.dataset.mission);
+    else if (act === 'skip') { onSkip(); toast('เปิดทุกสถานีของเส้นทางสอนแล้ว'); if (openId) { renderSheet(); sheetEl.querySelector('#sheet-title').focus({ preventScroll: true }); } paintMarkers(); }
   });
   root.addEventListener('keydown', e => { if (e.key === 'Escape' && openId) { e.preventDefault(); onStation(null); } });
   function setLines(open) { linesList.hidden = !open; linesBtn.setAttribute('aria-expanded', String(open)); hudChanged(); }
