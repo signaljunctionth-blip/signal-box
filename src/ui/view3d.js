@@ -137,9 +137,13 @@ export function mountView3D(board, { stage, getGame, onPress, getHint, say, stat
     // ข้อความคำใบ้ข้างป้ายที่ต้องแตะ
     if (hintEl && hintEl[2]) {
       if (!bubble) { bubble = document.createElement('div'); bubble.className = 'v3d-bubble'; chips.append(bubble); }
-      const [x, y, t] = hintEl, below = y < h - 80;   // ใต้ป้ายเป็นหลัก (เหนือป้ายมักมีป้ายอื่นซ้อน)
+      const [x, y, t] = hintEl, bx = Math.max(90, Math.min(w - 90, x));
       if (bubble.textContent !== t) bubble.textContent = t;
-      bubble.style.transform = `translate(${Math.max(90, Math.min(w - 90, x)).toFixed(1)}px, ${(below ? y + 30 : y - 30).toFixed(1)}px)`;
+      // ใต้ป้ายเป็นหลัก ถ้าทับป้ายอื่นมากกว่าตอนวางเหนือป้ายให้ย้ายขึ้น (กล่องกว้าง 180 px, ป้ายกว้างราว 68 สูง 44 เริ่มที่ x - 30)
+      const bh = bubble.offsetHeight || 28, over = top => used.reduce((n, u) => (u[0] === x && u[1] === y) ? n
+        : n + Math.max(0, Math.min(bx + 90, u[0] + 38) - Math.max(bx - 90, u[0] - 30)) * Math.max(0, Math.min(top + bh, u[1] + 22) - Math.max(top, u[1] - 22)), 0);
+      const below = y < h - 80 && (y - 64 < 0 || over(y + 30) <= over(y - 34 - bh));
+      bubble.style.transform = `translate(${bx.toFixed(1)}px, ${(below ? y + 30 : y - 30).toFixed(1)}px)`;
       bubble.classList.toggle('below', below); bubble.hidden = false;
     } else if (bubble) bubble.hidden = true;
     home.hidden = !view.camera.zoomed;

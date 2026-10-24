@@ -475,7 +475,7 @@ export async function createScene3D(canvas, opts) {
     const p = W.points[k], g = new THREE.Group(); g.position.set(p.x, 0, p.z); scene.add(g);
     // ลิ้นประแจ 2 เส้น ยาว 4.5 ม. ปลายลิ้นอยู่ที่จุดแยก โคนลิ้นยึดไว้ สร้างไว้สองท่า (ตรง/แยก) แล้วสลับการมองเห็น
     const pose = pos => {
-      const ang = (pos === 'R' ? 1 : -1) * 0.018 * p.side * p.away, v = new VMerger();
+      const ang = (pos === 'R' ? -1 : 1) * 0.018 * p.side * p.away, v = new VMerger();   // ท่าแยกไปฝั่ง +side: ลิ้นฝั่ง -side ชิดรางพิง ปลายลิ้นจึงเลื่อนไปทาง -side
       [-1, 1].forEach(s => { const base = new THREE.Matrix4().compose(new THREE.Vector3(p.away * 4.6, 0, s * (GAUGE / 2 + 0.038)), new THREE.Quaternion().setFromAxisAngle(UP, ang), _one), sub = new Sub(v, base);
         sub.bx(M.railHead, 4.5, 0.05, 0.06, -p.away * 2.25, RB + 0.13, 0); sub.bx(M.railSide, 4.5, 0.11, 0.05, -p.away * 2.25, RB + 0.055, 0); });
       const m = v.build(g, { cast: false })[0]; m.visible = false; return m;
@@ -1052,9 +1052,9 @@ export async function createScene3D(canvas, opts) {
     for (const k in strips) strips[k].state = '__';
     Object.values(plates).forEach(paintPlate);
     for (const n in bodies) { const c = bodies[n].attributes.color, bc = new THREE.Color(brand(+n)); for (const i of car.band) { c.array[i] = bc.r; c.array[i + 1] = bc.g; c.array[i + 2] = bc.b; } c.needsUpdate = true; }
-    const dusk = exp < 0.7;                        // พลบค่ำ: ไฟหน้าต่างและโคมชานชาลาเรือง
-    M.lampOff.emissive.set(dusk ? 0xffd27a : 0x000000); M.lampOff.emissiveIntensity = dusk ? 1.6 : 0;
-    M.glass.emissive.set(dusk ? 0x3a2a12 : 0x000000);
+    const glow = exp < 0.7;                        // พลบค่ำ: ไฟหน้าต่างและโคมชานชาลาเรือง (ชื่อห้ามซ้ำ dusk() ด้านนอกที่เรียกไว้ด้านบน)
+    M.lampOff.emissive.set(glow ? 0xffd27a : 0x000000); M.lampOff.emissiveIntensity = glow ? 1.6 : 0;
+    M.glass.emissive.set(glow ? 0x3a2a12 : 0x000000);
     shadowDirty = true;
   }
   setColors({});
@@ -1114,6 +1114,7 @@ export async function createScene3D(canvas, opts) {
       const list = []; scene.traverseVisible(o => { if (!o.isMesh) return; const g = o.geometry, n = (g.index ? g.index.count : g.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1); list.push([o.material.type + (o.isInstancedMesh ? '×' + o.count : ''), Math.round(n)]); });
       out.top = list.sort((a, b) => b[1] - a[1]).slice(0, 14); out.meshes = list.length;
       const cast = []; scene.traverseVisible(o => { if (o.isMesh && o.castShadow) cast.push(o.parent && o.parent !== scene ? (o.parent.userData.kind || 'group') : o.material.type); }); out.casters = cast.reduce((m, k) => ((m[k] = (m[k] || 0) + 1), m), {});
+      out.lamps = [...trains.values()].filter(o => o.lamps.visible).length; out.trains = trains.size;
     }
     return out;
   }
