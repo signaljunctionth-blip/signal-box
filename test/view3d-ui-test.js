@@ -4,6 +4,7 @@
 //    บอทเล่น tk-1 จนชนะด้วยการ "แตะป้ายจริงบนจอ" ตามคำใบ้ ป้ายแตะกว้างและสูง >= 40 px
 //    กลับเป็นแผงผังเส้นได้ และจำค่าที่เลือก (เปิดใหม่แล้วยังเป็น 3 มิติ)
 // 2b) ภารกิจห่วงที่น้ำตกใน 3 มิติ: แตะเครื่องทางสะดวก/ให้ทางจริงจนชนะ ลากกล้องจากป้ายไม่กดเสา
+// 2c) งบการวาดของหนองปลาดุกตลอดภารกิจ np-2 (สถานีที่หนักสุด)
 // 3) งบการวาดที่ระดับกลาง: draw call <= 90 สามเหลี่ยม <= 180,000 (docs/ART-3D.md ข้อ 5) ระดับประหยัด <= 50 / 90,000
 // เครื่องที่ไม่มี WebGL: ฉากต้องถอยกลับแผงผังเส้นพร้อมข้อความ ไม่ใช่หน้าพัง (ข้ามข้อ 2–3 ถ้าไม่ได้ตั้ง SJ_REQUIRE_WEBGL=1)
 const fs = require('fs');
@@ -141,12 +142,36 @@ async function tokenRun(b, game, vp, id) {
   await ctx.close();
 }
 
+// งบการวาดของสถานีที่หนักสุด (หนองปลาดุก np-2 มีหลายขบวนพร้อมกัน) ระดับกลาง ตลอดภารกิจ: draw call <= 90 สามเหลี่ยม <= 180,000
+// (QA WP10: เดิมเกินที่ 101 เพราะชิ้นต่อขบวนและป้ายหลายวัสดุ วัดเฉพาะท่ากิเลนจึงไม่เห็น)
+async function budgetRun(b, game, id) {
+  const p = await b.newPage({ viewport: { width: 844, height: 390 } }), tag = `844×390 ${id} งบการวาด`;
+  await p.goto(game.url + '#dev/namtok/' + id, { waitUntil: 'load' });
+  const ok = await p.waitForFunction(() => { const a = window.__sjApp && window.__sjApp.play, v = a && a.view3d, s = v && v.stats(); return v && v.active && s && s.calls > 0; }, null, { timeout: 60000 }).then(() => true).catch(() => false);
+  if (!ok) { await p.close(); return; }
+  await p.evaluate(() => { const a = window.__sjApp.play; a.start(); a.setManual(true); a.view3d.setTier('mid'); });
+  const max = { calls: 0, tris: 0, trains: 0 };
+  for (let i = 0; i < 2000; i++) {
+    const st = await p.evaluate(() => { const a = window.__sjApp.play, t = a.nextTarget(); if (t) a.press(t); a.step(1); return { state: a.g.state, n: a.g.trains.length }; });
+    if (st.state !== 'play') break;
+    if (i % 3) continue;
+    for (let f = 0; f < 2; f++) {   // เงาวาดทุก 2 เฟรมที่ระดับกลาง วัดทั้งเฟรมที่มีและไม่มีรอบวาดเงา
+      const s = await p.evaluate(async () => { const v = window.__sjApp.play.view3d; v.touch(); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); return v.stats(); });
+      if (s.calls > max.calls) { max.calls = s.calls; max.trains = st.n; } max.tris = Math.max(max.tris, s.tris);
+    }
+  }
+  check(max.calls <= 90 && max.tris <= 180000, `${tag}: เกินงบ ${JSON.stringify(max)}`);
+  console.log(`  - ${tag}: สูงสุด ${max.calls} draw call ${max.tris} สามเหลี่ยม (ขบวน ${max.trains})`);
+  await p.close();
+}
+
 (async () => {
   bundle();
   const game = await serveGame(), b = await chromium.launch();
   try {
     for (const vp of [{ w: 844, h: 390 }, { w: 390, h: 844 }]) await run(b, game, vp);
     await tokenRun(b, game, { w: 844, h: 390 }, 'nt-1');
+    await budgetRun(b, game, 'np-2');
 
   } finally { await b.close(); game.close(); }
   console.log(fails.length ? `\nไม่ผ่าน ${fails.length} ข้อ` : 'ฉาก 3 มิติในหน้าเล่น: ผ่าน');
