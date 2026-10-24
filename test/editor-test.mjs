@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import * as sim from '../src/sim/index.js';
+import { createSave, memoryBackend } from '../src/save/index.js';
+import { createWallet } from '../src/ui/wallet.js';
 
 const require = createRequire(import.meta.url);
 const { playHints } = require('./lib/bot.js');
@@ -101,6 +103,26 @@ section('ผังที่สร้างเล่นได้จริง (บ
   }
 }
 
+section('ภารกิจเดินรถอิสระ: เกมจัดตารางขบวนให้ผังที่สร้าง และบอทเล่นจบ');
+{
+  const career = readJson('data/levels/namtok.json');
+  for (const era of [0, 1, 2, 3]) {
+    const r = sim.freePlayPack({ ...B0.station, id: 'custom' }, career.eras, { era });
+    ok(r.ok && r.trains.length === 4 && sim.botPlay(r.pack) === 'win', `ทางหลีก ยุค ${career.eras[era].name}: ตาราง 4 ขบวน บอทชนะ`, r.reason || JSON.stringify(r.trains));
+  }
+  // ปลายทาง: ขาเดียว ทางตัน 1 ทาง
+  let t = sim.emptyPlan(16, 6, 'E');
+  for (let i = 0; i < 12; i++) t = sim.toggleSeg(t, i, 2, 0);
+  t = sim.setPlatform(t, Array.from({ length: 6 }, (_, k) => [6 + k, 2, 0]), 1);
+  t = sim.toggleSignal(sim.toggleSignal(t, 4, 2, "E"), 6, 2, "W");
+  const bt = sim.buildPlan(t);
+  ok(bt.ok, 'ผังปลายทางผ่านตัวตรวจ', bt.errors.join(' | '));
+  const rt = bt.ok && sim.freePlayPack({ ...bt.station, id: 'custom' }, career.eras, { era: 2 });
+  ok(rt && rt.ok && rt.trains.every(x => x.from === 'W' && x.to === 'W'), 'ผังปลายทาง: ขบวนเข้าแล้วกลับออกขาเดิม บอทชนะ', rt && (rt.reason || JSON.stringify(rt.trains)));
+  const none = sim.freePlayPack({ ...B0.station, id: 'custom', plats: [], noPlatform: [] }, career.eras);
+  ok(!none.ok && /ทางจอด/.test(none.reason), 'ผังไม่มีทางจอด: บอกเหตุผล');
+}
+
 section('ตารางอินเตอร์ล็อกอัตโนมัติ: ตรงกับตารางข้อ 8 ใน SIGNALLING-RULES');
 {
   const T = sim.routeTable(stations['fictional-crossing-1-loop']);
@@ -182,6 +204,50 @@ section('รหัสแชร์ผัง');
   const broken = sim.encodePlan(sim.toggleSignal(P0, 16, 5, 'E'));
   const r = sim.decodeShare(broken);
   ok(r.ok && !sim.buildPlan(r.plan).ok, 'ผังที่ผิดแม้รหัสถูกต้อง ไม่ผ่านตัวตรวจผัง');
+}
+
+section('งบ ดาว อัปเกรด (เจเลือกข้อ 1 ทุกข้อ 2026-10-24)');
+{
+  ok(sim.budgetOf({ stars: 0, score: 900 }) === 0, '0 ดาวไม่ได้งบ แม้คะแนนสูง');
+  ok(sim.budgetOf({ stars: 1, score: 300 }) === 50 && sim.budgetOf({ stars: 3, score: 600 }) === 160, 'งบ = คะแนน/10 + โบนัสดาว 20/50/100');
+  ok(sim.payout({ stars: 0, score: 0 }, { stars: 2, score: 400 }) === 90, 'ผ่านครั้งแรกได้งบเต็ม');
+  ok(sim.payout({ stars: 2, score: 400 }, { stars: 2, score: 300 }) === 0, 'เล่นซ้ำได้แย่กว่าเดิมไม่ได้งบ');
+  ok(sim.payout({ stars: 2, score: 400 }, { stars: 3, score: 450 }) === 55, 'เล่นซ้ำได้งบเฉพาะส่วนที่ดีกว่าเดิม (ดาวที่สาม +50 คะแนน +5)');
+  ok(sim.payout({ stars: 3, score: 450 }, { stars: 1, score: 600 }) === 15, 'คะแนนดีขึ้นแต่ดาวน้อยลง: ได้เฉพาะส่วนคะแนนที่ดีกว่า (ผลดีสุดรวมแยกดาวกับคะแนน)');
+  ok(sim.payout({ stars: 1, score: 200 }, { stars: 0, score: 900 }) === 0, 'รอบ 0 ดาวไม่ได้งบ');
+  ok(sim.upgradeCost(0, 2) === 550 && sim.upgradeCost(2, 1) === 0 && sim.upgradeCost(1, 3) === 1300, 'ราคาอัปเกรดสะสมจากขั้นที่มี ถอยกลับฟรี');
+  ok(sim.layoutCharge({ straight: 10, points: 0 }, { straight: 12, points: 2 }) === 90 && sim.layoutCharge({ straight: 10 }, { straight: 6 }) === -10, 'ค่าก่อสร้าง: เพิ่มจ่ายเต็ม รื้อคืนครึ่ง');
+  ok(sim.upgradeOf(2).speed > 1 && sim.upgradeOf(3).grace > 1 && sim.upgradeOf(0).speed === 1, 'ทุกขั้นที่อัปเกรดมีผลกับการเล่น (ไฟสีเร็วขึ้น NX รอได้นานขึ้น)');
+  const fast = sim.freePlayPack({ ...B0.station, id: 'custom' }, testJson.eras, { era: 2, speed: 1.15, grace: 1.2 });
+  ok(fast.ok && fast.pack.levels[0].speed === 69 && fast.pack.levels[0].waitGrace.entry === 7.2, 'เดินรถอิสระรับตัวคูณความเร็วและเวลารอจากอัปเกรด');
+  const career = readJson('data/levels/namtok.json');
+  ok(career.eras.every(e => e.speedMul === undefined) && career.levels.every(l => l.speed !== undefined), 'ภารกิจสอนไม่ถูกแตะ (อัปเกรดไม่มีผลกับภารกิจ)');
+
+  // กระเป๋างบกลางผ่านเซฟจริง
+  const save = createSave(memoryBackend()), P = 'namtok', keys = career.levels.map(l => l.id);
+  const W = createWallet(save, () => keys.map(k => save.getBest(P, k)));
+  ok(W.balance() === 0 && W.owned('tha-kilen') === 0, 'เริ่มเกม งบ 0 ขั้น 0');
+  ok(!W.choose('tha-kilen', 1).ok && W.owned('tha-kilen') === 0, 'งบไม่พอซื้อไม่ได้ และไม่ถูกหักเงิน');
+  for (const k of keys.slice(0, 4)) save.setBest(P, k, { stars: 3, score: 900 });
+  const earned = 4 * 190;
+  ok(W.earned() === earned && W.balance() === earned, `งบคิดจากผลดีสุดในเซฟ (${W.balance()})`);
+  ok(W.choose('tha-kilen', 2).ok && W.owned('tha-kilen') === 2 && W.balance() === earned - 550, 'อัปเกรด 2 ขั้นจ่าย 550');
+  ok(W.choose('tha-kilen', 0).ok && W.selected('tha-kilen') === 0 && W.balance() === earned - 550, 'ถอยกลับขั้น 0 ฟรี');
+  ok(W.choose('tha-kilen', 2).ok && W.balance() === earned - 550, 'กลับไปขั้นที่ซื้อแล้วฟรี');
+  ok(W.owned('wang-pho') === 0, 'อัปเกรดแยกต่อสถานี ใช้งบกลาง');
+  const starter = sim.planCount(sim.starterPlan());
+  ok(W.layoutCharge(starter) === 0, 'ผังเริ่มต้นให้ฟรี');
+  const loop = sim.planCount(loopPlan());
+  const charge = W.layoutCharge(loop);
+  ok(charge > 0 && !W.confirmLayout(loop).ok, `ผังทางหลีกมีค่าก่อสร้าง ${charge} งบที่เหลือ ${W.balance()} ไม่พอยืนยันไม่ได้`);
+  for (const k of keys.slice(4, 6)) save.setBest(P, k, { stars: 3, score: 900 });
+  const before = W.balance();
+  ok(W.confirmLayout(loop).ok && W.balance() === before - charge && W.layoutCharge(loop) === 0, 'ยืนยันผังแล้วจ่ายครั้งเดียว');
+  ok(W.layoutCharge(starter) < 0, 'รื้อกลับเป็นผังเริ่มต้นได้คืนครึ่ง');
+  const code = save.exportCode(), s2 = createSave(memoryBackend());
+  ok(s2.importCode(code) && createWallet(s2, () => keys.map(k => s2.getBest(P, k))).balance() === W.balance(), 'งบไปกับรหัสสำรองเกม');
+  save.setFlag('budgetSpent', -5000); save.setFlag('upg:tha-kilen', 99); save.setFlag('layoutPaid', 'x,y');
+  ok(W.spent() === 0 && W.owned('tha-kilen') === 3 && W.layoutCharge(starter) === 0, 'ค่าในเซฟที่ถูกแก้ไม่ทำให้งบเกินที่ได้หรือพัง');
 }
 
 console.log(`\n${checks - fails}/${checks} ผ่าน`);

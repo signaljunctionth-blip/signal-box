@@ -22,7 +22,7 @@ const ICON = {
   check: '<svg class="ic-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
 
-export function createMapScreen({ root, stage, map, pack, getProgress, onStation, onPlay, onHome, onSkip = () => {}, reducedMotion = () => false, flags = { get: () => false, set() {} } }) {
+export function createMapScreen({ root, stage, map, pack, getProgress, onStation, onPlay, onHome, onSkip = () => {}, getFree = () => null, onEra = () => '', onFree = () => {}, reducedMotion = () => false, flags = { get: () => false, set() {} } }) {
   const lineIds = Object.keys(map.lines);
   root.innerHTML = `
     <div class="map-view" tabindex="0" role="group" aria-label="แผนที่ประเทศไทย ลากเพื่อเลื่อน ใช้ปุ่มลูกศรเลื่อน ปุ่มบวกลบซูม">
@@ -179,9 +179,10 @@ export function createMapScreen({ root, stage, map, pack, getProgress, onStation
   }
 
   // ---- แผ่นข้อมูลสถานี ----
+  let freeMsg = ''; // ผลของการกดอัปเกรดล่าสุด (แสดงครั้งเดียว)
   function renderSheet() {
     const P = getProgress(), st = P.byId[openId];
-    sheetEl.innerHTML = sheetHtml(st, infoById[openId], P, nameOf, (pack.stations.find(s => s.station === openId) || {}).note_th || '');
+    sheetEl.innerHTML = sheetHtml(st, infoById[openId], P, nameOf, (pack.stations.find(s => s.station === openId) || {}).note_th || '', st.done ? getFree(openId, freeMsg) : null);
     sheetEl.scrollTop = 0;
   }
   function setSheet(id, focus) {
@@ -295,6 +296,13 @@ export function createMapScreen({ root, stage, map, pack, getProgress, onStation
     } else if (act === 'close') onStation(null);
     else if (act === 'station') onStation(b.dataset.station);
     else if (act === 'play') onPlay(openId, b.dataset.mission);
+    else if (act === 'free') onFree(openId);
+    else if (act === 'era') {
+      // อัปเกรด/เปลี่ยนขั้นแล้ววาดแผ่นใหม่ คงตำแหน่งเลื่อนและโฟกัสไว้ที่กล่องเดินรถอิสระ
+      freeMsg = onEra(openId, +b.dataset.level); const y = sheetEl.scrollTop;
+      renderSheet(); sheetEl.scrollTop = y; const h = sheetEl.querySelector('#free-title'); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); }
+      freeMsg = '';
+    }
     else if (act === 'skip') { onSkip(); toast('เปิดทุกสถานีของเส้นทางสอนแล้ว'); if (openId) { renderSheet(); sheetEl.querySelector('#sheet-title').focus({ preventScroll: true }); } paintMarkers(); }
   });
   root.addEventListener('keydown', e => { if (e.key === 'Escape' && openId) { e.preventDefault(); onStation(null); } });

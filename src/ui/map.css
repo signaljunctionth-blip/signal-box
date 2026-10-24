@@ -77,6 +77,17 @@
 .notes li::before{content:"";position:absolute;left:0;top:.55em;width:5px;height:5px;border-radius:50%;background:var(--amber)}
 .sheet-sub{font-size:14px;color:var(--muted);margin-top:2px}
 .missions{display:flex;flex-direction:column;gap:6px}
+/* เดินรถอิสระ + อัปเกรดระบบสัญญาณ (WP7) */
+.freebox{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding-top:10px;border-top:1.5px solid var(--line)}
+.freebox .muted{font-size:13px;color:var(--muted)}
+.fr-levels{display:flex;flex-direction:column;gap:6px}
+.fr-lv{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;padding:6px 8px;border:1.5px solid var(--line);border-radius:14px}
+.fr-lv.on{border-color:var(--green);background:color-mix(in srgb,var(--green) 10%,var(--paper))}
+.fr-lv div{display:flex;flex-direction:column;min-width:0}
+.fr-lv span{font-size:13px;color:var(--muted)}
+.fr-lv .fr-use{font-family:var(--display);color:var(--ink);padding:0 10px}
+.fr-lv .btn:disabled{opacity:.45;cursor:not-allowed}
+.fr-msg{font-size:14px}
 .ms{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:8px;padding:6px 8px;border:1.5px solid var(--line);border-radius:14px}
 .ms-n{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--bg);font-family:var(--display);font-size:13px}
 .ms-t{display:flex;flex-direction:column;min-width:0}

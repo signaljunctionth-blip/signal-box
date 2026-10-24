@@ -90,6 +90,15 @@ export function setPlatform(plan, cells, no) {
   return p;
 }
 
+// ผังเริ่มต้นของโหมดสร้าง: สถานีทางเดี่ยว 1 ทางจอด เล่นได้เลย ผู้เล่นเพิ่มทางหลีกเองได้ (เกณฑ์ M4) ชิ้นส่วนของผังนี้ให้ฟรี
+export function starterPlan() {
+  let p = emptyPlan(18, 8, 'E');
+  for (let i = 0; i < 18; i++) p = toggleSeg(p, i, 4, 0);
+  p = setPlatform(p, Array.from({ length: 6 }, (_, k) => [6 + k, 4, 0]), 1);
+  for (const s of [[3, 4, 'E'], [15, 4, 'W'], [6, 4, 'W'], [12, 4, 'E']]) p = toggleSignal(p, ...s);
+  return { ...p, name: 'สถานีของฉัน' };
+}
+
 // นับชิ้นส่วน (ใช้คิดราคาในโหมดสร้าง ราคาส่งมาจากตารางราคา ไม่ผูกตัวเลขไว้ที่นี่)
 export function planCount(plan) {
   const ends = {};

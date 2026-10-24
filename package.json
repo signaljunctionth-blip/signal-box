@@ -12,7 +12,7 @@
     "test:bot": "node test/bot-test.js",
     "test:build": "vite build && node test/build-test.js",
     "test:game": "node test/game-bot-test.js",
-    "test:ui": "node test/map-ui-test.js && node test/play-ui-test.js && node test/view3d-ui-test.js",
+    "test:ui": "node test/map-ui-test.js && node test/play-ui-test.js && node test/view3d-ui-test.js && node test/build-ui-test.js",
     "fonts": "node tools/sync-fonts.mjs"
   },
   "devDependencies": {
