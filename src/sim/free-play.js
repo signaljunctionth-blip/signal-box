@@ -7,6 +7,7 @@ import { nextTarget } from './hint.js';
 import { press } from './control.js';
 
 const BOT_DT = 0.05, BOT_STEPS = 12000;
+const BASE_SPEED = 56; // ใกล้ภารกิจสอนของน้ำตก (54–58) ผังของผู้เล่นจึงไม่เร็วกว่าภารกิจตอนยังไม่อัปเกรด
 
 // บอทตามคำใบ้แบบเดียวกับ test/lib/bot.js คืน 'win' | 'fail' | 'timeout'
 export function botPlay(pack, i = 0) {
@@ -22,7 +23,7 @@ export function botPlay(pack, i = 0) {
 // opts.speed / opts.grace = ตัวคูณจากอัปเกรด (economy.js UPGRADES) ไม่ใส่ = 1
 function packOf(station, eras, era, trains, { speed = 1, grace = 1 } = {}) {
   const j = { schema: 2, id: 'build', name_th: 'ผังของฉัน', eras, levels: [{
-    id: 'free', station: station.id, era, name: 'เดินรถอิสระ', speed: Math.round(60 * speed), hints: true,
+    id: 'free', station: station.id, era, name: 'เดินรถอิสระ', speed: Math.round(BASE_SPEED * speed), hints: true,
     waitGrace: { entry: Math.round(6 * grace * 10) / 10, ready: Math.round(4 * grace * 10) / 10 },
     goal: 'รับขบวนเข้าทางจอด แล้วปล่อยออกให้ครบทุกขบวน', teaches: 'ทดลองผังที่คุณสร้าง',
     tips: ['ผังนี้คุณสร้างเอง ตารางขบวนเกมจัดให้', 'ดูตารางอินเตอร์ล็อกในหน้าโหมดสร้างได้ว่าเส้นทางไหนขัดกัน'], trains,

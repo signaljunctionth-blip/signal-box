@@ -119,6 +119,13 @@ section('ภารกิจเดินรถอิสระ: เกมจัด
   ok(bt.ok, 'ผังปลายทางผ่านตัวตรวจ', bt.errors.join(' | '));
   const rt = bt.ok && sim.freePlayPack({ ...bt.station, id: 'custom' }, career.eras, { era: 2 });
   ok(rt && rt.ok && rt.trains.every(x => x.from === 'W' && x.to === 'W'), 'ผังปลายทาง: ขบวนเข้าแล้วกลับออกขาเดิม บอทชนะ', rt && (rt.reason || JSON.stringify(rt.trains)));
+  // เดินรถอิสระของทุกสถานีในเส้นทางสอน ทุกขั้นระบบสัญญาณ (ตัวคูณจากอัปเกรด) ต้องจัดตารางได้และบอทเล่นจบ
+  const miss = [];
+  for (const s of career.stations) for (const era of [0, 1, 2, 3]) {
+    const up = sim.upgradeOf(era), r = sim.freePlayPack(stations[s.station], career.eras, { era, speed: up.speed, grace: up.grace });
+    if (!r.ok || sim.botPlay(r.pack) !== 'win') miss.push(`${s.station} ขั้น ${era}: ${r.reason || 'บอทไม่ชนะ'}`);
+  }
+  ok(!miss.length, 'เดินรถอิสระ 5 สถานี × 4 ขั้น เล่นจบทุกแบบ', miss.join(' | '));
   const none = sim.freePlayPack({ ...B0.station, id: 'custom', plats: [], noPlatform: [] }, career.eras);
   ok(!none.ok && /ทางจอด/.test(none.reason), 'ผังไม่มีทางจอด: บอกเหตุผล');
 }
@@ -219,7 +226,7 @@ section('งบ ดาว อัปเกรด (เจเลือกข้อ 
   ok(sim.layoutCharge({ straight: 10, points: 0 }, { straight: 12, points: 2 }) === 90 && sim.layoutCharge({ straight: 10 }, { straight: 6 }) === -10, 'ค่าก่อสร้าง: เพิ่มจ่ายเต็ม รื้อคืนครึ่ง');
   ok(sim.upgradeOf(2).speed > 1 && sim.upgradeOf(3).grace > 1 && sim.upgradeOf(0).speed === 1, 'ทุกขั้นที่อัปเกรดมีผลกับการเล่น (ไฟสีเร็วขึ้น NX รอได้นานขึ้น)');
   const fast = sim.freePlayPack({ ...B0.station, id: 'custom' }, testJson.eras, { era: 2, speed: 1.15, grace: 1.2 });
-  ok(fast.ok && fast.pack.levels[0].speed === 69 && fast.pack.levels[0].waitGrace.entry === 7.2, 'เดินรถอิสระรับตัวคูณความเร็วและเวลารอจากอัปเกรด');
+  ok(fast.ok && fast.pack.levels[0].speed === 64 && fast.pack.levels[0].waitGrace.entry === 7.2, 'เดินรถอิสระรับตัวคูณความเร็วและเวลารอจากอัปเกรด');
   const career = readJson('data/levels/namtok.json');
   ok(career.eras.every(e => e.speedMul === undefined) && career.levels.every(l => l.speed !== undefined), 'ภารกิจสอนไม่ถูกแตะ (อัปเกรดไม่มีผลกับภารกิจ)');
 
@@ -243,7 +250,9 @@ section('งบ ดาว อัปเกรด (เจเลือกข้อ 
   for (const k of keys.slice(4, 6)) save.setBest(P, k, { stars: 3, score: 900 });
   const before = W.balance();
   ok(W.confirmLayout(loop).ok && W.balance() === before - charge && W.layoutCharge(loop) === 0, 'ยืนยันผังแล้วจ่ายครั้งเดียว');
-  ok(W.layoutCharge(starter) < 0, 'รื้อกลับเป็นผังเริ่มต้นได้คืนครึ่ง');
+  ok(W.layoutCharge(starter) < 0, 'รื้อทางหลีกที่จ่ายแล้วกลับเป็นผังเริ่มต้นได้คืนครึ่ง');
+  ok(createWallet(createSave(memoryBackend()), () => []).layoutCharge(sim.planCount(sim.emptyPlan())) === 0, 'รื้อชิ้นของผังเริ่มต้นไม่ได้เงินคืน (ไม่เคยจ่าย)');
+  ok(W.freeRecord('tha-kilen', 2, 500).isNew && !W.freeRecord('tha-kilen', 2, 400).isNew && W.freeRecord('tha-kilen', 2, 400).best === 500 && W.freeRecord('tha-kilen', 3, 100).isNew, 'สถิติเดินรถอิสระแยกต่อสถานีต่อขั้น');
   const code = save.exportCode(), s2 = createSave(memoryBackend());
   ok(s2.importCode(code) && createWallet(s2, () => keys.map(k => s2.getBest(P, k))).balance() === W.balance(), 'งบไปกับรหัสสำรองเกม');
   save.setFlag('budgetSpent', -5000); save.setFlag('upg:tha-kilen', 99); save.setFlag('layoutPaid', 'x,y');

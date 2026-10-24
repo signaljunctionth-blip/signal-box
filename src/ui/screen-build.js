@@ -76,7 +76,7 @@ export function createBuildScreen({ root, stage, eras, wallet = null, econ = nul
   }
   function change(next) {
     if (JSON.stringify(next) === JSON.stringify(plan)) return;
-    undo.push(plan); if (undo.length > 60) undo.shift();
+    undo.push({ plan, received, note }); if (undo.length > 60) undo.shift();
     plan = next; received = null; note = '';
     savePlan(plan); rebuild();
   }
@@ -177,12 +177,21 @@ export function createBuildScreen({ root, stage, eras, wallet = null, econ = nul
     if (Math.hypot(p.x - drag.p0.x, p.y - drag.p0.y) > GRID * view.k * 0.35) drag.moved = true;
     // นับว่าถึงจุดถัดไปเมื่อนิ้วเข้าใกล้จุดนั้นจริง (ลากเฉียงผ่านกลางช่องจะไม่ไปติดจุดข้างเคียง)
     const near = Math.hypot(p.x - X(n.i), p.y - Y(n.j)) < GRID * view.k * 0.35;
-    if (tool === 'track' && near && inGrid(n) && inGrid(drag.last) && (n.i !== drag.last.i || n.j !== drag.last.j)) {
-      const a = n.i < drag.last.i ? n : drag.last, b = a === n ? drag.last : n, d = b.j - a.j;
-      if (b.i - a.i === 1 && Math.abs(d) <= 1) {
-        if (!drag.work.segs.some(s => s[0] === a.i && s[1] === a.j && s[2] === d)) drag.work = toggleSeg(drag.work, a.i, a.j, d);
-        drag.last = n; plan = drag.work; draw();
-      } else if (b.i !== a.i) drag.last = n;
+    if (tool === 'track' && near && inGrid(n) && !inGrid(drag.last)) drag.last = n; // เริ่มลากนอกกริด: จุดแรกที่เข้ามาเป็นจุดเริ่ม
+    else if (tool === 'track' && near && inGrid(n) && (n.i !== drag.last.i || n.j !== drag.last.j)) {
+      // นิ้วกระโดดหลายช่องในครั้งเดียว (เครื่องช้า เบราว์เซอร์รวม pointermove): เติมรางทีละช่องตามแนวลาก ช่องละไม่เกิน 45°
+      const di = Math.abs(n.i - drag.last.i), dj = Math.abs(n.j - drag.last.j);
+      if (di >= 1 && dj <= di) {
+        let cur = drag.last;
+        while (cur.i !== n.i) {
+          const next = { i: cur.i + Math.sign(n.i - cur.i), j: cur.j + Math.sign(n.j - cur.j) * (Math.abs(n.j - cur.j) >= Math.abs(n.i - cur.i) ? 1 : 0) };
+          const a = next.i < cur.i ? next : cur, b = a === next ? cur : next, d = b.j - a.j;
+          if (!drag.work.segs.some(q => q[0] === a.i && q[1] === a.j && q[2] === d)) drag.work = toggleSeg(drag.work, a.i, a.j, d);
+          cur = next;
+        }
+        plan = drag.work; draw();
+      }
+      if (di >= 1) drag.last = n;
     } else if (tool === 'plat') {
       const s = segAt(p);
       if (s && !drag.cells.some(c => segKey(...c) === segKey(...s))) { drag.cells.push(s); }
@@ -233,7 +242,8 @@ export function createBuildScreen({ root, stage, eras, wallet = null, econ = nul
     if (!a) return;
     const act = a.dataset.act;
     if (act === 'exit') return onExit();
-    if (act === 'undo') { if (undo.length) { plan = undo.pop(); savePlan(plan); rebuild(); } return; }
+    // ย้อน: คืนทั้งผังและสถานะ "ผังที่ได้รับ" (ย้อนจากผังของเพื่อนกลับมาผังตัวเอง = ต้องจ่ายงบตามปกติ)
+    if (act === 'undo') { if (undo.length) { ({ plan, received, note } = undo.pop()); if (!received) savePlan(plan); rebuild(); } return; }
     if (act === 'table') return openTable();
     if (act === 'share') return openShare();
     if (act === 'try') return openTry();
@@ -312,7 +322,11 @@ export function createBuildScreen({ root, stage, eras, wallet = null, econ = nul
   function openShared(text) {
     const r = decodeShare(text);
     if (!r.ok) { note = `${r.errors[0]}`; rebuild(); return false; }
-    undo.push(plan); plan = r.plan; received = r.plan;
+    undo.push({ plan, received, note });
+    // รหัสของผังตัวเอง (ตรงกับผังที่เซฟไว้) ไม่นับเป็นผังของเพื่อน: เล่นต้องจ่ายงบตามปกติ
+    const own = encodePlan(r.plan) === encodePlan(loadSaved());
+    plan = r.plan; received = own ? null : r.plan;
+    if (own) { note = 'นี่คือผังของคุณเอง'; rebuild(); return true; }
     const b = buildPlan(plan);
     note = b.ok ? `ผังที่ได้รับ: ${plan.name || 'ไม่มีชื่อ'} (ยังไม่บันทึกทับผังของคุณ จนกว่าจะแก้)` : 'ผังที่ได้รับยังไม่ผ่านตัวตรวจผัง เล่นไม่ได้จนกว่าจะแก้';
     rebuild(); return true;

@@ -21,10 +21,11 @@ export function createWallet(save, bests, starterCounts = planCount(starterPlan(
     const n = s.split(',').map(Number);
     return n.length === KEYS.length && n.every(x => Number.isInteger(x) && x >= 0) ? Object.fromEntries(KEYS.map((k, i) => [k, n[i]])) : { ...starterCounts };
   };
+  const extra = c => Object.fromEntries(KEYS.map(k => [k, Math.max(0, (c[k] || 0) - (starterCounts[k] || 0))]));
   const w = {
     earned: () => earnedOf(bests()),
     spent,
-    balance: () => w.earned() - spent(),
+    balance: () => Math.max(0, w.earned() - spent()), // เซฟที่ถูกแก้ยอดใช้ไปเกินงบ: แสดง 0 ไม่ติดลบ
     owned,
     selected: id => Math.min(owned(id), intOr(flag(`era:${id}`, owned(id)), owned(id))),
     // ใช้ขั้น level: ขั้นที่ซื้อแล้ว (หรือต่ำกว่า) เลือกได้ฟรี ขั้นที่สูงกว่าต้องจ่าย คืน { ok, cost, reason }
@@ -37,14 +38,20 @@ export function createWallet(save, bests, starterCounts = planCount(starterPlan(
       return { ok: true, cost, reason: '' };
     },
     paid,
-    // ค่ายืนยันผังที่มีชิ้นส่วน counts (ติดลบ = ได้คืน)
-    layoutCharge: counts => layoutCharge(paid(), counts),
+    // ค่ายืนยันผังที่มีชิ้นส่วน counts (ติดลบ = ได้คืน) ชิ้นเท่าที่ผังเริ่มต้นมีให้ฟรีทั้งตอนวางและตอนรื้อ คิดเฉพาะส่วนที่เกิน
+    layoutCharge: counts => layoutCharge(extra(paid()), extra(counts)),
     confirmLayout(counts) {
-      const c = layoutCharge(paid(), counts);
+      const c = layoutCharge(extra(paid()), extra(counts));
       if (c > w.balance()) return { ok: false, cost: c, reason: `งบไม่พอ ค่าก่อสร้าง ${c} มีอยู่ ${w.balance()}` };
       set('budgetSpent', Math.max(0, spent() + c));
       set('layoutPaid', KEYS.map(k => counts[k] || 0).join(','));
       return { ok: true, cost: c, reason: '' };
+    },
+    // สถิติดีสุดของเดินรถอิสระต่อสถานีต่อขั้น (ให้เห็นผลของอัปเกรด ไม่ให้งบ ไม่นับดาว) คืน { best, isNew }
+    freeRecord(id, level, score) {
+      const k = `free:${id}:${level}`, best = Math.max(0, Number(flag(k, 0)) || 0), s = Math.max(0, Math.round(score) || 0);
+      if (s > best) { set(k, s); return { best: s, isNew: true }; }
+      return { best, isNew: false };
     },
   };
   return w;

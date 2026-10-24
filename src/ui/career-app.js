@@ -180,7 +180,11 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
       ...base(), dev: true, pack, game: { pack, index: 0 }, stationNote: (D.career.stations.find(s => s.station === stationId) || {}).note_th || '',
       mission: { id: 'free', name: `เดินรถอิสระ · ${D.career.eras[era].name}`, teaches: lv.teaches || '', stars: 0 },
       station: stationInfo(stationId),
-      finish: () => ({ saved: true, note: 'เดินรถอิสระไม่นับดาวและงบ', newlyUnlocked: [], next: null }),
+      finish: ({ score = 0, stars = 0 } = {}) => {
+        const rec = stars > 0 ? D.wallet.freeRecord(stationId, era, score) : null;
+        const best = rec ? (rec.isNew ? ` · สถิติใหม่ของขั้นนี้ ${rec.best}` : ` · สถิติดีสุดของขั้นนี้ ${rec.best}`) : '';
+        return { saved: true, note: `เดินรถอิสระไม่นับดาวและงบ${best}`, newlyUnlocked: [], next: null };
+      },
       exit: () => router.back({ screen: 'map', stationId }),
       play: () => router.replace({ screen: 'free', stationId }),
     };
@@ -214,7 +218,7 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
   }
   // ทดลองเดินรถบนผังที่สร้าง: ใช้หน้าจอเล่นเดิมทั้งตัว (ส่งชุดด่านผ่าน ctx.game) ไม่บันทึกดาว
   function openBuildPlay() {
-    if (!buildPack) return router.replace({ screen: 'build' }); // โหลดหน้าใหม่: ชุดด่านทดลองไม่ได้เก็บไว้ กลับไปหน้าโหมดสร้าง
+    if (!buildPack) return router.back({ screen: 'build' }); // โหลดหน้าใหม่: ชุดด่านทดลองไม่ได้เก็บไว้ ถอยกลับหน้าโหมดสร้าง (ไม่ซ้อน #build ในประวัติ)
     showOnly('play'); closePlay();
     const { pack, name } = buildPack, lv = pack.levels[0];
     const ctx = {

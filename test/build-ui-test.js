@@ -98,6 +98,22 @@ const LOOP = [[5, 4], [6, 3], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2], [12, 3],
     check((await p.$eval('[data-ref="budget"]', e => e.textContent)).startsWith('งบ 0 · ค่าก่อสร้าง'), 'หัวหน้าโหมดสร้างบอกงบและค่าก่อสร้าง');
     await p.click('[data-act="try"]');
     check((await p.$eval('.bld-card', e => e.textContent)).includes('งบไม่พอ'), 'งบ 0 ทดลองเดินรถผังใหม่ไม่ได้ และบอกว่างบไม่พอ');
+    await p.click('[data-act="close"]');
+    // วางรหัสของผังตัวเองต้องไม่กลายเป็น "ผังของเพื่อน" ที่เล่นฟรี
+    await p.click('[data-act="share"]');
+    const own = await p.$eval('[data-ref="link"]', e => e.value);
+    await p.fill('[data-ref="paste"]', own); await p.click('[data-act="paste"]');
+    await p.click('[data-act="try"]');
+    check((await p.$eval('.bld-card', e => e.textContent)).includes('งบไม่พอ'), 'วางรหัสของผังตัวเองแล้วยังต้องจ่ายงบ');
+    await p.click('[data-act="close"]');
+    // ลากเร็ว (นิ้วกระโดดทีละ 2 ช่อง) และเริ่มลากนอกกริด: รางต้องครบทุกช่อง
+    const segs = () => p.evaluate(() => JSON.parse(localStorage.getItem('sj-build-plan')).segs.length);
+    const n0 = await segs(), pts = await pointsOf(p, [[1, 0], [3, 0], [5, 0], [-0.6, 7], [0, 7], [2, 7]]);
+    await tool(p, 'track');
+    await p.mouse.move(...pts[0]); await p.mouse.down(); await p.mouse.move(...pts[1]); await p.mouse.move(...pts[2]); await p.mouse.up();
+    check((await segs()) === n0 + 4, `ลากเร็วทีละ 2 ช่องได้ราง 4 ช่อง (ได้ ${(await segs()) - n0})`);
+    await p.mouse.move(...pts[3]); await p.mouse.down(); await p.mouse.move(...pts[4]); await p.mouse.move(...pts[5]); await p.mouse.up();
+    check((await segs()) === n0 + 6, `เริ่มลากนอกกริดแล้วได้รางตั้งแต่ขอบ (ได้ ${(await segs()) - n0 - 4})`);
     await ctx.close();
   }
 
@@ -120,7 +136,7 @@ const LOOP = [[5, 4], [6, 3], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2], [12, 3],
       for (let n = 0; n < 4000 && P.g.state === 'play'; n++) { for (let m = 0; m < 6; m++) { const t = P.nextTarget(); if (!t) break; P.press(t); } P.step(0.1); }
       return { state: P.g.state, era: P.g.era.name, speed: P.g.lv.speed };
     });
-    check(r.state === 'win' && r.speed === 69 && /ไฟสี/.test(r.era), `เดินรถอิสระที่ท่ากิเลนด้วยขั้นไฟสี รถเร็วขึ้นและเล่นจบ (ได้ ${JSON.stringify(r)})`);
+    check(r.state === 'win' && r.speed === 64 && /ไฟสี/.test(r.era), `เดินรถอิสระที่ท่ากิเลนด้วยขั้นไฟสี รถเร็วขึ้นและเล่นจบ (ได้ ${JSON.stringify(r)})`);
     await ctx.close();
   }
 
