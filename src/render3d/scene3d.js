@@ -3,7 +3,7 @@
 //
 //   const view = await createScene3D(canvas, { L, era, stationName, tier, colors })
 //   view.update(g, dt)  view.render()  view.resize(w, h)  view.anchors() -> [{ target, pos: [x,y,z] }]
-//   view.project([x,y,z]) -> { x, y, on }   view.camera: pan(dx, dy) zoom(k) reset()   view.setTier(id)   view.setColors(c)   view.dispose()
+//   view.project([x,y,z]) -> { x, y, on }   view.camera: pan(dx, dy, h) orbit(dx, dy, h) zoom(k) reset() zoomed   view.setTier(id)   view.setColors(c)   view.dispose()
 import * as THREE from 'three';
 import { world3d, trailPoint, carSpan, GAUGE, CAR_LEN } from './layout3d.js';
 import { tierOf } from './quality.js';
@@ -218,7 +218,9 @@ export async function createScene3D(canvas, opts) {
     if (a === Infinity) { a = 0; b = 0; }       // นอกผัง: ทางประธานต่อไปตรง ๆ
     return [a, b];
   };
-  const realPlat = W.platforms.find(p => !p.none) || null;
+  // ชานชาลาที่มีอาคารสถานี: ต้องอยู่ฝั่งบนของแผง (-z) เพราะกล้องอยู่ฝั่งล่างเสมอ ซ้ายขวาจึงตรงกับแผงผังเส้น
+  // ชานชาลาที่อยู่ฝั่งกล้อง (เช่น วังโพ) ไม่วางอาคาร ไม่ให้บังราง (วาดเป็นชานชาลาเปล่าแบบเดียวกับชานชาลาอื่น)
+  const realPlat = W.platforms.find(p => !p.none && p.side < 0) || null;
   const PS = realPlat ? realPlat.side : -1;       // ด้านอาคารสถานี (-1 = บนของแผง)
   const PZ = realPlat ? realPlat.z + PS * 4.025 : B.z0 - 4.025;
   const BZ = PZ + PS * 5.175;                     // แนวกลางอาคารสถานี
@@ -339,6 +341,7 @@ export async function createScene3D(canvas, opts) {
   const EXT = 900;                                 // ทางประธานต่อออกไปนอกผังจนสุดสายตา
   const lineOf = t => {                            // จุดของรางในโลก ต่อปลายรางที่เป็นขาออกนอกผังให้ยาวถึงขอบฟ้า
     const pts = t.pts.map(p => [p[0], p[1]]);
+    if (W.buffers.some(b => b.track === t.id)) return pts;   // รางสุดทาง (มีหลักกันชน) ไม่ต่อออกไป
     if (t.x0 <= B.x0 - 1 && t.x0 === Math.min(...trackList.map(o => o.x0))) pts.unshift([-EXT, pts[0][1]]);
     if (t.x1 >= B.x1 + 1 && t.x1 === Math.max(...trackList.map(o => o.x1))) pts.push([EXT, pts[pts.length - 1][1]]);
     return pts;
@@ -472,7 +475,7 @@ export async function createScene3D(canvas, opts) {
     const p = W.points[k], g = new THREE.Group(); g.position.set(p.x, 0, p.z); scene.add(g);
     // ลิ้นประแจ 2 เส้น ยาว 4.5 ม. ปลายลิ้นอยู่ที่จุดแยก โคนลิ้นยึดไว้ สร้างไว้สองท่า (ตรง/แยก) แล้วสลับการมองเห็น
     const pose = pos => {
-      const ang = (pos === 'R' ? 1 : -1) * 0.018 * p.side * p.away, v = new VMerger();
+      const ang = (pos === 'R' ? -1 : 1) * 0.018 * p.side * p.away, v = new VMerger();   // ท่าแยกไปฝั่ง +side: ลิ้นฝั่ง -side ชิดรางพิง ปลายลิ้นจึงเลื่อนไปทาง -side
       [-1, 1].forEach(s => { const base = new THREE.Matrix4().compose(new THREE.Vector3(p.away * 4.6, 0, s * (GAUGE / 2 + 0.038)), new THREE.Quaternion().setFromAxisAngle(UP, ang), _one), sub = new Sub(v, base);
         sub.bx(M.railHead, 4.5, 0.05, 0.06, -p.away * 2.25, RB + 0.13, 0); sub.bx(M.railSide, 4.5, 0.11, 0.05, -p.away * 2.25, RB + 0.055, 0); });
       const m = v.build(g, { cast: false })[0]; m.visible = false; return m;
@@ -487,7 +490,7 @@ export async function createScene3D(canvas, opts) {
     if (kind === 'lever') { a.bx(M.dark, 0.05, 0.9, 0.05, 0, 0.45, 0); a.cy(M.white, 0.14, 0.14, 0.1, 12, 0, 0.88, 0, { rx: Math.PI / 2 }); }
     else if (kind === 'rod') { a.bx(M.dark, 0.08, 0.28, 0.08, 0, 0.12, 0); base.bx(M.steel, Math.abs(p.x - (B.x0 + B.x1) / 2) - 3, 0.04, 0.04, -p.away * -((Math.abs(p.x - (B.x0 + B.x1) / 2) - 3) / 2), 0.05, -p.side * 0.15); }   // ก้านโยงไปทางห้องสัญญาณกลางสถานี
     else a.bx(M.pointMotor, 0.55, 0.42, 0.8, 0, 0.1, 0);
-    a.build(arm);
+    a.build(arm, { cast: false });   // ชิ้นเล็กเตี้ย เงาแทบไม่เห็น ไม่ทอดเงาเพื่อประหยัด draw call ในรอบวาดเงา (สถานีที่มีประแจมาก)
     points[k] = { blades, arm, p, kind, pos: null, anchor: new THREE.Vector3(p.x + lx, 1.6, p.z + lz) };
   }
   function setPoint(k, pos) {
@@ -579,8 +582,10 @@ export async function createScene3D(canvas, opts) {
       [-0.75, 0.75].forEach(o => { B_(M.dark, 0.06, 0.45, 0.4, x + o, PLAT + 0.225, 3.0); B_(M.dark, 0.06, 0.5, 0.05, x + o, PLAT + 0.7, 2.79); });
     });
     // ป้ายเลขชานชาลาใต้ชายคา
-    { const b = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.46, 0.04), [M.white, M.white, M.white, M.white, plateMat(realPlat.no), plateMat(realPlat.no)]); keep(b.geometry);
-      b.position.set(PLC - 9.5, cy(PZc) - 0.5, BZ + sz(-PZc)); b.rotation.y = PS < 0 ? 0 : Math.PI; b.castShadow = true; scene.add(b); }
+    // กรอบขาวรวมกับชิ้นสีเรียบ หน้าป้ายสองด้านรวมตามวัสดุ (เดิมเป็นกล่อง 6 วัสดุ = 6 draw call และอีก 6 ในรอบวาดเงา)
+    { const x = PLC - 9.5, y = cy(PZc) - 0.5, z = BZ + sz(-PZc), ry = PS < 0 ? 0 : Math.PI;
+      Wm.bx(M.white, 0.46, 0.46, 0.04, x, y, z, { ry });
+      [0.021, -0.021].forEach((o, i) => Wm.add(new THREE.PlaneGeometry(0.46, 0.46), plateMat(realPlat.no), mtx(x, y, z + (PS < 0 ? o : -o), 0, ry + (i ? Math.PI : 0), 0))); }
     // อาคารเล็กผนังปูน (ห้องเก็บของ)
     const sxh = PLC - Math.min(25, PLL / 2 - 2), shz = BZ + sz(2.2);
     Wm.bx(M.conc, 4.6, 0.2, 3.6, sxh, 0.1, shz, { tile: 2 }); Wm.bx(M.plaster, 4.2, 2.7, 3.2, sxh, 1.55, shz, { tile: 2 }); Wm.bx(M.iron, 5.0, 0.05, 4.1, sxh, 3.05, shz, { tile: 1.12, rx: -PS * 0.14 });
@@ -601,6 +606,35 @@ export async function createScene3D(canvas, opts) {
     // เสาไฟชานชาลา
     [-20.5, -13, 13, 20.5].forEach(o => { const x = PLC + o, z = realPlat.z + sz(3.6); Wm.cy(M.poleGreen, 0.045, 0.07, 4.2, 8, x, PLAT + 2.1, z); Wm.bx(M.conc, 0.3, 0.2, 0.3, x, PLAT + 0.1, z);
       Wm.bx(M.poleGreen, 0.04, 0.04, 0.9, x, PLAT + 4.15, z - sz(0.4)); Wm.bx(M.poleGreen, 0.26, 0.09, 0.42, x, PLAT + 4.12, z - sz(0.85)); Wm.bx(M.lampOff, 0.2, 0.03, 0.34, x, PLAT + 4.065, z - sz(0.85)); });
+  }
+  // ชานชาลาอื่นนอกจากชานชาลาหลัก (เช่น ทาง 2 ที่น้ำตก ทาง 3 ที่หนองปลาดุก): พื้น ขอบยื่น แถบเตือน ทางลาด ป้ายเลข ไม่มีอาคาร
+  const plateGeo = keep(new THREE.PlaneGeometry(0.46, 0.46));
+  for (const p of W.platforms) {
+    if (p === realPlat || p.none) continue;
+    const s = d => p.side * d, len = p.x1 - p.x0, c = (p.x0 + p.x1) / 2, pz = p.z + s(4.025);
+    Wm.bx(M.conc, len, PLAT - 0.06, 3.95, c, (PLAT - 0.06) / 2, pz, { tile: 2 });
+    Wm.bx(M.conc, len + 0.1, 0.07, 4.08, c, PLAT - 0.035, pz + s(0.035), { tile: 2 });
+    Wm.bx(M.yellow, len, 0.012, 0.16, c, PLAT + 0.004, p.z + s(2.55));
+    [-1, 1].forEach(e => {
+      const sh = new THREE.Shape(); sh.moveTo(0, 0); sh.lineTo(3.2, 0); sh.lineTo(0, PLAT); sh.lineTo(0, 0);
+      const g = new THREE.ExtrudeGeometry(sh, { depth: 3.95, bevelEnabled: false }); g.translate(0, 0, -1.975);
+      Wm.add(g, M.conc, mtx(e > 0 ? p.x1 : p.x0, 0, pz, 0, e > 0 ? 0 : Math.PI, 0), 0.5);
+    });
+    { const x = p.x0 + 5.4, z = p.z + s(3.0);   // ป้ายชื่อสถานีหัวชานชาลา
+      Wm.bx(M.white, 4.3, 1.52, 0.07, x, PLAT + 1.95, z);
+      [0.045, -0.045].forEach((o, i) => Wm.add(new THREE.PlaneGeometry(4.2, 1.44), signMat, mtx(x, PLAT + 1.95, z + o, 0, i ? Math.PI : 0, 0)));
+      [-1.9, 1.9].forEach(o => { Wm.bx(M.white, 0.13, 2.75, 0.13, x + o, PLAT + 1.37, z); Wm.bx(M.black, 0.14, 0.4, 0.14, x + o, PLAT + 0.2, z); }); }
+    [-0.3, 0.3].forEach(f => { const x = c + f * len; Wm.bx(M.poleGreen, 0.08, 2.3, 0.08, x, PLAT + 1.15, pz + s(1.2)); Wm.bx(M.white, 0.5, 0.5, 0.05, x, PLAT + 2.3, pz + s(1.2));
+      // ป้ายเลขแผ่นเดียวหันหาฝั่งกล้อง รวมเข้า mesh ตามวัสดุ (ไม่เพิ่ม draw call ต่อป้าย งบการวาดของสถานีใหญ่ตึง)
+      Wm.add(plateGeo.clone(), plateMat(p.no), mtx(x, PLAT + 2.3, pz + s(1.2) + camSide * 0.03, 0, camSide > 0 ? 0 : Math.PI, 0)); });
+  }
+  // หลักกันชนปลายทางตัน: ฐานปูน คานขวางสีแดงคาดขาว ค้ำเหล็กสองข้าง
+  for (const b of W.buffers) {
+    const x = b.x - b.dir * 0.6;
+    Wm.bx(M.conc, 1.4, 0.7, 2.8, x + b.dir * 0.9, 0.35, b.z, { tile: 2 });
+    [-0.75, 0.75].forEach(o => { Wm.bx(M.steel, 1.9, 0.14, 0.14, x + b.dir * 0.45, RT + 0.45, b.z + o, { rz: b.dir * 0.42 }); Wm.bx(M.steel, 0.16, 0.9, 0.16, x, RT + 0.45, b.z + o); });
+    Wm.bx(M.lensRed, 0.3, 0.34, 2.3, x - b.dir * 0.1, RT + 0.72, b.z);
+    [-0.6, 0, 0.6].forEach(o => Wm.bx(M.white, 0.31, 0.35, 0.22, x - b.dir * 0.1, RT + 0.72, b.z + o));
   }
   // หลักเขตปลอดภัยใกล้ประแจ (หลักเตี้ยสีขาวปลายดำ) ระหว่างรางสองเส้นที่แยกจากกัน
   for (const k in W.points) {
@@ -747,11 +781,13 @@ export async function createScene3D(canvas, opts) {
     const body = new THREE.Mesh(bodyFor(n), bodyMat), glass = new THREE.Mesh(car.glass, M.glass), plates_ = new THREE.Mesh(car.plates, plateMat(n)), lamps = new THREE.Mesh(car.lamps, headLamp);
     body.castShadow = body.receiveShadow = true; glass.receiveShadow = true;
     g.add(body, glass, plates_, lamps);
-    pad(CAR_LEN + 1.6, 4.3, 0, SLT + 0.03, 0, g);
+    // แผ่นเงาใต้รถใช้เฉพาะระดับที่ไม่มีเงาจริง, ไฟหน้ารถเปิดเฉพาะพลบค่ำ (ประหยัด draw call ต่อขบวน สถานีใหญ่มีหลายขบวนพร้อมกัน)
+    const shade = pad(CAR_LEN + 1.6, 4.3, 0, SLT + 0.03, 0, g); shade.visible = !(tier.shadow > 0); lamps.visible = dusk();
     scene.add(g);
-    return { g, n };
+    return { g, n, shade, lamps };
   }
   const trains = new Map();
+  const dusk = () => (parseFloat(colors['--scene-sun']) || 1) < 0.8;
   function setTrains(game) {
     const seen = new Set();
     for (const t of game.trains) {
@@ -959,6 +995,7 @@ export async function createScene3D(canvas, opts) {
     }
     fillBlobs();
     for (const s of sleeperSets) s.inst.visible = s.mode === 'all' ? !tier.fasteners : tier.fasteners;
+    for (const o of trains.values()) o.shade.visible = !shadows;
     shadowDirty = true;
   }
   applyTier();
@@ -974,22 +1011,33 @@ export async function createScene3D(canvas, opts) {
   };
   // จอสูง (ไอแพด คอม) มุมก้มต่ำลงและเล็งต่ำกว่ากลางสถานี ไม่ให้เห็นแต่พื้นหญ้าด้านหน้า
   const elFor = () => (camera.aspect >= 2.2 ? 0.3 : camera.aspect >= 1.7 ? 0.25 : 0.21);
-  const reset = () => { fitCamera(); cam.el = elFor(); cam.tx = (B.x0 + B.x1) / 2; cam.tz = (B.z0 + B.z1) / 2 + PS * 2; cam.dist = cam.fitDist; };
+  // กล้องอิสระ (WP10): หมุนรอบจุดเล็ง เอียงขึ้นลง ซูม เลื่อน — จำกัดไม่ให้มุดดิน ไม่ออกไกลจนหลง และไม่หมุนอ้อมไปฝั่งตรงข้าม (ซ้ายขวาจะกลับกับแผงผังเส้น)
+  const EL_MIN = 0.07, EL_MAX = 1.35, AZ_MAX = 1.1;
+  const home = { tx: 0, tz: 0, el: 0, az: 0, dist: 0 };
+  const reset = () => { fitCamera(); cam.el = elFor(); cam.az = 0.14 * camSide; cam.tx = (B.x0 + B.x1) / 2; cam.tz = (B.z0 + B.z1) / 2 + PS * 2; cam.dist = cam.fitDist; Object.assign(home, { tx: cam.tx, tz: cam.tz, el: cam.el, az: cam.az, dist: cam.dist }); };
   function placeCamera() {
     const a = cam.az, el = cam.el, r = cam.dist;
-    camera.position.set(cam.tx + Math.sin(a) * Math.cos(el) * r, 1.5 + Math.sin(el) * r, cam.tz + camSide * Math.cos(a) * Math.cos(el) * r);
+    const x = cam.tx + Math.sin(a) * Math.cos(el) * r, z = cam.tz + camSide * Math.cos(a) * Math.cos(el) * r;
+    camera.position.set(x, Math.max(1.5 + Math.sin(el) * r, groundH(x, z) + 2.5), z);   // ไม่ต่ำกว่าพื้นเนินใต้กล้อง
     camera.lookAt(cam.tx, 1.5, cam.tz);
   }
+  const clampT = () => { cam.tx = Math.max(B.x0 - 20, Math.min(B.x1 + 20, cam.tx)); cam.tz = Math.max(B.z0 - 25, Math.min(B.z1 + 25, cam.tz)); };
   const camApi = {
-    pan(dxPx, dyPx, hPx) {                         // ลากบนจอ: ฉากเลื่อนตามนิ้ว
+    pan(dxPx, dyPx, hPx) {                         // ลากบนจอ: ฉากเลื่อนตามนิ้ว ตามแกนของจอที่หมุนอยู่
       const k = 2 * cam.dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.max(1, hPx);
-      cam.tx = Math.max(B.x0 - 20, Math.min(B.x1 + 20, cam.tx - dxPx * k));
-      cam.tz = Math.max(B.z0 - 25, Math.min(B.z1 + 25, cam.tz - camSide * dyPx * k / Math.max(0.3, Math.sin(cam.el))));
+      const rx = camSide * Math.cos(cam.az), rz = -Math.sin(cam.az), fx = -Math.sin(cam.az), fz = -camSide * Math.cos(cam.az), f = dyPx * k / Math.max(0.3, Math.sin(cam.el));
+      cam.tx += -dxPx * k * rx + f * fx; cam.tz += -dxPx * k * rz + f * fz; clampT();
+    },
+    orbit(dxPx, dyPx, hPx) {                       // ลากนิ้วเดียว: หมุนรอบจุดเล็ง (ลากเต็มความสูงจอ ≈ 115°)
+      const k = 2 / Math.max(1, hPx);
+      cam.az = Math.max(-AZ_MAX, Math.min(AZ_MAX, cam.az - camSide * dxPx * k));
+      cam.el = Math.max(EL_MIN, Math.min(EL_MAX, cam.el + dyPx * k * 0.6));
     },
     zoom(f) { cam.dist = Math.max(cam.minDist, Math.min(cam.fitDist * 1.25, cam.dist * f)); },
     focus(x, z, dist, az) { cam.tx = x; cam.tz = z; cam.dist = Math.max(cam.minDist, dist); if (az !== undefined) cam.az = az; },   // ใช้ในเทสต์และภาพตรวจ
     reset,
-    get zoomed() { return Math.abs(cam.dist - cam.fitDist) > 1 || Math.abs(cam.tx - (B.x0 + B.x1) / 2) > 1; },
+    get state() { return { ...cam }; },
+    get zoomed() { return Math.abs(cam.dist - home.dist) > 1 || Math.hypot(cam.tx - home.tx, cam.tz - home.tz) > 1 || Math.abs(cam.az - home.az) > 0.02 || Math.abs(cam.el - home.el) > 0.02; },
   };
 
   /* ================= ธีม (โหมดมืดเป็นพลบค่ำแบบง่าย: ค่าจาก CSS variable) ================= */
@@ -997,15 +1045,16 @@ export async function createScene3D(canvas, opts) {
     Object.assign(colors, c);
     const exp = parseFloat(colors['--scene-exposure']) || 0.96, fogK = parseFloat(colors['--scene-fog']) || 0.86, sunK = parseFloat(colors['--scene-sun']) || 1, envK = parseFloat(colors['--scene-env']) || 1;
     renderer.toneMappingExposure = exp; sun.intensity = 2.5 * sunK; scene.environmentIntensity = envK; scene.backgroundIntensity = envK;
+    for (const o of trains.values()) o.lamps.visible = dusk();
     scene.fog.color.copy(displayColor(HORIZON.clone().multiplyScalar(fogK)));   // ค่าดิบ = สีบนจอก่อนเข้ารหัส sRGB (หมอกผสมหลังแปลงสี)
     const tint = colors['--scene-tint']; if (tint) scene.fog.color.lerp(new THREE.Color(tint), 0.35);
     stripCol = { route: new THREE.Color(colors['--route'] || '#2FA872'), occ: new THREE.Color(colors['--occ'] || '#E9525A') };
     for (const k in strips) strips[k].state = '__';
     Object.values(plates).forEach(paintPlate);
     for (const n in bodies) { const c = bodies[n].attributes.color, bc = new THREE.Color(brand(+n)); for (const i of car.band) { c.array[i] = bc.r; c.array[i + 1] = bc.g; c.array[i + 2] = bc.b; } c.needsUpdate = true; }
-    const dusk = exp < 0.7;                        // พลบค่ำ: ไฟหน้าต่างและโคมชานชาลาเรือง
-    M.lampOff.emissive.set(dusk ? 0xffd27a : 0x000000); M.lampOff.emissiveIntensity = dusk ? 1.6 : 0;
-    M.glass.emissive.set(dusk ? 0x3a2a12 : 0x000000);
+    const glow = exp < 0.7;                        // พลบค่ำ: ไฟหน้าต่างและโคมชานชาลาเรือง (ชื่อห้ามซ้ำ dusk() ด้านนอกที่เรียกไว้ด้านบน)
+    M.lampOff.emissive.set(glow ? 0xffd27a : 0x000000); M.lampOff.emissiveIntensity = glow ? 1.6 : 0;
+    M.glass.emissive.set(glow ? 0x3a2a12 : 0x000000);
     shadowDirty = true;
   }
   setColors({});
@@ -1040,8 +1089,9 @@ export async function createScene3D(canvas, opts) {
   function resize(w, h) {
     if (!w || !h) return;
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
-    const was = cam.fitDist; fitCamera(); cam.el = elFor();
-    if (Math.abs(cam.dist - was) < 1) cam.dist = cam.fitDist; else cam.dist = Math.min(cam.dist, cam.fitDist * 1.25);
+    // อยู่มุมมาตรฐาน = จัดมุมใหม่ให้พอดีจอ, ผู้เล่นหมุน/ซูมไว้ = คงมุมของผู้เล่น แค่ไม่ให้ไกลเกินขอบใหม่
+    const atHome = !camApi.zoomed; fitCamera();
+    if (atHome) reset(); else { home.dist = cam.fitDist; home.el = elFor(); cam.dist = Math.min(cam.dist, cam.fitDist * 1.25); }
   }
   const _p = new THREE.Vector3();
   function project(v, w, h) {
@@ -1063,6 +1113,8 @@ export async function createScene3D(canvas, opts) {
     if (detail) {                                   // รายการ mesh ที่กินสามเหลี่ยมมากสุด (ใช้ตอนปรับงบ)
       const list = []; scene.traverseVisible(o => { if (!o.isMesh) return; const g = o.geometry, n = (g.index ? g.index.count : g.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1); list.push([o.material.type + (o.isInstancedMesh ? '×' + o.count : ''), Math.round(n)]); });
       out.top = list.sort((a, b) => b[1] - a[1]).slice(0, 14); out.meshes = list.length;
+      const cast = []; scene.traverseVisible(o => { if (o.isMesh && o.castShadow) cast.push(o.parent && o.parent !== scene ? (o.parent.userData.kind || 'group') : o.material.type); }); out.casters = cast.reduce((m, k) => ((m[k] = (m[k] || 0) + 1), m), {});
+      out.lamps = [...trains.values()].filter(o => o.lamps.visible).length; out.trains = trains.size;
     }
     return out;
   }

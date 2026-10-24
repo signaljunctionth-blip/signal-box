@@ -1,7 +1,7 @@
 // QA อิสระ: ของใช้ร่วมของสคริปต์ test/qa-*.js (ไม่แก้โค้ดเกม เสิร์ฟ dist/ จากโฟลเดอร์ย่อยผ่าน test/lib/serve.js)
 const fs = require('fs');
 const path = require('path');
-const { serveGame } = require('./lib/serve.js');
+const { serveGame, prefer2D } = require('./lib/serve.js');
 
 const shots = path.join(__dirname, 'screenshots');
 const SAVE_KEY = 'sj-signalbox-save';
@@ -41,6 +41,7 @@ async function launch() {
 async function open(env, v, scheme, R, { tag = `${v.name}-${scheme}`, hash = '', init = null, save = null, reducedMotion = null, ctx = null } = {}) {
   ctx ||= await env.b.newContext({ viewport: { width: v.width, height: v.height }, deviceScaleFactor: v.dpr, hasTouch: v.touch, isMobile: false, colorScheme: scheme, ...(reducedMotion ? { reducedMotion } : {}) });
   if (init) await ctx.addInitScript(init);
+  if (!env.view3d) await prefer2D(ctx);   // ภาพตรวจเดิมเป็นแผงผังเส้น ตั้ง env.view3d = ใช้ค่าเริ่มต้นของเกม (3 มิติ)
   if (save) await ctx.addInitScript(([k, t]) => { try { if (!sessionStorage.getItem('qa-seeded')) { localStorage.setItem(k, t); sessionStorage.setItem('qa-seeded', '1'); } } catch { /* ไม่มีที่เก็บ */ } }, [SAVE_KEY, save]);
   const p = await ctx.newPage();
   const log = { requests: [], external: [], errors: [], warnings: [] };

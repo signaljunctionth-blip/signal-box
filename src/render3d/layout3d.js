@@ -89,16 +89,26 @@ export function world3d(L) {
     const tk = L.E[L.platEdge[n]].track, t = tracks[tk]; if (!t) continue;
     const no = L.noPlatform && L.noPlatform.includes(n);
     const z = t.zAt((t.x0 + t.x1) / 2), mid = (t.x0 + t.x1) / 2;
-    const has = sd => Object.values(tracks).some(o => o !== t && o.pts.some(p => Math.abs(p[0] - mid) < (t.x1 - t.x0) / 2 && Math.sign(p[1] - z) === sd && Math.abs(p[1] - z) < TRACK_GAP * 1.2));
+    // ตรวจรางอื่นที่ขนานอยู่ข้าง ๆ ตลอดแนวชานชาลา (สุ่มจุดตาม x ไม่ใช้จุดยอดของราง เพราะรางตรงมีแค่จุดหัวท้าย)
+    const xs_ = [0.1, 0.3, 0.5, 0.7, 0.9].map(f => t.x0 + (t.x1 - t.x0) * f);
+    const has = sd => Object.values(tracks).some(o => o !== t && xs_.some(x => { if (x < o.x0 || x > o.x1) return false; const d = o.zAt(x) - z; return Math.sign(d) === sd && Math.abs(d) < TRACK_GAP * 1.2; }));
     const side = !has(-1) ? -1 : !has(1) ? 1 : -1;
     platforms.push({ no: n, track: tk, x0: t.x0 + 1, x1: t.x1 - 1, z, side, none: !!no });
   }
 
-  // ย่านสถานี: ระหว่างเสาเข้า (หรือประแจ) ซ้ายสุดและขวาสุด
-  const xs = [...Object.values(signals).map(s => s.x), ...Object.values(points).map(p => p.x)];
+  // ปลายทางตัน (L.buffers = รางที่สุดทางในสถานี เช่น น้ำตก): ปลายที่ไม่ต่อกับรางอื่น วางหลักกันชน ไม่ต่อรางออกไปนอกผัง
+  const buffers = [];
+  for (const k of L.buffers || []) {
+    const t = tracks[k], e = L.E[k]; if (!t || !e) continue;
+    const atEnd = e.next === null || e.next === undefined, a = X(e.pts[0][0]), b = X(e.pts[e.pts.length - 1][0]), x = atEnd ? b : a;
+    buffers.push({ track: k, x, z: t.zAt(x), dir: (atEnd ? b - a : a - b) > 0 ? 1 : -1 });   // dir = ทิศที่รางสุดทาง (+1 = สุดทางด้าน +x)
+  }
+
+  // ย่านสถานี: ระหว่างเสาเข้า (หรือประแจ) ซ้ายสุดและขวาสุด รวมชานชาลาและหลักกันชน (ผังทางตันเสาออกอยู่กลางย่าน)
+  const xs = [...Object.values(signals).map(s => s.x), ...Object.values(points).map(p => p.x), ...platforms.flatMap(p => [p.x0 - 4, p.x1 + 4]), ...buffers.map(b => b.x + b.dir * 6)];
   const zs = Object.values(tracks).flatMap(t => t.pts.map(p => p[1]));
   const bounds = { x0: Math.min(...xs, -40), x1: Math.max(...xs, 40), z0: Math.min(...zs), z1: Math.max(...zs) };
-  return { X, Z, cx, levels, tracks, points, signals, platforms, bounds };
+  return { X, Z, cx, levels, tracks, points, signals, platforms, buffers, bounds };
 }
 
 // ตำแหน่งในโลกของจุดบนทางวิ่งของขบวน (trail ของ sim: {x, y, e}) วางบนแนวรางโค้งเดียวกับที่วาด

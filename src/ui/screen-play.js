@@ -20,7 +20,7 @@ import { esc, starIcon, TIER_NAME, NOTE_LAYOUT, NOTE_SIGNALLING, NOTE_UNOFFICIAL
 import { fullscreenButton } from './stage.js';
 import { scene, sfx } from '../audio/index.js';
 import { soundButton } from '../audio/ui.js';
-import { has3D, mountView3D, pref3D, savePref3D, tierButtons } from './view3d.js';
+import { has3D, mountView3D, want3D, savePref3D, tierButtons } from './view3d.js';
 import './play.css';
 
 export const NOTE_SIGNAL_NAMES = 'ชื่อเสาในเกมนี้เกมตั้งเอง ไม่ใช่ชื่อจริงของสถานี เลขทางและตารางเดินรถเป็นของสมมุติ';
@@ -80,7 +80,6 @@ export function runWord(L, sp) {
   return (L.portals[sp.from].side === 'W' ? 'E' : 'W') === L.upDir ? 'เที่ยวขึ้น' : 'เที่ยวล่อง';
 }
 
-// ภารกิจห่วงทางสะดวกยังไม่มีปุ่มขอห่วง/ให้ทางในฉาก 3 มิติ จึงเล่นในแผงผังเส้นเท่านั้น (ไม่แสดงปุ่ม 3 มิติ)
 export function mountPlay(host, params, ctx) {
   const G0 = ctx.game, lv0 = G0 && G0.pack.levels[G0.index];
   if (!lv0 || lv0.error) return mountPlayPlaceholder(host, params, { ...ctx, reason: lv0 && lv0.error && ctx.dev ? lv0.error : '' });
@@ -92,7 +91,7 @@ export function mountPlay(host, params, ctx) {
         <button class="btn sm" type="button" data-act="menu">พัก</button>
         <div class="pl-ttl"><b></b><span></span><p class="pl-msg hide" role="status" aria-live="polite"></p></div>
         <dl class="pl-stats"><div><dt>คะแนน</dt><dd id="pl-score">0</dd></div><div><dt>ส่งแล้ว</dt><dd id="pl-done">0/0</dd></div></dl>
-        ${has3D(params.stationId) && !lv0.token ? '<button class="btn sm pl-view" type="button" data-act="view" aria-label="สลับเป็นฉาก 3 มิติ">3 มิติ</button>' : ''}
+        ${has3D(params.stationId) ? '<button class="btn sm pl-view" type="button" data-act="view" aria-label="สลับเป็นฉาก 3 มิติ">3 มิติ</button>' : ''}
         <button class="btn sm" type="button" data-act="fast" aria-pressed="false" aria-label="เร่งเวลา 2 เท่า">×2</button>
         ${soundButton()}
         ${fullscreenButton()}
@@ -109,12 +108,13 @@ export function mountPlay(host, params, ctx) {
   const $ = s => host.querySelector(s);
   const stallEl = $('.pl-stall'), cv = $('canvas'), board = $('.pl-board'), ov = $('.pl-ov'), msgEl = $('.pl-msg'), queueEl = $('.pl-queue'), fastBtn = $('[data-act="fast"]'), autoEl = $('.pl-auto');
   const panel = createPanel(cv, stage.el);
-  // ฉาก 3 มิติ (เฉพาะสถานีที่มีฉากแล้ว) วางทับแผงผังเส้นในกล่องเดียวกัน สลับกลับได้เสมอ
+  // ฉาก 3 มิติ (สถานีจริงของเส้นทางสอน ไม่รวมโหมดประวัติศาสตร์และผังสมมุติ) วางทับแผงผังเส้นในกล่องเดียวกัน สลับกลับได้เสมอ
   const viewBtn = $('[data-act="view"]');
   const v3d = viewBtn ? mountView3D(board, { stage, getGame: () => g, onPress: t => { if (g && g.state === 'play' && !paused) { if (press(g, t) && t && t.kind === 'point') sfx('lever'); watchSignals(); } }, getHint: () => (g && g.state === 'play' && !paused ? curHint() : null), say: (t, k) => say(t, k), station: ctx.station || {} }) : null;
   async function setView(on) {
     if (!v3d) return;
     viewBtn.disabled = true;
+    savePref3D({ on: !!on });   // จำค่าที่เลือกทันที (ออกจากหน้าก่อนฉากโหลดเสร็จก็ยังจำ) เปิดไม่สำเร็จค่อยแก้เป็นผังเส้นด้านล่าง
     const ok = await v3d.setActive(on);
     if (!alive) return;
     viewBtn.disabled = false;
@@ -333,7 +333,7 @@ export function mountPlay(host, params, ctx) {
   setFast(loadFast());
   open();
   raf = requestAnimationFrame(frame);
-  if (v3d && pref3D().on) setView(true);
+  if (v3d && want3D()) setView(true);   // ค่าเริ่มต้น 3 มิติเมื่อเครื่องรองรับ ผู้เล่นสลับเป็นผังเส้นได้เสมอ (จำค่าที่เลือก)
 
   return {
     destroy() {

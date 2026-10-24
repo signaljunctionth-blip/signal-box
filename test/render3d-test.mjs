@@ -1,5 +1,5 @@
 // เทสต์ส่วนคำนวณของฉาก 3 มิติใน Node ล้วน (ไม่ใช้ WebGL) — ใช้: node test/render3d-test.mjs
-// 1) แปลงผังท่ากิเลนเป็นโลก 3 มิติ: ราง ประแจ เสา ชานชาลา อยู่ถูกด้านและไม่ซ้อนกัน
+// 1) แปลงผังท่ากิเลนเป็นโลก 3 มิติ: ราง ประแจ เสา ชานชาลา อยู่ถูกด้านและไม่ซ้อนกัน  1b) ทุกสถานีของเส้นทางสอน (WP10)
 // 2) ตำแหน่งขบวนจาก trail ของ sim อยู่บนแนวรางที่วาด  3) ระดับคุณภาพ: เลือกเริ่มต้นและลดระดับเมื่อช้าถูกต้อง
 // 4) ชิ้นงานใน assets/ ทุกไฟล์มีรายการใน assets/ASSETS.md และไม่เกินเพดานขนาด
 import fs from 'node:fs';
@@ -45,6 +45,38 @@ const p2 = W.platforms.find(p => p.no === 2);
 ok(p2 && p2.none, 'ทาง 2 ไม่มีชานชาลา (noPlatform)');
 const sigPts = Object.values(W.signals);
 for (let i = 0; i < sigPts.length; i++) for (let j = i + 1; j < sigPts.length; j++) ok(Math.hypot(sigPts[i].x - sigPts[j].x, sigPts[i].z - sigPts[j].z) > 3, `เสา ${sigPts[i].label} กับ ${sigPts[j].label} ไม่ทับกัน`);
+
+/* 1b) ทุกสถานีของเส้นทางสอน (WP10): ประกอบฉากจากไฟล์ผังได้ เสาอยู่ซ้ายมือคนขับ ชานชาลาไม่ทับรางอื่น ทางตันที่น้ำตก ชุมทาง 3 ขาที่หนองปลาดุก */
+const firstOf = st => res.pack.levels.findIndex(l => l.station === st && !l.error);
+const WS = {};
+for (const st of ['tha-kilen', 'wang-pho', 'nam-tok', 'kanchanaburi', 'nong-pla-duk-jn']) {
+  const i = firstOf(st); ok(i >= 0, `${st}: มีภารกิจในชุดด่าน`); if (i < 0) continue;
+  const L = sim.createGame(res.pack, i, {}).L, w = world3d(L); WS[st] = { L, W: w };
+  for (const k in w.signals) { const s = w.signals[k]; ok(s.dir === 'E' ? s.z < s.trackZ : s.z > s.trackZ, `${st}: เสา ${s.label} อยู่ซ้ายมือคนขับ`); }
+  for (const p of w.platforms) {
+    if (p.none) continue;
+    const pz = p.z + p.side * 4.025, xs = [0.1, 0.5, 0.9].map(f => p.x0 + (p.x1 - p.x0) * f);
+    const hit = Object.values(w.tracks).find(t => t.id !== p.track && xs.some(x => x >= t.x0 && x <= t.x1 && Math.abs(t.zAt(x) - pz) < 1.975 + 1.4));
+    ok(!hit, `${st}: ชานชาลา ${p.no} ไม่ทับราง ${hit ? hit.id : ''}`);
+    ok(p.x0 >= w.bounds.x0 && p.x1 <= w.bounds.x1, `${st}: ชานชาลา ${p.no} อยู่ในกรอบสถานี (กล้องมุมมาตรฐานเห็น)`);
+  }
+}
+if (WS['nam-tok']) {
+  const { L, W: w } = WS['nam-tok'];
+  ok(Object.keys(L.portals).length === 1 && w.buffers.length === 2 && w.buffers.every(b => b.dir === 1), 'น้ำตก: ขาเดียว ทางตันสองทางมีหลักกันชนด้านปลายสาย', JSON.stringify(w.buffers));
+  ok(w.buffers.every(b => b.x <= w.bounds.x1), 'น้ำตก: หลักกันชนอยู่ในกรอบสถานี');
+}
+if (WS['nong-pla-duk-jn']) {
+  const P = WS['nong-pla-duk-jn'].L.portals;
+  ok(Object.keys(P).length === 3 && Object.values(P).filter(p => p.side === 'E').length === 2, 'หนองปลาดุก: ชุมทาง 3 ขา (สองขาออกทางเดียวกัน)');
+}
+
+{ // โหมดประวัติศาสตร์และผังสมมุติคง 2 มิติ: รายชื่อสถานีที่มีฉากต้องเป็นสถานีจริงของเส้นทางสอนเท่านั้น
+  const src = fs.readFileSync(path.join(root, 'src/ui/view3d.js'), 'utf8'), m = src.match(/SCENE_STATIONS = \[([^\]]*)\]/);
+  const ids = m ? m[1].match(/'([^']+)'/g).map(x => x.slice(1, -1)) : [];
+  ok(ids.join() === 'tha-kilen,wang-pho,nam-tok,kanchanaburi,nong-pla-duk-jn', 'ฉาก 3 มิติครบ 5 สถานีของเส้นทางสอน', ids.join());
+  ok(ids.every(id => !/^fictional/.test(id)), 'ผังสมมุติ/โหมดประวัติศาสตร์ไม่มีฉาก 3 มิติ');
+}
 
 /* 2) ขบวน */
 sim.startGame(g);

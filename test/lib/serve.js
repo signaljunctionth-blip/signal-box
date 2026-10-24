@@ -25,4 +25,11 @@ async function serveGame() {
   const origin = `http://127.0.0.1:${server.address().port}`;
   return { url: origin + SUB, origin, close: () => server.close() };
 }
-module.exports = { serveGame };
+// เทสต์ที่ตรวจแผงผังเส้น 2 มิติ: ตั้งค่าผู้เล่นว่าเลือก "ผังเส้น" ไว้ก่อนเปิดหน้า (ค่าเริ่มต้นของเกมคือ 3 มิติเมื่อเครื่องรองรับ, WP10)
+// ตั้งเฉพาะเมื่อยังไม่มีค่า เทสต์ที่กดสลับเองยังจำค่าข้ามการโหลดหน้าใหม่ได้
+async function prefer2D(ctx) {
+  await ctx.addInitScript(() => { try { if (localStorage.getItem('sj.view3d') === null) localStorage.setItem('sj.view3d', JSON.stringify({ on: false })); } catch { /* ไม่มีที่เก็บ */ } });
+  return ctx;
+}
+
+module.exports = { prefer2D, serveGame };
