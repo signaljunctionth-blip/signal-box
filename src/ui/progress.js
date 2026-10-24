@@ -5,8 +5,11 @@
 //   starsOf  = lv => ดาวที่ดีที่สุดของด่านนั้น (อ่านจากเซฟด้วย levelKey(lv))
 //   unlockState = ฟังก์ชันจาก src/sim (ส่งเข้ามาเพื่อให้ไฟล์นี้ไม่ผูกกับ sim)
 //   opts.skip   = ผู้เล่นกด "ข้ามบทสอน" แล้ว (ธงในเซฟ) ทุกสถานีของเส้นทางสอนเปิด ไม่ได้ดาว
-export function computeProgress(pack, starsOf, unlockState, { skip = false } = {}) {
+//   opts.locked = ทั้งสายยังไม่เปิด (สายถัดไปก่อนผ่านเส้นทางสอน) ทุกสถานีล็อก lock.line = true (ไม่แก้ unlockState ของ sim)
+//   opts.tutorial = false สำหรับชุดที่ไม่ใช่เส้นทางสอน: ไม่มีปุ่มข้ามบทสอน ไม่มีหน้าเลือกสาย
+export function computeProgress(pack, starsOf, unlockState, { skip = false, locked = false, tutorial = true } = {}) {
   const U = unlockState(pack, starsOf, { skip });
+  if (locked) { U.levels.forEach(l => { l.open = false; }); U.stations.forEach(s => { s.open = false; }); }
   const stations = [];
   let prev = null;
   pack.stations.forEach((s, index) => {
@@ -18,7 +21,7 @@ export function computeProgress(pack, starsOf, unlockState, { skip = false } = {
       missions, stars: u.stars, maxStars: u.max, passed, done, unlocked: u.open,
       state: !u.open ? 'locked' : done ? 'done' : 'open',
       // เงื่อนไขที่ยังขาด (null เมื่อเปิดแล้ว)
-      lock: u.open ? null : { prevStation: prev ? prev.id : null, prevRemaining: prev ? prev.missions.length - prev.passed : 0, needStars: s.needStars || 0, haveStars: U.total, missingStars: Math.max(0, (s.needStars || 0) - U.total) },
+      lock: u.open ? null : { ...(locked ? { line: true } : {}), prevStation: prev && !locked ? prev.id : null, prevRemaining: prev && !locked ? prev.missions.length - prev.passed : 0, needStars: locked ? 0 : s.needStars || 0, haveStars: U.total, missingStars: locked ? 0 : Math.max(0, (s.needStars || 0) - U.total) },
       next: u.open ? (missions.find(m => m.unlocked && m.stars === 0) || null) : null,
     };
     stations.push(st);
@@ -33,9 +36,36 @@ export function computeProgress(pack, starsOf, unlockState, { skip = false } = {
     totalStars: U.total, maxStars: pack.levels.length * 3,
     next, current, hasProgress: U.total > 0, skipped: !!skip,
     // ปุ่ม "ข้ามบทสอน" ขึ้นเมื่อยังไม่ได้กดและยังมีสถานีล็อกอยู่
-    canSkip: !skip && stations.some(s => !s.unlocked),
+    canSkip: tutorial && !skip && stations.some(s => !s.unlocked),
     // หน้าเลือกสายเปิดเมื่อผ่านสถานีขั้น 1–2 ของเส้นทางสอนครบ (ตอนนี้คือผ่านน้ำตกครบ)
-    lineSelectOpen: stations.some(s => s.tier <= 2) && stations.filter(s => s.tier <= 2).every(s => s.done),
+    lineSelectOpen: tutorial && stations.some(s => s.tier <= 2) && stations.filter(s => s.tier <= 2).every(s => s.done),
+    locked,
+  };
+}
+
+// ความคืบหน้าของทุกชุดอาชีพ (ชุดแรก = เส้นทางสอน) สำหรับหน้าแผนที่ หน้าเลือกสาย และหน้าเล่น
+//   packs   = ชุดภารกิจตามลำดับ CAREER_PACKS, starsOf = (packId, lv) => ดาวดีสุด
+//   opts.active = id ชุดที่ผู้เล่นเลือกในหน้าเลือกสายล่าสุด (ธงในเซฟ) ใช้ตั้งปุ่มบนสุดของแผนที่
+// สายถัดไปเปิดเมื่อเส้นทางสอนถึงหน้าเลือกสาย (lineSelectOpen) หรือผู้เล่นกดข้ามบทสอน
+export function computeCareer(packs, starsOf, unlockState, { skip = false, active = null } = {}) {
+  const [tut, ...rest] = packs;
+  const T = computeProgress(tut, lv => starsOf(tut.id, lv), unlockState, { skip });
+  const lineOpen = T.lineSelectOpen || T.skipped;
+  const gate = (T.stations.filter(s => s.tier <= 2).pop() || {}).id || null; // สถานีที่ต้องผ่านก่อนเปิดสายอื่น (น้ำตก)
+  const byPack = {}, stationPack = {}, byId = {}, lines = {};
+  for (const p of packs) {
+    const P = p === tut ? T : computeProgress(p, lv => starsOf(p.id, lv), unlockState, { locked: !lineOpen, tutorial: false });
+    P.packId = p.id; P.line = p.line || null; P.tutorial = p === tut; P.name = p.name;
+    for (const st of P.stations) { st.packId = p.id; if (st.lock && st.lock.line) st.lock.gate = gate; if (!stationPack[st.id]) { stationPack[st.id] = p.id; byId[st.id] = st; } }
+    if (P.line && !lines[P.line]) lines[P.line] = p.id;
+    byPack[p.id] = P;
+  }
+  const open = id => byPack[id] && !byPack[id].locked;
+  let act = active && open(active) ? active : null;
+  if (!act) act = !lineOpen || T.next ? tut.id : ((rest.find(p => open(p.id) && byPack[p.id].next) || {}).id || tut.id);
+  return {
+    packs: byPack, order: packs.map(p => p.id), tutorial: T, lineOpen, gate, stationPack, byId, lines, active: act,
+    totalStars: packs.reduce((n, p) => n + byPack[p.id].totalStars, 0), maxStars: packs.reduce((n, p) => n + byPack[p.id].maxStars, 0),
   };
 }
 

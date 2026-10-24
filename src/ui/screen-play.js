@@ -67,10 +67,13 @@ export function mountPlayPlaceholder(host, { stationId, missionId }, ctx) {
 
 // ข้อความบอกว่าขบวนในตารางมาจากไหน เข้าทางไหน ไปไหน
 const place = label => String(label).replace(/^ไป/, '');
+// sp.kind = 'local' | 'express' | 'freight' (ตารางเดิมไม่มี kind) sp.exp = ผ่านไม่จอด (ด่วน หรือสินค้าที่ไม่จอด)
 export function queueText(L, sp) {
-  if (!L.bidir || (sp.from === null && sp.origin === null)) return sp.exp ? 'ขบวนด่วน ไม่จอด' : `เข้าชานชาลา ${sp.plat}`;
+  const fr = sp.kind === 'freight';
+  if (!L.bidir || (sp.from === null && sp.origin === null)) return fr ? (sp.exp ? 'ขบวนสินค้า ไม่จอด' : `ขบวนสินค้า เข้าทาง ${sp.plat}`) : sp.exp ? 'ขบวนด่วน ไม่จอด' : `เข้าชานชาลา ${sp.plat}`;
   const P = L.portals, from = sp.origin !== null ? `ตั้งต้นที่ทาง ${sp.origin}` : `จาก${place(P[sp.from].label)}`;
-  const mid = sp.origin !== null ? '' : sp.exp ? (sp.via ? `ผ่านทาง ${sp.via} ไม่จอด` : 'ด่วน ไม่จอด') : `เข้าทาง ${sp.plat}`;
+  const kw = fr ? 'สินค้า' : 'ด่วน';
+  const mid = sp.origin !== null ? (fr ? 'สินค้า' : '') : sp.exp ? (sp.via ? `${fr ? 'สินค้า ' : ''}ผ่านทาง ${sp.via} ไม่จอด` : `${kw} ไม่จอด`) : `${fr ? 'สินค้า ' : ''}เข้าทาง ${sp.plat}`;
   const to = sp.to && P[sp.to] ? (/^ไป/.test(P[sp.to].label) ? P[sp.to].label : `ไป${P[sp.to].label}`) : '';
   return [from, mid, to].filter(Boolean).join(' › ');
 }
@@ -202,7 +205,7 @@ export function mountPlay(host, params, ctx) {
     if (key === queueKey) return;
     queueKey = key;
     const shown = g.pend.slice(0, stage.layout.h >= 600 ? 4 : stage.layout.w < 1000 ? 2 : 3), more = g.pend.length - shown.length;
-    queueEl.innerHTML = shown.map(i => { const sp = g.lv.sched[i], run = runWord(g.L, sp); return `<li><b style="--c:var(${sp.exp ? '--exp' : `--t${1 + (sp.plat - 1) % 3}`})">${i + 1}</b><span>${run ? `${run} · ` : ''}${esc(queueText(g.L, sp))}</span></li>`; }).join('')
+    queueEl.innerHTML = shown.map(i => { const sp = g.lv.sched[i], run = runWord(g.L, sp); return `<li><b style="--c:var(${sp.kind === 'freight' ? '--freight' : sp.exp ? '--exp' : `--t${1 + (sp.plat - 1) % 3}`})">${i + 1}</b><span>${run ? `${run} · ` : ''}${esc(queueText(g.L, sp))}</span></li>`; }).join('')
       + (more > 0 ? `<li class="more">อีก ${more} ขบวน</li>` : '') || '<li class="more">มาครบทุกขบวนแล้ว</li>';
   }
   // พักเกม = เพลงเงียบ (ตอนกลับจากแท็บอื่นเกมค้างที่เมนูพัก เพลงจึงไม่ดังขึ้นเอง)

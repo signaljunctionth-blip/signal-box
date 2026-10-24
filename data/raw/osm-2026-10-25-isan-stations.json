@@ -1,0 +1,777 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API 0.7.62.11 87bfad18",
+  "osm3s": {
+    "timestamp_osm_base": "2026-10-24T19:48:10Z",
+    "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+  },
+  "elements": [
+
+{
+  "type": "node",
+  "id": 357992316,
+  "lat": 14.9561351,
+  "lon": 102.0237132,
+  "tags": {
+    "name": "ภูเขาลาด",
+    "name:en": "Phukhao Lat",
+    "name:th": "ภูเขาลาด",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:station_category": "3",
+    "ref": "ขล.",
+    "ref:station": "2113",
+    "source": "GPS",
+    "train": "yes",
+    "wikidata": "Q16307561"
+  }
+},
+{
+  "type": "node",
+  "id": 357993406,
+  "lat": 14.9311964,
+  "lon": 101.9588749,
+  "tags": {
+    "name": "โคกกรวด",
+    "name:en": "Khok Kruat",
+    "name:th": "โคกกรวด",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "คก",
+    "railway:station_category": "3",
+    "ref": "คก.",
+    "ref:station": "2111",
+    "source": "GPS",
+    "train": "yes",
+    "wikidata": "Q13021820"
+  }
+},
+{
+  "type": "node",
+  "id": 506448640,
+  "lat": 15.2257634,
+  "lon": 102.2888154,
+  "tags": {
+    "name": "บ้านดงพลอง",
+    "name:en": "Ban Dong Phlong",
+    "operator": "การรถไฟแห่งประเทศไทย",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ดพ",
+    "railway:ref:en": "BDP",
+    "railway:station_category": "3",
+    "ref": "ดพ.",
+    "ref:station": "2124",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 506455116,
+  "lat": 15.2811036,
+  "lon": 102.2952689,
+  "tags": {
+    "name": "บ้านมะค่า",
+    "name:en": "Ban Makha",
+    "name:th": "บ้านมะค่า",
+    "network": "การรถไฟแห่งประเทศไทย",
+    "network:en": "State Railway of Thailand",
+    "network:th": "การรถไฟแห่งประเทศไทย",
+    "network:wikidata": "Q2165702",
+    "operator": "การรถไฟแห่งประเทศไทย",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "มค",
+    "railway:ref:en": "BMK",
+    "railway:station_category": "3",
+    "ref": "มค.",
+    "ref:station": "2126",
+    "source": "GPS;sign",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 691378611,
+  "lat": 15.1198441,
+  "lon": 104.1730193,
+  "tags": {
+    "name": "บ้านแต้",
+    "name:en": "Ban Tae",
+    "public_transport": "station",
+    "railway": "halt",
+    "railway:ref": "แต",
+    "railway:station_category": "ที่หยุดรถ",
+    "ref": "แต.",
+    "ref:station": "2268",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 1384419468,
+  "lat": 14.9722695,
+  "lon": 102.0788985,
+  "tags": {
+    "name": "นครราชสีมา",
+    "name:en": "Nakhon Ratchasima",
+    "name:th": "นครราชสีมา",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "รส",
+    "railway:station_category": "1",
+    "ref": "รส.",
+    "ref:station": "2114",
+    "toilets:wheelchair": "yes",
+    "train": "yes",
+    "wheelchair": "yes",
+    "wikidata": "Q801230",
+    "wikipedia": "th:สถานีรถไฟนครราชสีมา"
+  }
+},
+{
+  "type": "node",
+  "id": 1821195610,
+  "lat": 15.1059962,
+  "lon": 104.1404286,
+  "tags": {
+    "name": "อุทุมพรพิสัย",
+    "name:en": "Uthumphon Phisai",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "อุ",
+    "railway:station_category": "1",
+    "ref": "อุ.",
+    "ref:station": "2267",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 1831765444,
+  "lat": 14.9727432,
+  "lon": 103.1900031,
+  "tags": {
+    "name": "ห้วยราช",
+    "name:en": "Huai Rat",
+    "name:fr": "Huai Rat",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "หร",
+    "railway:station_category": "2",
+    "ref": "หร.",
+    "ref:station": "2239",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 2389968745,
+  "lat": 15.0033141,
+  "lon": 103.1079377,
+  "tags": {
+    "alt_name": "Buriram",
+    "name": "บุรีรัมย์",
+    "name:en": "Buri Ram",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "รย",
+    "railway:station_category": "1",
+    "ref": "รย.",
+    "ref:station": "2236",
+    "train": "yes",
+    "wikidata": "Q6633321"
+  }
+},
+{
+  "type": "node",
+  "id": 3107810705,
+  "lat": 15.0209222,
+  "lon": 103.9405674,
+  "tags": {
+    "name": "สำโรงทาบ",
+    "name:en": "Samrong Thap",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "สบ",
+    "railway:station_category": "2",
+    "ref": "สบ.",
+    "ref:station": "2261",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 3107819171,
+  "lat": 14.9452046,
+  "lon": 103.7863978,
+  "tags": {
+    "name": "ศีขรภูมิ",
+    "name:en": "Sikhoraphum",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "รภ",
+    "railway:station_category": "1",
+    "ref": "รภ.",
+    "ref:station": "2256",
+    "train": "yes",
+    "wikidata": "Q6633380"
+  }
+},
+{
+  "type": "node",
+  "id": 3107829713,
+  "lat": 14.8915918,
+  "lon": 103.4939967,
+  "tags": {
+    "name": "สุรินทร์",
+    "name:en": "Surin",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "สร",
+    "railway:station_category": "1",
+    "ref": "สร.",
+    "ref:station": "2250",
+    "train": "yes",
+    "wikidata": "Q6633430"
+  }
+},
+{
+  "type": "node",
+  "id": 3455595495,
+  "lat": 15.0019142,
+  "lon": 102.2743934,
+  "tags": {
+    "name": "ท่าช้าง",
+    "name:en": "Tha Chang",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ชา",
+    "railway:station_category": "3",
+    "ref": "ชา.",
+    "ref:station": "2213",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 3457432249,
+  "lat": 15.0036407,
+  "lon": 102.4990740,
+  "tags": {
+    "name": "บ้านหินโคน",
+    "name:en": "Ban Hin Khon",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "หโ",
+    "railway:station_category": "3",
+    "ref": "หโ.",
+    "ref:station": "2220",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 4739057021,
+  "lat": 14.9269209,
+  "lon": 103.3026903,
+  "tags": {
+    "name": "กระสัง",
+    "name:en": "Krasang",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ะส",
+    "railway:station_category": "2",
+    "ref": "ะส.",
+    "ref:station": "2243",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 4919461486,
+  "lat": 15.3094272,
+  "lon": 102.2983694,
+  "tags": {
+    "name": "เนินถั่วแปบ",
+    "name:en": "Noen Thua Paep",
+    "name:th": "เนินถั่วแปบ",
+    "network": "การรถไฟแห่งประเทศไทย",
+    "network:en": "State Railway of Thailand",
+    "network:th": "การรถไฟแห่งประเทศไทย",
+    "network:wikidata": "Q2165702",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ถป",
+    "railway:ref:en": "NTP",
+    "railway:station_category": "ที่หยุดรถ",
+    "ref": "ถป.",
+    "ref:station": "2127",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 4919461487,
+  "lat": 15.1768901,
+  "lon": 102.2481227,
+  "tags": {
+    "name": "โนนสูง",
+    "name:en": "Non Sung",
+    "network": "การรถไฟแห่งประเทศไทย",
+    "network:en": "State Railway of Thailand",
+    "network:th": "การรถไฟแห่งประเทศไทย",
+    "network:wikidata": "Q2165702",
+    "operator": "การรถไฟแห่งประเทศไทย",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "นโ",
+    "railway:ref:en": "NSU",
+    "railway:station_category": "1",
+    "ref": "นโ.",
+    "ref:station": "2122",
+    "train": "yes",
+    "wikidata": "Q22124821"
+  }
+},
+{
+  "type": "node",
+  "id": 4919461605,
+  "lat": 15.1290891,
+  "lon": 102.2060051,
+  "tags": {
+    "name": "บ้านหนองกันงา",
+    "name:en": "Ban Nong Kan Nga",
+    "public_transport": "station",
+    "railway": "halt",
+    "railway:ref": "ก้",
+    "railway:ref:en": "BGG",
+    "railway:station_category": "ป้ายหยุดรถ",
+    "ref": "ก้.",
+    "ref:station": "2291",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 4919461939,
+  "lat": 15.1408111,
+  "lon": 102.2163301,
+  "tags": {
+    "name": "หนองแมว",
+    "name:en": "Nong Maeo",
+    "operator": "การรถไฟแห่งประเทศไทย",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "นง",
+    "railway:ref:en": "NNM",
+    "railway:station_category": "3",
+    "ref": "นง.",
+    "ref:station": "2121",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 5243054220,
+  "lat": 15.0245100,
+  "lon": 102.8297065,
+  "tags": {
+    "name": "ลำปลายมาศ",
+    "name:en": "Lam Plai Mat",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ลำ",
+    "railway:station_category": "1",
+    "ref": "ลำ.",
+    "ref:station": "2229",
+    "train": "yes",
+    "wikidata": "Q13021753"
+  }
+},
+{
+  "type": "node",
+  "id": 5243250020,
+  "lat": 14.9088171,
+  "lon": 103.3630781,
+  "tags": {
+    "name": "หนองเต็ง",
+    "name:en": "Nong Teng",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "เต",
+    "railway:station_category": "3",
+    "ref": "เต.",
+    "ref:station": "2244",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 5766469022,
+  "lat": 15.0863936,
+  "lon": 104.0943041,
+  "tags": {
+    "name": "หนองแคน",
+    "name:en": "Nong Kaen",
+    "public_transport": "station",
+    "railway": "halt",
+    "railway:ref": "หค",
+    "railway:station_category": "ที่หยุดรถ",
+    "ref": "หค.",
+    "ref:station": "2266",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 5838574785,
+  "lat": 15.0305257,
+  "lon": 102.9139059,
+  "tags": {
+    "name": "ทะเมนชัย",
+    "name:en": "Thamenchai",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "มช",
+    "railway:station_category": "2",
+    "ref": "มช.",
+    "ref:station": "2231",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 5864456980,
+  "lat": 15.0043040,
+  "lon": 102.1385153,
+  "tags": {
+    "name": "บ้านเกาะ",
+    "name:en": "Ban Ko",
+    "name:th": "บ้านเกาะ",
+    "operator": "การรถไฟแห่งประเทศไทย",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "กะ",
+    "railway:ref:en": "BAK",
+    "railway:station_category": "3",
+    "ref": "กะ.",
+    "ref:station": "2117",
+    "train": "yes",
+    "wikidata": "Q6633360"
+  }
+},
+{
+  "type": "node",
+  "id": 6328479385,
+  "lat": 14.9993907,
+  "lon": 102.6467614,
+  "tags": {
+    "name": "ห้วยแถลง",
+    "name:en": "Huai Thalaeng",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ถล",
+    "railway:station_category": "2",
+    "ref": "ถล.",
+    "ref:station": "2224",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8859083159,
+  "lat": 14.9956633,
+  "lon": 102.2262286,
+  "tags": {
+    "name": "บ้านพระพุทธ",
+    "name:en": "Ban Phra Phut",
+    "public_transport": "station",
+    "railway": "halt",
+    "railway:ref": "ะท",
+    "railway:station_category": "ที่หยุดรถ",
+    "ref": "ะท.",
+    "ref:station": "2212",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8859210768,
+  "lat": 14.9858888,
+  "lon": 102.1929714,
+  "tags": {
+    "name": "บ้านพะเนา",
+    "name:en": "Ban Phanao",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "พเ",
+    "railway:station_category": "3",
+    "ref": "พเ.",
+    "ref:station": "2211",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8859340201,
+  "lat": 15.0131562,
+  "lon": 102.3467351,
+  "tags": {
+    "name": "หนองมโนรมย์",
+    "name:en": "Nong Manorom",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "นโ",
+    "railway:station_category": "3",
+    "ref": "มโ.",
+    "ref:station": "2215",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8859375025,
+  "lat": 15.0028698,
+  "lon": 102.5656695,
+  "tags": {
+    "name": "หินดาษ",
+    "name:en": "Hin Dat",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ดา",
+    "railway:station_category": "3",
+    "ref": "ดา.",
+    "ref:station": "2222",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8859462340,
+  "lat": 15.0058898,
+  "lon": 102.7559092,
+  "tags": {
+    "name": "หนองกระทิง",
+    "name:en": "Nong Krathing",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ทง",
+    "railway:station_category": "3",
+    "ref": "ทง.",
+    "ref:station": "2227",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8860689807,
+  "lat": 15.0127766,
+  "lon": 102.4104258,
+  "tags": {
+    "name": "จักราช",
+    "name:en": "Chakkarat",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "จช",
+    "railway:station_category": "2",
+    "ref": "จช.",
+    "ref:station": "2217",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8860790672,
+  "lat": 15.0268075,
+  "lon": 102.9919894,
+  "tags": {
+    "name": "บ้านแสลงพัน",
+    "name:en": "Ban Salaeng Phan",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "งพ",
+    "railway:station_category": "3",
+    "ref": "งพ.",
+    "ref:station": "2233",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8860858574,
+  "lat": 15.0208755,
+  "lon": 103.0211625,
+  "tags": {
+    "name": "บ้านหนองตาด",
+    "name:en": "Ban Nong Tat",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ตา",
+    "railway:station_category": "3",
+    "ref": "ตา.",
+    "ref:station": "2234",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8862474536,
+  "lat": 15.0590847,
+  "lon": 104.0300528,
+  "tags": {
+    "name": "ห้วยทับทัน",
+    "name:en": "Huai Thap Than",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ทท",
+    "railway:station_category": "2",
+    "ref": "ทท.",
+    "ref:station": "2264",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8862585256,
+  "lat": 14.9219156,
+  "lon": 103.7269244,
+  "tags": {
+    "name": "กะโดนค้อ",
+    "name:en": "Kadon Kho",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ดค",
+    "railway:station_category": "3",
+    "ref": "ดค.",
+    "ref:station": "2254",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8862648561,
+  "lat": 14.8899487,
+  "lon": 103.5763229,
+  "tags": {
+    "name": "บุฤๅษี",
+    "name:en": "Bu Ruesi",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "บุ",
+    "railway:station_category": "3",
+    "ref": "บุ.",
+    "ref:station": "2252",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8862699589,
+  "lat": 14.8998501,
+  "lon": 103.4228262,
+  "tags": {
+    "name": "ลำชี",
+    "name:en": "Lam Chi",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ลช",
+    "railway:station_category": "2",
+    "ref": "ลช.",
+    "ref:station": "2246",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8865094683,
+  "lat": 14.9907404,
+  "lon": 103.1457230,
+  "tags": {
+    "name": "บ้านตะโก",
+    "name:en": "Ban Tako",
+    "public_transport": "station",
+    "railway": "halt",
+    "railway:ref": "ตโ",
+    "railway:station_category": "ที่หยุดรถ",
+    "ref": "ตโ.",
+    "ref:station": "2237",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8866451699,
+  "lat": 14.8937362,
+  "lon": 103.6550328,
+  "tags": {
+    "name": "เมืองที",
+    "name:en": "Mueang Thi",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "อท",
+    "railway:station_category": "3",
+    "ref": "อท.",
+    "ref:station": "2252",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8926918785,
+  "lat": 14.9737514,
+  "lon": 103.8533067,
+  "tags": {
+    "name": "บ้านกะลัน",
+    "name:en": "Ban Kalan",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "ลน",
+    "railway:station_category": "3",
+    "ref": "ลน.",
+    "ref:station": "2258",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 8985173783,
+  "lat": 15.1042237,
+  "lon": 102.1869891,
+  "tags": {
+    "name": "บ้านกระโดน",
+    "name:en": "Ban Kradon",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "กโ",
+    "railway:ref:en": "NKN",
+    "railway:station_category": "3",
+    "ref": "กโ.",
+    "ref:station": "2120",
+    "train": "yes"
+  }
+},
+{
+  "type": "node",
+  "id": 11809204381,
+  "lat": 14.9678193,
+  "lon": 102.1018736,
+  "tags": {
+    "name": "ชุมทางถนนจิระ",
+    "name:en": "Thanon Chira Junction",
+    "name:th": "ชุมทางถนนจิระ",
+    "operator": "การรถไฟแห่งประเทศไทย",
+    "public_transport": "station",
+    "railway": "station",
+    "railway:ref": "จร",
+    "railway:ref:en": "TNJ",
+    "railway:station_category": "1",
+    "ref:station": "2115",
+    "train": "yes",
+    "wikidata": "Q4923132",
+    "wikipedia": "th:สถานีรถไฟชุมทางถนนจิระ"
+  }
+}
+
+  ]
+}

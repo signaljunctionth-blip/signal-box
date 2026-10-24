@@ -1,6 +1,6 @@
 // สถานะเกม 1 ด่าน และการเดินเวลา — ไม่มีตัวแปร global: ทุกอย่างอยู่ในอ็อบเจกต์ g ที่ createGame คืนมา
 import { createRng } from './rng.js';
-import { TL, spawn, moveTrain, checkCollisions } from './trains.js';
+import { TL, spawn, moveTrain, checkCollisions, maxScoreOf } from './trains.js';
 import { occEdges, release, edgeOccupied, stepOverlaps, stepCancels } from './interlocking.js';
 import { isStatic, escapeRoutes, cannotReceive } from './hint.js';
 import { createBlocks, blockState, requestPermit, stepBlocks, tokenMode, askPermit } from './block.js';
@@ -31,7 +31,7 @@ export function createGame(pack, i, { onEvent = null, seed = 1 } = {}) {
     pend: lv.sched.map(sp => sp.i),     // ลำดับขบวนในตารางที่ยังไม่เข้าผัง
     stall: 0, stalled: false, stallSeen: 0, // ตัวเฝ้า: วินาทีที่ไม่มีอะไรขยับ, ส่ง event 'stall' ไปแล้วหรือยัง
     cleared: {}, stuck: 0, lastCode: null, // เวลาที่แต่ละขบวนพ้นจอ, ตัวจับทางตัน, รหัสเหตุผลของ msg ล่าสุด
-    time: 0, spawned: 0, done: 0, score: 0, max: lv.trains.length * 150,
+    time: 0, spawned: 0, done: 0, score: 0, max: lv.sched.reduce((a, sp) => a + maxScoreOf(sp), 0), // คะแนนเต็มตามชนิดขบวน (โดยสาร 150 สินค้า 100)
     state: 'intro',                     // 'intro' | 'play' | 'win' | 'fail'
     nxSel: null, nid: 1, result: null,
     seed, rng: createRng(seed), onEvent,
@@ -63,7 +63,7 @@ function spawnDue(g) {
     const b = sp.from !== null ? g.block[sp.from] : null;
     if (!b) {
       if (queueBlocked) continue;
-      if (due !== null && g.time >= due && !g.trains.some(t => t.edge === sp.entry && t.s < TL + 24)) go(); else queueBlocked = true;
+      if (due !== null && g.time >= due && !g.trains.some(t => t.edge === sp.entry && t.s < (t.len || TL) + 24)) go(); else queueBlocked = true;
       continue;
     }
     if (b.in === idx) { if (g.time >= b.inAt) { b.in = null; b.inTrain = go(); if (tokenMode(g)) b.inTrain.token = sp.from; } continue; }

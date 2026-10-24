@@ -8,6 +8,8 @@ const path = require('path');
 const assert = require('assert');
 
 const root = path.resolve(__dirname, '..'), shots = path.join(__dirname, 'screenshots');
+// ภาพหน้าเลือกสาย (WP8) เก็บเพิ่มที่ SJ_PICK_SHOTS ถ้าตั้งไว้
+const pickShots = process.env.SJ_PICK_SHOTS || shots;
 const { serveGame, prefer2D } = require('./lib/serve.js');
 const MAP = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../data/thailand-map.json'), 'utf8'));
 let URL0 = '';
@@ -94,6 +96,36 @@ async function pure() {
   assert.strictEqual(cs.stars('tk-1'), 0); assert.strictEqual(cs.setStars('tk-1', 2), true); cs.setStars('tk-1', 1, 400); cs.setStars('np-3', 3);
   const cs2 = createCareerSave(createSave(mem), 'namtok');
   assert.deepStrictEqual([cs2.stars('tk-1'), cs2.score('tk-1'), cs2.stars('np-3'), cs2.stars('tk-2'), cs2.stars('nope')], [2, 400, 3, 0, 0]);
+
+  // หลายสาย (WP8): เส้นทางสอน + สายอีสาน สายอีสานล็อกจนผ่านน้ำตกครบหรือข้ามบทสอน
+  {
+    const { CAREER_PACKS, CAREER_PACK_ID } = await import(src('ui/career-id.js'));
+    assert.strictEqual(CAREER_PACKS[0], CAREER_PACK_ID); assert.ok(CAREER_PACKS.includes('isan'), 'CAREER_PACKS ต้องมีชุด isan');
+    const li = sim.loadLevelPack(readJson('data/levels/isan.json'), st.stations, st.errors);
+    assert.ok(li.ok, 'ชุดภารกิจ isan ไม่ผ่านตัวตรวจ (เนื้อหาไฟล์ของนักออกแบบเกม): ' + (li.errors || []).join(' | '));
+    const isan = li.pack, first = isan.stations[0].station, m1 = isan.levels.find(l => l.station === first).id;
+    assert.strictEqual(isan.line, 'northeast'); assert.strictEqual(first, 'buri-ram');
+    const S = { namtok: {}, isan: {} }, cp = (o = {}) => P.computeCareer([pack, isan], (id, lv) => S[id][levelKey(lv)] || 0, unlockState, o);
+    let c = cp();
+    assert.strictEqual(c.lineOpen, false); assert.strictEqual(c.gate, 'nam-tok'); assert.strictEqual(c.lines.northeast, 'isan'); assert.strictEqual(c.lines.west, 'namtok');
+    assert.ok(c.packs.isan.locked && c.packs.isan.stations.every(x => x.state === 'locked' && x.lock.line && x.lock.gate === 'nam-tok'), 'ก่อนผ่านน้ำตก สายอีสานต้องล็อกทั้งสาย');
+    assert.ok(!P.canPlay(c.packs.isan, first, m1) && !c.packs.isan.canSkip && c.active === 'namtok' && c.stationPack[first] === 'isan');
+    assert.strictEqual(c.maxStars, pack.levels.length * 3 + isan.levels.length * 3);
+    c = cp({ skip: true });
+    assert.ok(c.lineOpen && c.byId[first].unlocked && P.canPlay(c.packs.isan, first, m1), 'ข้ามบทสอนแล้วสถานีแรกของสายอีสานต้องเปิด');
+    ['tk-1', 'tk-2', 'tk-token', 'tk-3', 'wp-1', 'wp-token', 'wp-2', 'wp-3', 'nt-1', 'nt-2'].forEach(id => { S.namtok[id] = 1; });
+    c = cp();
+    assert.ok(c.lineOpen && c.tutorial.lineSelectOpen && P.canPlay(c.packs.isan, first, m1), 'ผ่านน้ำตกครบแล้วสายอีสานต้องเปิด');
+    assert.strictEqual(c.active, 'isan', 'เส้นทางสอนไม่มีภารกิจถัดไป (ดาวไม่พอ) ปุ่มบนสุดต้องพาไปสายอีสาน');
+    assert.strictEqual(cp({ active: 'namtok' }).active, 'namtok');
+    // เซฟเก่า (มีแต่ดาวของ namtok): ความคืบหน้าของเส้นทางสอนต้องเท่ากับแบบชุดเดียวเดิมทุกข้อ
+    const old = { 'tk-1': 3, 'tk-2': 3, 'tk-3': 2, 'wp-1': 1 }, one = P.computeProgress(pack, lv => old[levelKey(lv)] || 0, unlockState), both = P.computeCareer([pack, isan], (id, lv) => (id === 'namtok' ? old[levelKey(lv)] || 0 : 0), unlockState).tutorial;
+    assert.deepStrictEqual(both.stations.map(x => [x.id, x.state, x.stars, x.missions.map(m => m.unlocked)]), one.stations.map(x => [x.id, x.state, x.stars, x.missions.map(m => m.unlocked)]));
+    assert.strictEqual(both.totalStars, one.totalStars);
+    // งบ: ขั้นเริ่มต้นของสถานีอีสาน (ยุคแรกของชุด = ไฟสี) ใช้ได้เลยไม่ต้องจ่าย
+    const { createWallet } = await import(src('ui/wallet.js')), W = createWallet(createSave(memoryBackend()), () => [], undefined, id => (id === first ? sim.UPGRADES.length - isan.eras.length : 0));
+    assert.strictEqual(W.owned(first), sim.UPGRADES.length - isan.eras.length); assert.strictEqual(W.selected(first), W.owned(first)); assert.strictEqual(W.owned('tha-kilen'), 0);
+  }
 
   // กล้อง
   const map = JSON.parse(fs.readFileSync(path.join(root, 'data/thailand-map.json'), 'utf8'));
@@ -205,7 +237,7 @@ async function browser() {
       await audit('แผนที่สายน้ำตก');
       await shot('route');
       // ปุ่มสถานีทั้ง 5 ต้องอยู่ในจอและห่างกันพอ
-      const mk = await p.evaluate(() => [...document.querySelectorAll('.mk[data-id]')].map(el => { const r = el.getBoundingClientRect(); return { id: el.dataset.id, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, label: el.getAttribute('aria-label') }; }));
+      const mk = await p.evaluate(() => [...document.querySelectorAll('.mk[data-pack="namtok"]')].map(el => { const r = el.getBoundingClientRect(); return { id: el.dataset.id, x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, label: el.getAttribute('aria-label') }; }));
       check(mk.length === 5 && mk.every(m => m.x > 20 && m.y > 20 && m.x < v.width - 20 && m.y < v.height - 20), `${tag}: ปุ่มสถานีไม่ครบหรือหลุดจอ ${JSON.stringify(mk.map(m => [m.id, m.x | 0, m.y | 0]))}`);
       for (let i = 0; i < mk.length; i++) for (let j = i + 1; j < mk.length; j++) check(Math.hypot(mk[i].x - mk[j].x, mk[i].y - mk[j].y) >= 44, `${tag}: ปุ่ม ${mk[i].id} กับ ${mk[j].id} ซ้อนกัน`);
       check(mk[0].label === 'สถานีที่ 1 ท่ากิเลน เปิดแล้ว ดาว 0 จาก 12' && mk[1].label === 'สถานีที่ 2 วังโพ ยังล็อก', `${tag}: ป้ายสถานีผิด ${mk[0].label} / ${mk[1].label}`);
@@ -213,6 +245,7 @@ async function browser() {
       // ---- ทั้งประเทศ: จุดสถานีรวมเป็นปุ่ม "เส้นทางสอน" ปุ่มเดียว ----
       await dbg(A => A.map.country()); await settle();
       check(await p.evaluate(() => !document.querySelector('.mk-cluster').hidden && [...document.querySelectorAll('.mk[data-id]')].every(e => e.hidden)), `${tag}: ซูมออกแล้วไม่รวมเป็นปุ่มเดียว`);
+      check(await p.evaluate(() => !document.querySelector('.mk-cluster[data-group="isan"]').hidden), `${tag}: ซูมออกแล้วสายอีสานไม่รวมเป็นปุ่มเดียว`);
       await audit('แผนที่ทั้งประเทศ');
       await shot('country');
       const cl = await p.evaluate(() => { const r = document.querySelector('.mk-cluster').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
@@ -286,7 +319,8 @@ async function browser() {
       await dbg(A => { ['tk-1', 'tk-2', 'tk-token', 'tk-3'].forEach((id, i) => A.career.setStars(id, i ? 1 : 2)); A.refresh(); });
       check(await p.getAttribute('.mk[data-id="wang-pho"]', 'aria-label') === 'สถานีที่ 2 วังโพ เปิดแล้ว ดาว 0 จาก 12' && await p.getAttribute('.mk[data-id="tha-kilen"]', 'aria-label') === 'สถานีที่ 1 ท่ากิเลน ผ่านแล้ว ดาว 5 จาก 12', `${tag}: ป้ายสถานีไม่อัปเดตตามดาว`);
       check(await p.locator('.sheet [data-act="play"]').count() === 4, `${tag}: ผ่านแล้วต้องเล่นซ้ำได้ทุกภารกิจ`);
-      await dbg(A => { ['wp-1', 'wp-token', 'wp-2', 'wp-3', 'nt-1', 'nt-2'].forEach(id => A.career.setStars(id, 1)); A.refresh(); });
+      // ผ่านน้ำตกครบ = หน้าเลือกสายจะเปิดเองครั้งแรก (ตรวจแยกด้านล่าง) ที่นี่ตั้งธงว่าเคยเห็นแล้ว
+      await dbg(A => { A.save.setFlag('line-pick-seen', true); ['wp-1', 'wp-token', 'wp-2', 'wp-3', 'nt-1', 'nt-2'].forEach(id => A.career.setStars(id, 1)); A.refresh(); });
       pos = await at('kanchanaburi');
       if (await p.evaluate(({ x, y }) => { const el = document.elementFromPoint(x, y); return !!(el && el.closest('.mk[data-id="kanchanaburi"]')); }, pos)) await tap(pos.x, pos.y); else await p.evaluate(() => window.__sjApp.router.replace({ screen: 'map', stationId: 'kanchanaburi' }));
       await settle();
@@ -329,7 +363,7 @@ async function browser() {
       // แตะที่ว่างบนแผนที่ (กลางครึ่งขวาของเวที) รายการปิด แล้วปุ่มสถานีทั้ง 5 แตะได้ (ไม่มีอะไรบัง)
       const free = await p.evaluate(() => { const S = window.__sjApp.stage; return S.toClient(S.layout.w * 0.78, S.layout.h * 0.5); });
       await p.touchscreen.tap(free.x, free.y); await sleep(150);
-      const after = await p.evaluate(() => ({ closed: document.getElementById('map-lines-list').hidden, covered: [...document.querySelectorAll('.mk[data-id]')].filter(el => { const c = window.__sjApp.map.markerClient(el.dataset.id), top = document.elementFromPoint(c.x, c.y); return !(top && top.closest('.mk') === el); }).map(el => el.dataset.id) }));
+      const after = await p.evaluate(() => ({ closed: document.getElementById('map-lines-list').hidden, covered: [...document.querySelectorAll('.mk[data-pack="namtok"]')].filter(el => { const c = window.__sjApp.map.markerClient(el.dataset.id), top = document.elementFromPoint(c.x, c.y); return !(top && top.closest('.mk') === el); }).map(el => el.dataset.id) }));
       check(after.closed && !after.covered.length, `${tag}: แตะแผนที่แล้วรายการสายไม่ปิด หรือปุ่มสถานียังถูกบัง ${JSON.stringify(after)}`);
       await ctx.close();
     }
@@ -377,6 +411,80 @@ async function browser() {
     await p.waitForFunction(() => window.__sjApp && window.__sjApp.map && window.__sjApp.map.openId() === 'wang-pho');
     check(await p.evaluate(() => location.hash) === '#map/wang-pho', 'ลิงก์ตรงเข้าภารกิจที่ยังล็อกต้องพากลับไปแผ่นข้อมูลสถานี');
     await ctx.close();
+
+    // ---- หน้าเลือกสาย (WP8): 6 สาย อีสานล็อกก่อนผ่านน้ำตก ข้ามบทสอนแล้วเล่นบุรีรัมย์ได้ เซฟเก่าไม่หาย เปิดเองครั้งแรกที่ผ่านน้ำตก ----
+    fs.mkdirSync(pickShots, { recursive: true });
+    for (const v of VIEWS) {
+      const tag = `${v.name} เลือกสาย`, ctx = await prefer2D(await b.newContext({ viewport: { width: v.width, height: v.height }, deviceScaleFactor: v.dpr, hasTouch: v.touch, reducedMotion: 'reduce' })), p = await ctx.newPage();
+      p.on('pageerror', e => fail(`${tag}: page error: ${e.message}`));
+      p.on('console', m => { if (m.type() === 'error') fail(`${tag}: console error: ${m.text()}`); });
+      const tap = async sel => { const r = await p.locator(sel).boundingBox(); const x = r.x + r.width / 2, y = r.y + r.height / 2; if (v.touch) await p.touchscreen.tap(x, y); else await p.mouse.click(x, y); await sleep(150); };
+      await p.goto(URL0 + '#map', { waitUntil: 'load' });
+      await p.waitForFunction(() => window.__sjApp && window.__sjApp.map && window.__sjApp.map.camera());
+      await p.evaluate(() => document.fonts.ready);
+      await tap('.map-top [data-act="pick"]');
+      const r = await p.evaluate(() => { const S = window.__sjApp.stage, cards = [...document.querySelectorAll('.pick-c')], box = S.rectOf(document.querySelector('.pick'));
+        return { open: !document.querySelector('.pick').hidden, n: cards.length, kinds: cards.map(c => [c.dataset.line, c.className.replace('pick-c', '').trim(), c.textContent.replace(/\s+/g, ' ').trim()]),
+          inside: box.x >= -0.5 && box.y >= -0.5 && box.x + box.w <= S.layout.w + 0.5 && box.y + box.h <= S.layout.h + 0.5, scroll: document.querySelector('.pick').scrollHeight - document.querySelector('.pick').clientHeight,
+          small: [...document.querySelectorAll('.pick button')].map(el => el.getBoundingClientRect()).filter(q => q.width < 39.5 || q.height < 39.5).length, focus: document.activeElement.id }; });
+      const kind = Object.fromEntries(r.kinds.map(k => [k[0], k]));
+      check(r.open && r.n === 6 && Object.keys(kind).join() === Object.keys(MAP.lines).join(), `${tag}: หน้าเลือกสายต้องมี 6 สาย ${JSON.stringify(r.kinds)}`);
+      check(kind.northeast && kind.northeast[1] === 'locked' && kind.northeast[2].includes('ผ่านสถานีน้ำตกก่อน'), `${tag}: สายอีสานต้องล็อกและบอกเงื่อนไข ${JSON.stringify(kind.northeast)}`);
+      check(kind.west && /tutorial/.test(kind.west[1]) && kind.west[2].includes('เส้นทางสอน'), `${tag}: สายตะวันตกต้องเป็นเส้นทางสอน`);
+      check(['north', 'south', 'maeklong', 'east'].every(id => kind[id] && kind[id][1] === 'soon' && kind[id][2].includes('เร็ว ๆ นี้')), `${tag}: สายที่ยังไม่มีสถานีต้องขึ้น "เร็ว ๆ นี้"`);
+      check(r.inside && r.scroll <= 1 && !r.small && r.focus === 'pick-title', `${tag}: หน้าเลือกสายล้นจอ ต้องเลื่อน เป้าแตะเล็ก หรือโฟกัสไม่ย้าย ${JSON.stringify({ inside: r.inside, scroll: r.scroll, small: r.small, focus: r.focus })}`);
+      await p.screenshot({ path: path.join(pickShots, `pick-${v.name}.png`) });
+      // แตะสายที่ยังล็อก: ปิดแผ่น กล้องพาไปสถานีของสายอีสาน
+      await tap('.pick-c[data-line="northeast"]'); await sleep(150);
+      check(await p.evaluate(() => !window.__sjApp.map.picking() && window.__sjApp.map.clustered('isan') === false && window.__sjApp.careerProgress().active === 'namtok'), `${tag}: แตะสายอีสาน (ล็อก) แล้วกล้องไม่พาไปสถานีของสาย หรือเปลี่ยนสายที่เล่น`);
+      if (v.name === '844x390' || v.name === '390x844') {
+        // สถานีล็อก: บอกเงื่อนไข ลิงก์ตรงเข้าภารกิจถูกพากลับ
+        const m1 = await p.evaluate(() => window.__sjApp.data.careers.find(x => x.id === 'isan').levels.find(l => l.station === 'buri-ram').id);
+        await p.evaluate(() => window.__sjApp.router.go({ screen: 'map', stationId: 'buri-ram' })); await sleep(300);
+        const sh = await p.textContent('.sheet');
+        check(sh.includes('บุรีรัมย์') && sh.includes('ยังล็อกอยู่') && sh.includes('ผ่านสถานีน้ำตกก่อน') && await p.locator('.sheet [data-act="play"]').count() === 0, `${tag}: แผ่นสถานีบุรีรัมย์ (ล็อก) ไม่บอกเงื่อนไข`);
+        await p.evaluate(m => window.__sjApp.router.go({ screen: 'play', stationId: 'buri-ram', missionId: m }), m1); await sleep(300);
+        check(await p.evaluate(() => location.hash) === '#map/buri-ram', `${tag}: เข้าภารกิจบุรีรัมย์ได้ทั้งที่สายยังล็อก`);
+        // ข้ามบทสอนที่ท่ากิเลน -> บุรีรัมย์เปิด เล่นภารกิจแรกได้
+        await p.evaluate(() => window.__sjApp.router.go({ screen: 'map', stationId: 'tha-kilen' })); await sleep(300);
+        await p.locator('.skipbox summary').click(); await p.locator('.skipbox [data-act="skip"]').click(); await sleep(150);
+        await p.evaluate(() => window.__sjApp.router.go({ screen: 'map', stationId: 'buri-ram' })); await sleep(400);
+        const mkLab = await p.getAttribute('.mk[data-id="buri-ram"]', 'aria-label');
+        check(await p.locator('.sheet [data-act="play"]').count() >= 1 && /สายอีสาน สถานีที่ 1 บุรีรัมย์ เปิดแล้ว/.test(mkLab), `${tag}: ข้ามบทสอนแล้วบุรีรัมย์ยังไม่เปิด (${mkLab})`);
+        await p.locator('.sheet [data-act="play"]').first().click();
+        await p.waitForSelector('#s-play:not([hidden]) [data-act="exit"]');
+        check(await p.evaluate(() => location.hash) === `#play/buri-ram/${m1}`, `${tag}: เข้าเล่นภารกิจแรกของบุรีรัมย์ไม่ได้`);
+        await p.locator('#s-play [data-act="exit"]').click(); await sleep(300);
+        // เลือกสายอีสานในหน้าเลือกสาย: ปุ่มบนสุดเปลี่ยนเป็นสายอีสาน
+        await p.evaluate(() => window.__sjApp.router.go({ screen: 'map' })); await sleep(300);
+        await tap('.map-top [data-act="pick"]');
+        check(await p.evaluate(() => document.querySelector('.pick-c[data-line="northeast"]').classList.contains('open')), `${tag}: ข้ามบทสอนแล้วการ์ดสายอีสานไม่เปิด`);
+        await tap('.pick-c[data-line="northeast"]');
+        check((await p.textContent('.map-top [data-act="route"]')).trim() === 'ไปสายอีสาน' && await p.evaluate(() => window.__sjApp.careerProgress().active === 'isan'), `${tag}: เลือกสายอีสานแล้วปุ่มบนสุดไม่เปลี่ยน`);
+      }
+      await ctx.close();
+    }
+    // เซฟเก่า (มีแต่ดาวของ namtok) โหลดหน้าใหม่แล้วดาวยังอยู่ และหน้าเลือกสายเปิดเองครั้งเดียวเมื่อผ่านน้ำตกครบ
+    {
+      const tag = 'เซฟเก่า/เปิดเอง', ctx = await prefer2D(await b.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' })), p = await ctx.newPage();
+      p.on('pageerror', e => fail(`${tag}: page error: ${e.message}`));
+      await p.goto(URL0 + '#map', { waitUntil: 'load' });
+      await p.waitForFunction(() => window.__sjApp && window.__sjApp.map && window.__sjApp.map.camera());
+      await p.evaluate(() => { const A = window.__sjApp; ['tk-1', 'tk-2', 'tk-token', 'tk-3'].forEach(id => A.save.setBest('namtok', id, { stars: 3, score: 500 })); });
+      await p.reload({ waitUntil: 'load' });
+      await p.waitForFunction(() => window.__sjApp && window.__sjApp.map && window.__sjApp.map.camera());
+      const o = await p.evaluate(() => { const A = window.__sjApp, C = A.careerProgress(); return { t: C.tutorial.totalStars, all: C.totalStars, isan: C.packs.isan.locked, wp: C.byId['wang-pho'].state, lab: document.querySelector('.mk[data-id="tha-kilen"]').getAttribute('aria-label'), pick: A.map.picking() }; });
+      check(o.t === 12 && o.all === 12 && o.isan && o.wp === 'open' && o.lab.includes('ผ่านแล้ว ดาว 12 จาก 12') && !o.pick, `${tag}: เซฟเก่าของเส้นทางสอนหายหรือผิด ${JSON.stringify(o)}`);
+      await p.evaluate(() => { const A = window.__sjApp; ['wp-1', 'wp-token', 'wp-2', 'wp-3', 'nt-1', 'nt-2'].forEach(id => A.career.setStars(id, 1)); A.router.go({ screen: 'home' }); });
+      await sleep(100); await p.evaluate(() => window.__sjApp.router.go({ screen: 'map', stationId: 'nam-tok' })); await sleep(400);
+      check(await p.evaluate(() => window.__sjApp.map.picking() && document.querySelector('.pick-c[data-line="northeast"]').classList.contains('open')), `${tag}: ผ่านน้ำตกครบแล้วหน้าเลือกสายไม่เปิดเอง หรือสายอีสานไม่เปิด`);
+      await p.screenshot({ path: path.join(pickShots, 'pick-auto-1280x800.png') });
+      await p.keyboard.press('Escape'); await sleep(100);
+      check(await p.evaluate(() => !window.__sjApp.map.picking() && window.__sjApp.map.openId() === 'nam-tok'), `${tag}: Esc ต้องปิดหน้าเลือกสายก่อนแผ่นข้อมูล`);
+      await p.evaluate(() => window.__sjApp.router.go({ screen: 'home' })); await sleep(100); await p.evaluate(() => window.__sjApp.router.go({ screen: 'map' })); await sleep(300);
+      check(await p.evaluate(() => !window.__sjApp.map.picking()), `${tag}: หน้าเลือกสายเปิดเองซ้ำ`);
+      await ctx.close();
+    }
 
     // ชุดงาน WP2: หมุนเครื่องกลางเกม เลื่อนด้วยนิ้วตอนหมุน แผ่นข้อมูลไม่บังสถานี ปุ่มเต็มจอ เครดิต ขอบปลอดภัย
     await require('./lib/wp2-checks.js').wp2Checks(b, URL0, check);

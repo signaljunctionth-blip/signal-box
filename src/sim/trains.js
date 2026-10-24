@@ -3,29 +3,40 @@ import { posAt } from './geometry.js';
 import { T, way } from './messages.js';
 import { msg, fail, addScore, emit } from './events.js';
 import { TL, STOP_GAP } from './station2.js';
+import { FREIGHT_SPEED, FREIGHT_LEN } from './levels.js';
 import { blockEnter, blockLeave, tokenMode, hasToken, takeToken } from './block.js';
 import { walk } from './interlocking.js';
 
-export { TL };
+export { TL, FREIGHT_SPEED, FREIGHT_LEN };
 // วินาทีที่รอได้ก่อนเริ่มเสียคะแนน: ค่าเดิมของต้นแบบ 6 (รอเสาเข้า) / 4 (พร้อมออก) ด่านกำหนดเองได้ด้วย waitGrace: เลขเดียว หรือ { entry, ready }
 export function graceOf(g, t) {
   const w = g.lv.waitGrace, ready = t.state === 'ready';
   return w === undefined ? (ready ? 4 : 6) : typeof w === 'number' ? w : ready ? w.ready : w.entry;
 }
 const DWELL = 2.5; // วินาทีที่ขบวนธรรมดาจอดรับผู้โดยสาร
+// ลำดับความสำคัญ (ด่านที่ตั้ง priority: true): ตัวคูณค่าปรับเมื่อรอเกิน grace ด่วน > ธรรมดา > สินค้า ด่านอื่นคูณ 1 ทุกขบวน
+export const PRIORITY_MUL = { express: 2, local: 1, freight: 0.5 };
+const WAIT_PENALTY = 3; // คะแนนที่เสียต่อวินาทีเมื่อรอเกิน grace (ก่อนคูณลำดับความสำคัญ)
+// คะแนนต่อขบวน: ขบวนโดยสารเต็ม 150 (เข้าจอด 100 + ออก 50 หรือด่วนผ่าน 150), ขบวนสินค้าเต็ม 100 (เข้าจอด 60 + ออก 40 หรือผ่าน 100)
+export const FREIGHT_SCORE = { arrived: 60, wrong: 10, departed: 40, through: 100, held: 40 };
+export const maxScoreOf = sp => (sp && sp.kind === 'freight' ? 100 : 150);
+// ชนิดขบวนจากแถวตาราง: 'local' | 'express' | 'freight' (ตารางแบบเดิมไม่มี kind ดูจาก exp)
+const kindOf = (sp, plat) => (sp ? sp.kind || (sp.exp ? 'express' : 'local') : plat === 0 ? 'express' : 'local');
 
-// plat = ชานชาลาปลายทาง, 0 = ขบวนด่วนผ่าน; entry = ขอบรางขาเข้า
+// plat = ชานชาลาปลายทาง, 0 = ขบวนผ่านไม่จอด; entry = ขอบรางขาเข้า
+// t.exp = ผ่านไม่จอด (ด่วน หรือสินค้า stop: false), t.kind = ชนิดขบวนสำหรับตัววาดและคะแนน, t.len = ความยาวขบวน (สินค้า FREIGHT_LEN ที่เหลือ TL)
 // เลขขบวน (id) = ลำดับในตารางขบวน เริ่มที่ 1
 // sp = แถวในตารางขบวนที่แปลงแล้ว (lv.sched) ถ้ามี: กำหนดขาออก (exit) เวลาจอด (dwell) ทางที่ด่วนควรผ่าน (via) และขบวนต้นทาง (origin)
 export function spawn(g, plat, entry = g.L.entry, sp = null) {
-  const t = { id: sp ? sp.i + 1 : g.nid++, plat, exp: sp ? sp.exp : plat === 0, entry, edge: entry, s: 0, state: (sp ? sp.exp : plat === 0) ? 'through' : 'arriving',
-    dwell: 0, wait: 0, stopped: false, delayed: false, trail: [],
+  const kind = kindOf(sp, plat), fr = kind === 'freight';
+  const t = { id: sp ? sp.i + 1 : g.nid++, plat, exp: sp ? sp.exp : plat === 0, kind, entry, edge: entry, s: 0, state: (sp ? sp.exp : plat === 0) ? 'through' : 'arriving',
+    dwell: 0, wait: 0, stopped: false, delayed: false, trail: [], len: fr ? FREIGHT_LEN : TL,
     exit: sp ? sp.exit : null, via: sp ? sp.via : null, dwellT: sp ? sp.dwell : DWELL, origin: false };
   if (sp && sp.origin !== null) { // ขบวนต้นทาง: ตั้งอยู่ที่ทางจอดแล้ว หันไปทางที่ไปถึงขาออกได้ รอครบเวลาจอดแล้วพร้อมออก
     const fw = g.L.platEdge[sp.origin], bw = g.E[fw].rev, want = sp.exit ? [sp.exit] : g.L.exits;
     const edge = [fw, bw].find(k => k && want.some(x => g.L.reach[k].has(x))) || fw, e = g.E[edge];
     Object.assign(t, { entry: null, edge, s: e.len - STOP_GAP, state: 'dwell', dwell: sp.dwell, origin: true, stopped: true });
-    for (let d = TL; d >= 0; d -= 0.8) { const p = posAt(e, t.s - d); t.trail.push({ x: p.x, y: p.y, e: edge }); }
+    for (let d = t.len; d >= 0; d -= 0.8) { const p = posAt(e, t.s - d); t.trail.push({ x: p.x, y: p.y, e: edge }); }
     msg(g, T.originReady(t.id, sp.origin));
   } else { const p = posAt(g.E[entry], 0); t.trail.push({ x: p.x, y: p.y, e: entry }); }
   g.trains.push(t); g.spawned++;
@@ -37,7 +48,7 @@ export function spawn(g, plat, entry = g.L.entry, sp = null) {
 export function reverseTrain(g, t) {
   const e = g.E[t.edge], rev = e.rev;
   if (!rev || t.trail.some(p => g.E[p.e].track !== e.track)) return false;
-  t.s = e.len - Math.max(0, t.s - TL); t.edge = rev;
+  t.s = e.len - Math.max(0, t.s - (t.len || TL)); t.edge = rev;
   t.trail = t.trail.reverse().map(p => ({ x: p.x, y: p.y, e: rev }));
   msg(g, T.reversed(t.id)); emit(g, { type: 'train', what: 'reverse', train: t.id });
   return true;
@@ -74,8 +85,9 @@ function stopLimit(g, t) {
   if (e.buffer) lim = Math.min(lim, e.len - STOP_GAP); // ทางตัน
   if (t.edge === t.entry) for (const o of g.trains) { // ต่อคิวรอนอกสถานี ไม่ชนท้ายคันหน้า
     if (o === t) continue;
-    if (o.edge === t.entry && o.s > t.s) lim = Math.min(lim, o.s - TL - 14);
-    if (o.edge === E[t.entry].next) lim = Math.min(lim, E[t.entry].len + o.s - TL - 14);
+    const ol = o.len || TL;
+    if (o.edge === t.entry && o.s > t.s) lim = Math.min(lim, o.s - ol - 14);
+    if (o.edge === E[t.entry].next) lim = Math.min(lim, E[t.entry].len + o.s - ol - 14);
   }
   return lim;
 }
@@ -95,11 +107,16 @@ function passEdge(g, t) {
     emit(g, { type: 'train', what: 'exit', train: t.id });
     if (e.portal) blockLeave(g, e.portal, t);
     if (g.state !== 'play') return false;
+    const fr = t.kind === 'freight';
     if (t.exit && t.exit !== t.edge) { // ออกผิดขา: ไม่ได้คะแนนขาออก
-      addScore(g, t.exp ? 20 : 0, 'wrong-exit', t);
+      addScore(g, t.exp && !fr ? 20 : 0, 'wrong-exit', t);
       const P = g.L.portals, want = Object.values(P).find(p => p.exit === t.exit);
       msg(g, T.wrongExit(t.id, want ? want.label : '?', e.portal ? P[e.portal].label : '?'), 'bad');
     } else if (t.origin) addScore(g, 150, 'departed-origin', t);
+    else if (fr && t.exp) {
+      addScore(g, t.delayed ? FREIGHT_SCORE.held : FREIGHT_SCORE.through, 'freight-through', t);
+      msg(g, t.delayed ? T.freightDelayed(t.id, FREIGHT_SCORE.held) : T.freightClear(t.id, FREIGHT_SCORE.through), t.delayed ? '' : 'good');
+    } else if (fr) addScore(g, FREIGHT_SCORE.departed, 'freight-departed', t);
     else if (t.exp) {
       addScore(g, t.delayed ? 60 : 150, 'express', t);
       msg(g, t.delayed ? T.expressDelayed(t.id) : T.expressClear(t.id), t.delayed ? '' : 'good');
@@ -120,7 +137,7 @@ function passEdge(g, t) {
 
 export function moveTrain(g, t, dt) {
   const lim = stopLimit(g, t);
-  let ns = t.s + g.lv.speed * dt;
+  let ns = t.s + g.lv.speed * (t.kind === 'freight' ? FREIGHT_SPEED : 1) * dt;
   if (ns >= lim) { ns = Math.max(t.s, lim); t.stopped = true; } else t.stopped = false;
   t.s = ns;
   while (t.s > g.E[t.edge].len) if (!passEdge(g, t)) return;
@@ -129,16 +146,19 @@ export function moveTrain(g, t, dt) {
   let L = 0;
   for (let i = t.trail.length - 1; i > 0; i--) {
     L += Math.hypot(t.trail[i].x - t.trail[i - 1].x, t.trail[i].y - t.trail[i - 1].y);
-    if (L >= TL) { t.trail.splice(0, i - 1); break; }
+    if (L >= (t.len || TL)) { t.trail.splice(0, i - 1); break; }
   }
   const e = g.E[t.edge], atEnd = t.stopped && e.plat && t.s >= e.len - 7;
   if (t.state === 'arriving' && atEnd) {
     t.state = 'dwell'; t.dwell = t.dwellT;
     emit(g, { type: 'train', what: 'arrive', train: t.id });
-    if (e.plat === t.plat) { addScore(g, 100, 'arrived', t); msg(g, T.arrivedRight(t.id, e.plat, way(g)), 'good'); }
+    if (t.kind === 'freight') {
+      if (e.plat === t.plat) { addScore(g, FREIGHT_SCORE.arrived, 'freight-arrived', t); msg(g, T.freightArrived(t.id, e.plat, way(g), FREIGHT_SCORE.arrived), 'good'); }
+      else { addScore(g, FREIGHT_SCORE.wrong, 'freight-wrong-track', t); msg(g, T.freightWrong(t.id, t.plat, e.plat, way(g), FREIGHT_SCORE.wrong), 'bad'); }
+    } else if (e.plat === t.plat) { addScore(g, 100, 'arrived', t); msg(g, T.arrivedRight(t.id, e.plat, way(g)), 'good'); }
     else { addScore(g, 20, 'wrong-platform', t); msg(g, T.arrivedWrong(t.id, t.plat, e.plat, way(g)), 'bad'); }
   }
-  if (t.state === 'through' && atEnd) { t.state = 'ready'; t.delayed = true; msg(g, T.expressHeld(t.id), 'bad'); }
+  if (t.state === 'through' && atEnd) { t.state = 'ready'; t.delayed = true; msg(g, t.kind === 'freight' ? T.freightHeld(t.id) : T.expressHeld(t.id), 'bad'); }
   // เข้าทางตันที่ไม่ใช่ทางจอด: ไม่ได้คะแนนเข้าจอด รอกลับหัวออก
   if (!e.plat && e.buffer && t.stopped && t.s >= e.len - STOP_GAP - 1 && (t.state === 'arriving' || t.state === 'through')) {
     t.state = 'ready'; t.delayed = true; msg(g, T.wrongTrack(t.id), 'bad'); turnIfNeeded(g, t);
@@ -147,7 +167,12 @@ export function moveTrain(g, t, dt) {
   const waiting = t.stopped && (t.edge === t.entry || t.state === 'ready');
   if (waiting) {
     t.wait += dt;
-    if (t.wait > graceOf(g, t)) g.score -= 3 * dt;
+    const late = t.wait > graceOf(g, t);
+    if (late) g.score -= WAIT_PENALTY * (g.lv.priority ? PRIORITY_MUL[t.kind] ?? 1 : 1) * dt;
+    // ขบวนด่วนรอหน้าเสาเข้าเกิน grace ขณะมีขบวนสินค้าในผัง: เตือนให้หลบสินค้าเข้าทางหลีก (ครั้งเดียวต่อขบวน)
+    if (late && t.kind === 'express' && t.edge === t.entry && !t.prioWarned && g.trains.some(o => o.kind === 'freight')) {
+      t.prioWarned = true; msg(g, T.priorityFreight(t.id), 'bad', 'PRIORITY');
+    }
     if (g.lv.maxWait && t.wait > g.lv.maxWait) fail(g, T.failComplaint(), T.failWaited(t.id, g.lv.maxWait), 'MAX_WAIT');
   } else t.wait = 0;
 }

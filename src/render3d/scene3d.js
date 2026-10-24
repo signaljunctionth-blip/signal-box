@@ -5,7 +5,7 @@
 //   view.update(g, dt)  view.render()  view.resize(w, h)  view.anchors() -> [{ target, pos: [x,y,z] }]
 //   view.project([x,y,z]) -> { x, y, on }   view.camera: pan(dx, dy, h) orbit(dx, dy, h) zoom(k) reset() zoomed   view.setTier(id)   view.setColors(c)   view.dispose()
 import * as THREE from 'three';
-import { world3d, trailPoint, carSpan, GAUGE, CAR_LEN } from './layout3d.js';
+import { world3d, trailPoint, carSpan, GAUGE, CAR_LEN, KX } from './layout3d.js';
 import { tierOf } from './quality.js';
 
 // ชิ้นงาน CC0 (ดู assets/ASSETS.md) Vite แปลงเป็น URL ของไฟล์ตอน build
@@ -505,8 +505,9 @@ export async function createScene3D(canvas, opts) {
   const sz = d => PS * d;                          // ระยะจากแนวราง ไปทางอาคาร (บวก = ห่างรางไปทางอาคาร)
   const PLX0 = realPlat ? realPlat.x0 : -22, PLX1 = realPlat ? realPlat.x1 : 22, PLL = PLX1 - PLX0, PLC = (PLX0 + PLX1) / 2;
   const plates = {};                               // ป้ายเลขชานชาลา (canvas) ต่อเลข
-  const BRAND = ['--t1', '--t2', '--t3'], BRAND_DEF = ['#EF7FA9', '#4FA9DE', '#EE9A2E'], EXP_DEF = '#8C7BDB';
-  const brand = n => (n ? (colors[BRAND[(n - 1) % 3]] || BRAND_DEF[(n - 1) % 3]) : (colors['--exp'] || EXP_DEF));
+  const BRAND = ['--t1', '--t2', '--t3'], BRAND_DEF = ['#EF7FA9', '#4FA9DE', '#EE9A2E'], EXP_DEF = '#8C7BDB', FREIGHT_DEF = '#8A7B6C';
+  // n = เลขชานชาลา (1..), 0 = ด่วน, 'f' = ขบวนสินค้า (ตัวถังสีน้ำตาลเทาจาก --freight)
+  const brand = n => (n === 'f' ? colors['--freight'] || FREIGHT_DEF : n ? (colors[BRAND[(n - 1) % 3]] || BRAND_DEF[(n - 1) % 3]) : (colors['--exp'] || EXP_DEF));
   function plateTex(n) {
     if (plates[n]) return plates[n];
     const t = canvasTex(128, 128, () => {}); t.userData = { n }; plates[n] = t; paintPlate(t); return t;
@@ -514,7 +515,8 @@ export async function createScene3D(canvas, opts) {
   function paintPlate(t) {
     const g = t.image.getContext('2d'), n = t.userData.n; g.clearRect(0, 0, 128, 128);
     g.fillStyle = '#f4f1e8'; g.fillRect(0, 0, 128, 128); g.fillStyle = brand(n); g.fillRect(9, 9, 110, 110);
-    g.fillStyle = '#1e2a35'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `500 ${n ? 92 : 64}px Mitr, Anuphan, sans-serif`; g.fillText(n ? String(n) : 'ด่วน', 64, 70); t.needsUpdate = true;
+    g.fillStyle = n === 'f' ? '#fff8ec' : '#1e2a35'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `500 ${n === 'f' ? 34 : n ? 92 : 64}px Mitr, Anuphan, sans-serif`;
+    g.fillText(n === 'f' ? 'สินค้า' : n ? String(n) : 'ด่วน', 64, 70, 104); t.needsUpdate = true;
   }
   const plateMats = {};
   const plateMat = n => plateMats[n] || (plateMats[n] = keep(new THREE.MeshStandardMaterial({ map: plateTex(n), roughness: 0.6 })));
@@ -767,16 +769,53 @@ export async function createScene3D(canvas, opts) {
     const le = lm.b.get(LM), lamps = keep(new THREE.BufferGeometry()); lamps.setAttribute('position', new THREE.Float32BufferAttribute(le.p, 3)); lamps.setAttribute('normal', new THREE.Float32BufferAttribute(le.n, 3));
     return { body, glass, band, plates: plates_, lamps };
   })();
-  const bodies = {};                                // เรขาคณิตตัวถังต่อสีขบวน (ใช้ตำแหน่งร่วมกัน สีที่จุดยอดแยก)
+  // ตู้สินค้า (ขบวนสินค้า): ตู้ทึบยาว WAG_LEN ทั้งตัวถังเป็นสีขบวนสินค้า (สีที่จุดยอดชุด band) ป้าย "สินค้า" ข้างตู้ ไฟหน้าเฉพาะตู้แรก
+  const WAG_LEN = 8.4, WAG_GAP = 0.6;
+  const wagon = (() => {
+    const m = new VMerger(), L_ = WAG_LEN, hw = 1.3, y0 = 1.12, y1 = 3.25, BAND = tag(BANDC);
+    m.bx(BAND, L_ - 0.3, y1 - y0, hw * 2, 0, (y0 + y1) / 2, 0);
+    m.bx(M.roofGrey, L_ - 0.1, 0.12, hw * 2 + 0.12, 0, y1 + 0.06, 0);
+    for (let i = -3; i <= 3; i++) [-1, 1].forEach(s => m.bx(M.dark, 0.08, y1 - y0 - 0.1, 0.04, i * (L_ - 0.6) / 6, (y0 + y1) / 2, s * (hw + 0.02)));
+    [-1, 1].forEach(s => m.bx(M.dark, 1.6, 1.7, 0.03, 0, (y0 + y1) / 2 - 0.05, s * (hw + 0.025)));      // ประตูบานเลื่อน
+    m.bx(M.dark, L_ - 0.4, 0.22, 2.2, 0, y0 - 0.1, 0);
+    [-1, 1].forEach(e => m.bx(M.dark, 0.4, 0.22, 0.3, e * (L_ / 2 + 0.1), 1.1, 0));                    // ขอพ่วง
+    bogie(m, -L_ / 2 + 1.7, 0.8); bogie(m, L_ / 2 - 1.7, 0.8);
+    const body = m.geometry(), col = body.attributes.color.array, band = [];
+    for (let i = 0; i < col.length; i += 3) if (col[i] === 1 && col[i + 1] === 0 && col[i + 2] === 1) band.push(i);
+    const pl = new Merger(), P_ = {};
+    [-1, 1].forEach(s => pl.add(new THREE.PlaneGeometry(0.9, 0.9), P_, mtx(L_ / 2 - 1.6, 2.5, s * (hw + 0.05), 0, s > 0 ? 0 : Math.PI, 0)));
+    const pe = pl.b.get(P_), plates_ = keep(new THREE.BufferGeometry()); plates_.setAttribute('position', new THREE.Float32BufferAttribute(pe.p, 3)); plates_.setAttribute('normal', new THREE.Float32BufferAttribute(pe.n, 3)); plates_.setAttribute('uv', new THREE.Float32BufferAttribute(pe.u, 2));
+    const lm = new Merger(), LM = {}; [0.55, -0.55].forEach(z => lm.add(new THREE.SphereGeometry(0.11, 10, 8), LM, mtx(L_ / 2 + 0.03, 1.7, z, 0, 0, 0, 0.4, 1, 1)));
+    const le = lm.b.get(LM), lamps = keep(new THREE.BufferGeometry()); lamps.setAttribute('position', new THREE.Float32BufferAttribute(le.p, 3)); lamps.setAttribute('normal', new THREE.Float32BufferAttribute(le.n, 3));
+    return { body, band, plates: plates_, lamps };
+  })();
+  const bodies = {};                                // เรขาคณิตตัวถังต่อสีขบวน (ใช้ตำแหน่งร่วมกัน สีที่จุดยอดแยก) key 'f' = ตู้สินค้า
+  const shapeOf = n => (n === 'f' ? wagon : car);
   function bodyFor(n) {
     if (bodies[n]) return bodies[n];
-    const g = keep(new THREE.BufferGeometry()); for (const a of ['position', 'normal', 'uv']) g.setAttribute(a, car.body.attributes[a]);
-    const c = car.body.attributes.color.array.slice(), bc = new THREE.Color(brand(n));
-    for (const i of car.band) { c[i] = bc.r; c[i + 1] = bc.g; c[i + 2] = bc.b; }
+    const src = shapeOf(n), g = keep(new THREE.BufferGeometry()); for (const a of ['position', 'normal', 'uv']) g.setAttribute(a, src.body.attributes[a]);
+    const c = src.body.attributes.color.array.slice(), bc = new THREE.Color(brand(n));
+    for (const i of src.band) { c[i] = bc.r; c[i + 1] = bc.g; c[i + 2] = bc.b; }
     g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); return (bodies[n] = g);
   }
   const headLamp = keep(new THREE.MeshStandardMaterial({ color: 0x332200, emissive: new THREE.Color(0xffe9a0), emissiveIntensity: 3.2 }));
+  // ขบวนสินค้า: ตู้สินค้าหลายตู้ จำนวนตู้จากความยาวขบวน (t.len หน่วยแผง × KX = เมตร) แต่ละตู้วางตามทางวิ่งแยกกัน (เข้าโค้งได้)
+  const wagonsOf = len => Math.max(2, Math.floor(((len || 108) * KX + WAG_GAP) / (WAG_LEN + WAG_GAP)));
+  function makeFreight(len) {
+    const g = new THREE.Group(), cars = [], lamps = new THREE.Mesh(wagon.lamps, headLamp);
+    for (let i = 0; i < wagonsOf(len); i++) {
+      const c = new THREE.Group(), body = new THREE.Mesh(bodyFor('f'), bodyMat), pl = new THREE.Mesh(wagon.plates, plateMat('f'));
+      body.castShadow = body.receiveShadow = true; c.add(body, pl);
+      const shade = pad(WAG_LEN + 1, 4.1, 0, SLT + 0.03, 0, c); shade.visible = !(tier.shadow > 0);
+      if (i === 0) c.add(lamps);
+      g.add(c); cars.push({ g: c, shade });
+    }
+    lamps.visible = dusk();
+    scene.add(g);
+    return { g, n: 'f', cars, shade: null, lamps, len };
+  }
   function makeTrain(info) {
+    if (info.kind === 'freight') return makeFreight(info.len);
     const n = info.express ? 0 : info.plat || 0, g = new THREE.Group();
     const body = new THREE.Mesh(bodyFor(n), bodyMat), glass = new THREE.Mesh(car.glass, M.glass), plates_ = new THREE.Mesh(car.plates, plateMat(n)), lamps = new THREE.Mesh(car.lamps, headLamp);
     body.castShadow = body.receiveShadow = true; glass.receiveShadow = true;
@@ -794,9 +833,11 @@ export async function createScene3D(canvas, opts) {
       if (t.trail.length < 2) continue;
       seen.add(t.id);
       let o = trains.get(t.id);
-      const n = t.exp ? 0 : t.plat || 0;
-      if (!o || o.n !== n) { if (o) scene.remove(o.g); o = makeTrain({ express: t.exp, plat: t.plat }); trains.set(t.id, o); }
-      const path = t.trail.map(q => trailPoint(W, L, q)), sp = carSpan(path, CAR_LEN);
+      const n = t.kind === 'freight' ? 'f' : t.exp ? 0 : t.plat || 0;
+      if (!o || o.n !== n) { if (o) scene.remove(o.g); o = makeTrain({ express: t.exp, plat: t.plat, kind: t.kind, len: t.len }); trains.set(t.id, o); }
+      const path = t.trail.map(q => trailPoint(W, L, q));
+      if (o.cars) { placeCars(o, path); continue; }
+      const sp = carSpan(path, CAR_LEN);
       if (!sp) continue;
       const [hx, hz] = sp.head, [tx, tz] = sp.tail, len = Math.hypot(hx - tx, hz - tz) || 1;
       const dx = (hx - tx) / len, dz = (hz - tz) / len;
@@ -804,6 +845,27 @@ export async function createScene3D(canvas, opts) {
       o.g.rotation.y = Math.atan2(-dz, dx);
     }
     for (const [id, o] of trains) if (!seen.has(id)) { scene.remove(o.g); trains.delete(id); }
+  }
+  // ตัดทางวิ่ง (เรียงท้ายไปหัว) ทิ้งช่วงหัวยาว d เมตร คืนทางที่เหลือ (หัวใหม่อยู่ท้ายอาร์เรย์)
+  function cutHead(path, d) {
+    if (d <= 0) return path;
+    let acc = 0;
+    for (let i = path.length - 1; i > 0; i--) {
+      const a = path[i], b = path[i - 1], l = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      if (acc + l >= d) { const f = (d - acc) / (l || 1); return [...path.slice(0, i), [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]]; }
+      acc += l;
+    }
+    return [path[0]];
+  }
+  function placeCars(o, path) {
+    o.cars.forEach((c, i) => {
+      const sp = carSpan(cutHead(path, i * (WAG_LEN + WAG_GAP)), WAG_LEN);
+      c.g.visible = !!sp && sp.len > WAG_LEN * 0.5;     // ตู้ที่ยังไม่โผล่เข้าผัง (ทางวิ่งสั้นกว่าครึ่งตู้) ซ่อนไว้
+      if (!c.g.visible) return;
+      const [hx, hz] = sp.head, [tx, tz] = sp.tail, len = Math.hypot(hx - tx, hz - tz) || 1, dx = (hx - tx) / len, dz = (hz - tz) / len;
+      c.g.position.set(hx - dx * WAG_LEN / 2, 0, hz - dz * WAG_LEN / 2);
+      c.g.rotation.y = Math.atan2(-dz, dx);
+    });
   }
 
   /* ================= ต้นไม้และกอหญ้า จาก atlas ใบไม้ CC0 ================= */
@@ -995,7 +1057,7 @@ export async function createScene3D(canvas, opts) {
     }
     fillBlobs();
     for (const s of sleeperSets) s.inst.visible = s.mode === 'all' ? !tier.fasteners : tier.fasteners;
-    for (const o of trains.values()) o.shade.visible = !shadows;
+    for (const o of trains.values()) { if (o.shade) o.shade.visible = !shadows; if (o.cars) o.cars.forEach(c => { c.shade.visible = !shadows; }); }
     shadowDirty = true;
   }
   applyTier();
@@ -1051,7 +1113,7 @@ export async function createScene3D(canvas, opts) {
     stripCol = { route: new THREE.Color(colors['--route'] || '#2FA872'), occ: new THREE.Color(colors['--occ'] || '#E9525A') };
     for (const k in strips) strips[k].state = '__';
     Object.values(plates).forEach(paintPlate);
-    for (const n in bodies) { const c = bodies[n].attributes.color, bc = new THREE.Color(brand(+n)); for (const i of car.band) { c.array[i] = bc.r; c.array[i + 1] = bc.g; c.array[i + 2] = bc.b; } c.needsUpdate = true; }
+    for (const n in bodies) { const k = n === 'f' ? 'f' : +n, c = bodies[n].attributes.color, bc = new THREE.Color(brand(k)); for (const i of shapeOf(k).band) { c.array[i] = bc.r; c.array[i + 1] = bc.g; c.array[i + 2] = bc.b; } c.needsUpdate = true; }
     const glow = exp < 0.7;                        // พลบค่ำ: ไฟหน้าต่างและโคมชานชาลาเรือง (ชื่อห้ามซ้ำ dusk() ด้านนอกที่เรียกไว้ด้านบน)
     M.lampOff.emissive.set(glow ? 0xffd27a : 0x000000); M.lampOff.emissiveIntensity = glow ? 1.6 : 0;
     M.glass.emissive.set(glow ? 0x3a2a12 : 0x000000);

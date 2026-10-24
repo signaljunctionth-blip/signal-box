@@ -7,6 +7,7 @@ import { blockState } from '../sim/index.js';
 import { esc } from './station-sheet.js';
 
 // สถานีที่มีฉาก 3 มิติ: ครบ 5 สถานีของเส้นทางสอน (WP10) ผังสมมุติและโหมดประวัติศาสตร์คงเป็นแผงผังเส้น 2 มิติ
+// สายอีสาน (buri-ram, surin, thanon-chira-jn) ฉากสร้างได้และขบวนสินค้ามีตู้สินค้าแล้ว รอผู้อำนวยการเกมเปิด (test/render3d-test.mjs ล็อกรายชื่อนี้ไว้)
 export const SCENE_STATIONS = ['tha-kilen', 'wang-pho', 'nam-tok', 'kanchanaburi', 'nong-pla-duk-jn'];
 export const has3D = id => SCENE_STATIONS.includes(id);
 export const pref3D = () => readPref() || {};
@@ -21,7 +22,7 @@ export const want3D = () => { const on = pref3D().on; return on === undefined ? 
 export const savePref3D = v => writePref(undefined, { ...pref3D(), ...v });
 export { TIERS };
 
-const COLOR_VARS = ['--t1', '--t2', '--t3', '--exp', '--route', '--occ', '--scene-exposure', '--scene-fog', '--scene-sun', '--scene-env', '--scene-tint'];
+const COLOR_VARS = ['--t1', '--t2', '--t3', '--exp', '--freight', '--route', '--occ', '--scene-exposure', '--scene-fog', '--scene-sun', '--scene-env', '--scene-tint'];
 const TAP = 44, DRAG = 8;
 
 export function mountView3D(board, { stage, getGame, onPress, getHint, say, station }) {

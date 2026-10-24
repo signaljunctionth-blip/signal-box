@@ -20,13 +20,13 @@ export const starCount = (n, max) => `<span class="starcount" role="img" aria-la
 export const LOCK_ICON = '<svg class="ic-lock" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0110 0v2h1a1 1 0 011 1v9a1 1 0 01-1 1H6a1 1 0 01-1-1v-9a1 1 0 011-1zm2 0h6V8a3 3 0 00-6 0z"/></svg>';
 
 // เดินรถอิสระ + อัปเกรดระบบสัญญาณของสถานี (M4) ขึ้นเมื่อผ่านทุกภารกิจของสถานีแล้ว
-// free = { balance, owned, selected, levels: [{ name, cost (ราคาจากขั้นที่มี 0 = ใช้ได้เลย), gain }], msg } | null
+// free = { balance, owned, selected, levels: [{ level (ขั้นอัปเกรด ไม่ระบุ = ลำดับ), name, cost (ราคาจากขั้นที่มี 0 = ใช้ได้เลย), gain }], msg } | null
 export function freeHtml(free) {
   if (!free) return '';
   const lv = free.levels.map((l, i) => {
-    const on = i === free.selected, have = i <= free.owned;
+    const n = l.level ?? i, on = n === free.selected, have = n <= free.owned;
     return `<li class="fr-lv${on ? ' on' : ''}"><div><b>${esc(l.name)}</b><span>${esc(l.gain)}</span></div>
-      ${on ? '<span class="fr-use">ใช้อยู่</span>' : `<button class="btn sm${have ? '' : ' go'}" type="button" data-act="era" data-level="${i}" ${!have && l.cost > free.balance ? 'disabled' : ''}>${have ? 'ใช้ขั้นนี้' : `อัปเกรด ${l.cost}`}</button>`}</li>`;
+      ${on ? '<span class="fr-use">ใช้อยู่</span>' : `<button class="btn sm${have ? '' : ' go'}" type="button" data-act="era" data-level="${n}" ${!have && l.cost > free.balance ? 'disabled' : ''}>${have ? 'ใช้ขั้นนี้' : `อัปเกรด ${l.cost}`}</button>`}</li>`;
   }).join('');
   return `
     <section class="freebox" aria-labelledby="free-title">
@@ -38,12 +38,13 @@ export function freeHtml(free) {
     </section>`;
 }
 
-// st = สถานะสถานีจาก computeProgress, info = ข้อมูลสถานีจากไฟล์แผนที่, nameOf = id -> ชื่อไทย, free = ดู freeHtml
-export function sheetHtml(st, info, progress, nameOf, stationNote = '', free = null) {
+// st = สถานะสถานีจาก computeProgress, info = ข้อมูลสถานีจากไฟล์แผนที่ (หรือไฟล์ผัง), progress = ความคืบหน้าของชุดของสถานีนี้
+// nameOf = id -> ชื่อไทย, free = ดู freeHtml, lineName = ชื่อสายของสถานี (ไม่ใช่เส้นทางสอน)
+export function sheetHtml(st, info, progress, nameOf, stationNote = '', free = null, lineName = '') {
   const head = `
     <header class="sheet-h">
       <div class="sheet-ht">
-        <span class="eyebrow">สถานีที่ ${st.order} · ขั้น ${st.tier} ${esc(TIER_NAME[st.tier] || '')}</span>
+        <span class="eyebrow">${lineName ? `${esc(lineName)} · ` : ''}สถานีที่ ${st.order} · ขั้น ${st.tier} ${esc(TIER_NAME[st.tier] || '')}</span>
         <h2 id="sheet-title" tabindex="-1">${esc(info.name_th)}</h2>
         <span class="sheet-en" lang="en">${esc(info.name_en)}</span>
       </div>
@@ -55,6 +56,8 @@ export function sheetHtml(st, info, progress, nameOf, stationNote = '', free = n
   let lock = '';
   if (st.lock) {
     const L = st.lock, lines = [];
+    // ทั้งสายยังไม่เปิด: บอกว่าต้องผ่านสถานีสุดท้ายของช่วงสอน (น้ำตก) ก่อน หรือข้ามบทสอนที่สถานีแรกของเส้นทางสอน
+    if (L.line) lines.push(`ผ่านสถานี${esc(nameOf(L.gate))}ก่อน แล้วสายนี้จะเปิด (หรือกดข้ามบทสอนที่สถานีแรก)`);
     if (L.prevRemaining > 0) lines.push(`ผ่านภารกิจของสถานี${esc(nameOf(L.prevStation))}ให้ครบก่อน เหลืออีก ${L.prevRemaining} ภารกิจ (ได้ 1 ดาวก็นับว่าผ่าน)`);
     if (L.needStars > 0) lines.push(L.missingStars > 0
       ? `ต้องมีดาวสะสม ${L.needStars} ดวง ตอนนี้มี ${L.haveStars} ขาดอีก ${L.missingStars}`
@@ -65,6 +68,7 @@ export function sheetHtml(st, info, progress, nameOf, stationNote = '', free = n
       <h3>${LOCK_ICON}ยังล็อกอยู่</h3>
       <ul>${lines.map(t => `<li>${t}</li>`).join('')}</ul>
       ${more.length ? `<p class="muted">เก็บดาวเพิ่มได้ที่</p><div class="lock-go">${more.map(m => `<button class="btn sm" type="button" data-act="station" data-station="${esc(m.stationId)}">${esc(m.name)} (${m.stars}/3)</button>`).join('')}</div>` : ''}
+      ${L.line && L.gate ? `<div class="lock-go"><button class="btn go sm" type="button" data-act="station" data-station="${esc(L.gate)}">ไปสถานี${esc(nameOf(L.gate))}</button></div>` : ''}
       ${L.prevRemaining > 0 ? `<div class="lock-go"><button class="btn go sm" type="button" data-act="station" data-station="${esc(L.prevStation)}">ไปสถานี${esc(nameOf(L.prevStation))}</button></div>` : ''}
     </div>`;
   }

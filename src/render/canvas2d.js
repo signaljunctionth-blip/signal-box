@@ -3,8 +3,8 @@
 import { posAt, edgeOccupied } from '../sim/index.js';
 
 const VARS = { board: '--board', track: '--track', route: '--route', occ: '--occ', ink: '--ink', muted: '--muted', paper: '--paper',
-  red: '--red', green: '--green', amber: '--amber', navy: '--navy', lampOff: '--lamp-off', onColor: '--on-color', onAmber: '--on-amber', stripe: '--train-stripe' };
-const TRAIN_VARS = ['--exp', '--t1', '--t2', '--t3']; // สีขบวนตามชานชาลา (0 = ด่วน) เกิน 3 วนกลับ
+  red: '--red', green: '--green', amber: '--amber', navy: '--navy', lampOff: '--lamp-off', onColor: '--on-color', onAmber: '--on-amber', stripe: '--train-stripe', freight: '--freight' };
+const TRAIN_VARS = ['--exp', '--t1', '--t2', '--t3']; // สีขบวนตามชานชาลา (0 = ด่วน) เกิน 3 วนกลับ ขบวนสินค้าใช้ --freight
 
 export function createRenderer(cv) {
   const cx = cv.getContext('2d');
@@ -118,17 +118,18 @@ export function createRenderer(cv) {
     for (const t of g.trains) {
       const tr = t.trail; if (tr.length < 2) continue;
       const path = () => { cx.beginPath(); tr.forEach((q, i) => i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y)); };
-      cx.strokeStyle = trainColor(t.plat); cx.lineWidth = 18; cx.lineCap = 'round'; cx.lineJoin = 'round'; path(); cx.stroke();
+      const fr = t.kind === 'freight', col = fr ? C.freight || '#7E6F60' : trainColor(t.plat), wide = t.exp || fr;
+      cx.strokeStyle = col; cx.lineWidth = 18; cx.lineCap = 'round'; cx.lineJoin = 'round'; path(); cx.stroke();
       cx.strokeStyle = C.stripe; cx.lineWidth = 5; cx.setLineDash([8, 7]); path(); cx.stroke(); cx.setLineDash([]);
       const h = tr[tr.length - 1], h2 = tr[Math.max(0, tr.length - 4)], a = Math.atan2(h.y - h2.y, h.x - h2.x);
       cx.save(); cx.translate(h.x, h.y); cx.rotate(a);
       cx.fillStyle = C.navy; cx.beginPath(); cx.arc(-2, -4, 2.4, 0, 7); cx.arc(-2, 4, 2.4, 0, 7); cx.fill(); cx.restore();
       const bx = h.x - Math.cos(a) * 32, by = h.y - Math.sin(a) * 32 - 24;
       const late = t.wait > (t.state === 'ready' ? 4 : 6);
-      cx.fillStyle = C.paper; cx.strokeStyle = late ? C.red : trainColor(t.plat); cx.lineWidth = late ? 3.5 : 2.5;
-      if (t.exp) { rr(bx - 20, by - 11, 40, 22, 11); } else { cx.beginPath(); cx.arc(bx, by, 11.5, 0, 7); }
+      cx.fillStyle = C.paper; cx.strokeStyle = late ? C.red : col; cx.lineWidth = late ? 3.5 : 2.5;
+      if (wide) { rr(bx - (fr ? 25 : 20), by - 11, fr ? 50 : 40, 22, 11); } else { cx.beginPath(); cx.arc(bx, by, 11.5, 0, 7); }
       cx.fill(); cx.stroke();
-      cx.fillStyle = C.ink; cx.font = font(t.exp ? 12 : 13, 600); txt(t.exp ? 'ด่วน' : String(t.plat), bx, by + 1);
+      cx.fillStyle = C.ink; cx.font = font(wide ? 12 : 13, 600); txt(fr ? 'สินค้า' : t.exp ? 'ด่วน' : String(t.plat), bx, by + 1);
       cx.font = font(12, 500); cx.fillStyle = t.state === 'ready' ? C.ink : C.muted;
       if (t.state === 'ready') txt('พร้อมออก', bx, by - 22);
       if (t.state === 'dwell') txt('รับผู้โดยสาร', bx, by - 22);

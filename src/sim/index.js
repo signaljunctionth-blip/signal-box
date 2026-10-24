@@ -12,11 +12,11 @@
 export { prepEdges, posAt } from './geometry.js';
 export { STATION_SCHEMA, STATION_SCHEMAS, validateStation, loadStation, loadStations } from './station.js';
 export { STOP_GAP, FOUL_CLEAR, REV } from './station2.js';
-export { LEVELS_SCHEMA, LEVELS_SCHEMAS, loadLevelPack, sched, levelKey, unlockState } from './levels.js';
+export { LEVELS_SCHEMA, LEVELS_SCHEMAS, loadLevelPack, sched, levelKey, unlockState, FREIGHT_SPEED, FREIGHT_DWELL, FREIGHT_LEN } from './levels.js';
 export { FIXED_DT, createGame, startGame, step } from './game.js';
 export { T_OVL, T_CANCEL, sigName, walk, release, tapSignal, tapPoint, autoRoute, setRoute, canRoute, routeConflict, edgeOccupied, occEdges, onTrack, nearPoint, pointBusy, underPoint, overlapPath, overlapFor, overlapAuto, overlapMoves } from './interlocking.js';
 export { blockState, blockFree, requestPermit, returnPermit, tokenMode, hasToken, tapToken, acceptToken } from './block.js';
-export { TL, spawn, moveTrain, checkCollisions, reverseTrain, graceOf } from './trains.js';
+export { TL, spawn, moveTrain, checkCollisions, reverseTrain, graceOf, PRIORITY_MUL, FREIGHT_SCORE, maxScoreOf } from './trains.js';
 export { press, routeTo, needsDestination } from './control.js';
 export { hint, nextTarget, idle, wantedRoute, isStatic, escapeRoutes, trapsItself, cannotReceive } from './hint.js';
 export { trackState, trainInfo, snapshot } from './view.js';

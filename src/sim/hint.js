@@ -90,7 +90,7 @@ export function escapeRoutes(g) {
     const moves = r => r.req.filter(([k, pos]) => g.P[k].pos !== pos).length;
     const ok = g.L.routes[sig].filter(r => leadsOut(g, t, r) && !canRoute(g, sig, r) && (r.exit || !trapsItself(g, t, r.track)));
     // ขบวนที่ต้องจอดรับผู้โดยสาร: ทางที่มีชานชาลามาก่อน ทางที่ไม่มีชานชาลาเสนอเมื่อไม่มีทางอื่น
-    const pax = r => (r.plat !== null && !(!t.exp && g.L.noPlatform.includes(r.plat)) ? 1 : 0);
+    const pax = r => (r.plat !== null && !(!t.exp && t.kind !== 'freight' && g.L.noPlatform.includes(r.plat)) ? 1 : 0);
     ok.sort((a, b) => pax(b) - pax(a) || moves(a) - moves(b));
     if (ok.length) out.push({ t, sig, r: ok[0] });
   }
