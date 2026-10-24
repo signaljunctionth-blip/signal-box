@@ -490,7 +490,7 @@ export async function createScene3D(canvas, opts) {
     if (kind === 'lever') { a.bx(M.dark, 0.05, 0.9, 0.05, 0, 0.45, 0); a.cy(M.white, 0.14, 0.14, 0.1, 12, 0, 0.88, 0, { rx: Math.PI / 2 }); }
     else if (kind === 'rod') { a.bx(M.dark, 0.08, 0.28, 0.08, 0, 0.12, 0); base.bx(M.steel, Math.abs(p.x - (B.x0 + B.x1) / 2) - 3, 0.04, 0.04, -p.away * -((Math.abs(p.x - (B.x0 + B.x1) / 2) - 3) / 2), 0.05, -p.side * 0.15); }   // ก้านโยงไปทางห้องสัญญาณกลางสถานี
     else a.bx(M.pointMotor, 0.55, 0.42, 0.8, 0, 0.1, 0);
-    a.build(arm);
+    a.build(arm, { cast: false });   // ชิ้นเล็กเตี้ย เงาแทบไม่เห็น ไม่ทอดเงาเพื่อประหยัด draw call ในรอบวาดเงา (สถานีที่มีประแจมาก)
     points[k] = { blades, arm, p, kind, pos: null, anchor: new THREE.Vector3(p.x + lx, 1.6, p.z + lz) };
   }
   function setPoint(k, pos) {
@@ -582,8 +582,10 @@ export async function createScene3D(canvas, opts) {
       [-0.75, 0.75].forEach(o => { B_(M.dark, 0.06, 0.45, 0.4, x + o, PLAT + 0.225, 3.0); B_(M.dark, 0.06, 0.5, 0.05, x + o, PLAT + 0.7, 2.79); });
     });
     // ป้ายเลขชานชาลาใต้ชายคา
-    { const b = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.46, 0.04), [M.white, M.white, M.white, M.white, plateMat(realPlat.no), plateMat(realPlat.no)]); keep(b.geometry);
-      b.position.set(PLC - 9.5, cy(PZc) - 0.5, BZ + sz(-PZc)); b.rotation.y = PS < 0 ? 0 : Math.PI; b.castShadow = true; scene.add(b); }
+    // กรอบขาวรวมกับชิ้นสีเรียบ หน้าป้ายสองด้านรวมตามวัสดุ (เดิมเป็นกล่อง 6 วัสดุ = 6 draw call และอีก 6 ในรอบวาดเงา)
+    { const x = PLC - 9.5, y = cy(PZc) - 0.5, z = BZ + sz(-PZc), ry = PS < 0 ? 0 : Math.PI;
+      Wm.bx(M.white, 0.46, 0.46, 0.04, x, y, z, { ry });
+      [0.021, -0.021].forEach((o, i) => Wm.add(new THREE.PlaneGeometry(0.46, 0.46), plateMat(realPlat.no), mtx(x, y, z + (PS < 0 ? o : -o), 0, ry + (i ? Math.PI : 0), 0))); }
     // อาคารเล็กผนังปูน (ห้องเก็บของ)
     const sxh = PLC - Math.min(25, PLL / 2 - 2), shz = BZ + sz(2.2);
     Wm.bx(M.conc, 4.6, 0.2, 3.6, sxh, 0.1, shz, { tile: 2 }); Wm.bx(M.plaster, 4.2, 2.7, 3.2, sxh, 1.55, shz, { tile: 2 }); Wm.bx(M.iron, 5.0, 0.05, 4.1, sxh, 3.05, shz, { tile: 1.12, rx: -PS * 0.14 });
@@ -623,8 +625,8 @@ export async function createScene3D(canvas, opts) {
       [0.045, -0.045].forEach((o, i) => Wm.add(new THREE.PlaneGeometry(4.2, 1.44), signMat, mtx(x, PLAT + 1.95, z + o, 0, i ? Math.PI : 0, 0)));
       [-1.9, 1.9].forEach(o => { Wm.bx(M.white, 0.13, 2.75, 0.13, x + o, PLAT + 1.37, z); Wm.bx(M.black, 0.14, 0.4, 0.14, x + o, PLAT + 0.2, z); }); }
     [-0.3, 0.3].forEach(f => { const x = c + f * len; Wm.bx(M.poleGreen, 0.08, 2.3, 0.08, x, PLAT + 1.15, pz + s(1.2)); Wm.bx(M.white, 0.5, 0.5, 0.05, x, PLAT + 2.3, pz + s(1.2));
-      // ป้ายเลขแผ่นเดียวหันหาฝั่งกล้อง (draw call เดียว ไม่ทอดเงา งบการวาดของสถานีใหญ่ตึง)
-      const b = new THREE.Mesh(plateGeo, plateMat(p.no)); b.position.set(x, PLAT + 2.3, pz + s(1.2) + camSide * 0.03); b.rotation.y = camSide > 0 ? 0 : Math.PI; scene.add(b); });
+      // ป้ายเลขแผ่นเดียวหันหาฝั่งกล้อง รวมเข้า mesh ตามวัสดุ (ไม่เพิ่ม draw call ต่อป้าย งบการวาดของสถานีใหญ่ตึง)
+      Wm.add(plateGeo.clone(), plateMat(p.no), mtx(x, PLAT + 2.3, pz + s(1.2) + camSide * 0.03, 0, camSide > 0 ? 0 : Math.PI, 0)); });
   }
   // หลักกันชนปลายทางตัน: ฐานปูน คานขวางสีแดงคาดขาว ค้ำเหล็กสองข้าง
   for (const b of W.buffers) {
@@ -779,11 +781,13 @@ export async function createScene3D(canvas, opts) {
     const body = new THREE.Mesh(bodyFor(n), bodyMat), glass = new THREE.Mesh(car.glass, M.glass), plates_ = new THREE.Mesh(car.plates, plateMat(n)), lamps = new THREE.Mesh(car.lamps, headLamp);
     body.castShadow = body.receiveShadow = true; glass.receiveShadow = true;
     g.add(body, glass, plates_, lamps);
-    pad(CAR_LEN + 1.6, 4.3, 0, SLT + 0.03, 0, g);
+    // แผ่นเงาใต้รถใช้เฉพาะระดับที่ไม่มีเงาจริง, ไฟหน้ารถเปิดเฉพาะพลบค่ำ (ประหยัด draw call ต่อขบวน สถานีใหญ่มีหลายขบวนพร้อมกัน)
+    const shade = pad(CAR_LEN + 1.6, 4.3, 0, SLT + 0.03, 0, g); shade.visible = !(tier.shadow > 0); lamps.visible = dusk();
     scene.add(g);
-    return { g, n };
+    return { g, n, shade, lamps };
   }
   const trains = new Map();
+  const dusk = () => (parseFloat(colors['--scene-sun']) || 1) < 0.8;
   function setTrains(game) {
     const seen = new Set();
     for (const t of game.trains) {
@@ -991,6 +995,7 @@ export async function createScene3D(canvas, opts) {
     }
     fillBlobs();
     for (const s of sleeperSets) s.inst.visible = s.mode === 'all' ? !tier.fasteners : tier.fasteners;
+    for (const o of trains.values()) o.shade.visible = !shadows;
     shadowDirty = true;
   }
   applyTier();
@@ -1040,6 +1045,7 @@ export async function createScene3D(canvas, opts) {
     Object.assign(colors, c);
     const exp = parseFloat(colors['--scene-exposure']) || 0.96, fogK = parseFloat(colors['--scene-fog']) || 0.86, sunK = parseFloat(colors['--scene-sun']) || 1, envK = parseFloat(colors['--scene-env']) || 1;
     renderer.toneMappingExposure = exp; sun.intensity = 2.5 * sunK; scene.environmentIntensity = envK; scene.backgroundIntensity = envK;
+    for (const o of trains.values()) o.lamps.visible = dusk();
     scene.fog.color.copy(displayColor(HORIZON.clone().multiplyScalar(fogK)));   // ค่าดิบ = สีบนจอก่อนเข้ารหัส sRGB (หมอกผสมหลังแปลงสี)
     const tint = colors['--scene-tint']; if (tint) scene.fog.color.lerp(new THREE.Color(tint), 0.35);
     stripCol = { route: new THREE.Color(colors['--route'] || '#2FA872'), occ: new THREE.Color(colors['--occ'] || '#E9525A') };
@@ -1107,6 +1113,7 @@ export async function createScene3D(canvas, opts) {
     if (detail) {                                   // รายการ mesh ที่กินสามเหลี่ยมมากสุด (ใช้ตอนปรับงบ)
       const list = []; scene.traverseVisible(o => { if (!o.isMesh) return; const g = o.geometry, n = (g.index ? g.index.count : g.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1); list.push([o.material.type + (o.isInstancedMesh ? '×' + o.count : ''), Math.round(n)]); });
       out.top = list.sort((a, b) => b[1] - a[1]).slice(0, 14); out.meshes = list.length;
+      const cast = []; scene.traverseVisible(o => { if (o.isMesh && o.castShadow) cast.push(o.parent && o.parent !== scene ? (o.parent.userData.kind || 'group') : o.material.type); }); out.casters = cast.reduce((m, k) => ((m[k] = (m[k] || 0) + 1), m), {});
     }
     return out;
   }

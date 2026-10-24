@@ -77,7 +77,7 @@ export function mountView3D(board, { stage, getGame, onPress, getHint, say, stat
     for (const k in g.L.portals) {
       const blk = blockState(g, k), a = ports.get(k); if (!blk || !a) continue;
       const east = g.L.portals[k].side === 'E', q = view.project(a.base, w, h);
-      let y = Math.max(28, Math.min(h - 70, q.on ? q.y : h / 2));
+      let y = Math.max(28, Math.min(h - (east && view.camera.zoomed ? 112 : 70), q.on ? q.y : h / 2));   // ป้ายขาและปุ่มให้ทางไม่ลงไปใต้ปุ่ม "มุมมาตรฐาน"
       const x = east ? w - 8 : 8;
       const place = (kind, yy, text, cls, aria) => {
         const t = { kind, id: k }, key = kind + ':' + k, el = chipFor({ target: t }); seen.add(key);
@@ -100,31 +100,35 @@ export function mountView3D(board, { stage, getGame, onPress, getHint, say, stat
     const g = getGame(), { w, h } = size(), hn = getHint(), dest = destinations(g), destKeys = new Set(dest.map(t => t.kind + ':' + (t.id ?? t.no)));
     const used = [], seen = new Set();
     let hintEl = layoutTokens(g, w, h, hn, used, seen);
+    const homeOn = view.camera.zoomed;   // ปุ่ม "มุมมาตรฐาน" มุมขวาล่าง: ป้ายห้ามไปอยู่ใต้ปุ่ม (แตะแล้วโดนปุ่มแทน)
     for (const a of view.anchors()) {
-      const k = a.target.kind, key = k + ':' + (a.target.id ?? a.target.no);
-      const show = k === 'signal' || k === 'point' || destKeys.has(key);
+      const k = a.target.kind, key = k + ':' + (a.target.id ?? a.target.no), isDest = destKeys.has(key);
+      const show = k === 'signal' || k === 'point' || isDest;
       if (!show) continue;
       // ป้ายอยู่เหนือหัวเสา ถ้าหัวเสาพ้นขอบบนให้เกาะขอบบนตรงเสา ถ้าโคนเสาอยู่นอกจอ (ซูมเข้าอยู่) ไม่แสดงป้าย
-      // ยกเว้นเป้าของคำใบ้: เกาะขอบจอด้านที่เป้าอยู่ ผู้เล่นจะได้รู้ว่าต้องแตะอะไรแม้ซูมเข้าอยู่
+      // ยกเว้นเป้าของคำใบ้และปลายทางที่ต้องแตะ: เกาะขอบจอด้านที่เป้าอยู่ ผู้เล่นจะได้รู้ว่าต้องแตะอะไรแม้มองไม่เห็น (ภารกิจไม่มีคำใบ้ก็ยังเห็นปลายทาง)
       const p = view.project(a.pos, w, h), q = view.project(a.base, w, h), hinted = isHinted(hn, a.target);
       const off = !q.on || q.x < -8 || q.x > w + 8 || q.y < 0 || q.y > h + 60;
-      if (off && !hinted) continue;
-      let x = Math.max(36, Math.min(w - 36, q.on ? q.x : (q.x < w / 2 ? w - 36 : 36))), y = Math.max(28, Math.min(h - 26, Math.min(p.on ? p.y - 18 : 28, q.y - 30)));
-      if (off) y = Math.max(28, Math.min(h - 26, q.y));
-      const clash = yy => used.some(u => Math.abs(u[0] - x) < 74 && Math.abs(u[1] - yy) < 40);   // ป้ายประแจกว้างราว 68 px
-      for (let n = 1; n < 6 && clash(y); n++) { const up = y - 40 * n, dn = y + 40 * n; if (up >= 28 && !clash(up)) { y = up; break; } if (dn <= h - 26 && !clash(dn)) { y = dn; break; } }   // หลบป้ายที่วางไปแล้ว
-      used.push([x, y]);
+      if (off && !hinted && !isDest) continue;
       const el = chipFor(a); seen.add(key);
-      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-      a._xy = [x, y];
       const pill = el.firstChild, dot = pill.children[0], label = pill.children[1], sub = pill.children[2];
       let state = '', text = a.label, subT = '';
       if (k === 'signal') { const s = g.S[a.target.id]; text = s.label || a.target.id; state = s.aspect === 'G' ? 'go' : 'stop'; if (g.nxSel === a.target.id) state += ' sel'; }
       else if (k === 'point') { const p_ = g.P[a.target.id]; subT = p_.pos === 'N' ? 'ตรง' : 'แยก'; state = (p_.lock || p_.ovl ? 'locked ' : '') + (g.lv.pointsLocked ? 'fixed' : ''); }
       else state = 'dest';
-      if (label.textContent !== text) label.textContent = text;
-      if (sub.textContent !== subT) sub.textContent = subT;
-      dot.hidden = k !== 'signal';
+      if (label.textContent !== text || sub.textContent !== subT || el._w === undefined) { label.textContent = text; sub.textContent = subT; dot.hidden = k !== 'signal'; el._w = 0; }
+      // ความกว้างจริงของป้าย (วัดครั้งเดียวต่อข้อความ) กันป้ายกว้างล้นขอบจอ: ตัวป้ายเริ่มที่ x - 30 (margin ใน CSS)
+      if (!el._w) { el.hidden = false; el._w = el.offsetWidth || 60; }
+      const lo = 34, hi = w - el._w + 26;
+      let x = Math.max(lo, Math.min(hi, q.on ? q.x : (q.x < w / 2 ? hi : lo)));
+      const yMax = homeOn && x + el._w - 30 > w - 150 ? h - 70 : h - 26;
+      let y = Math.max(28, Math.min(yMax, Math.min(p.on ? p.y - 18 : 28, q.y - 30)));
+      if (off) y = Math.max(28, Math.min(yMax, q.y));
+      const clash = yy => used.some(u => Math.abs(u[0] - x) < 74 && Math.abs(u[1] - yy) < 40);   // ป้ายประแจกว้างราว 68 px
+      for (let n = 1; n < 6 && clash(y); n++) { const up = y - 40 * n, dn = y + 40 * n; if (up >= 28 && !clash(up)) { y = up; break; } if (dn <= yMax && !clash(dn)) { y = dn; break; } }   // หลบป้ายที่วางไปแล้ว
+      used.push([x, y]);
+      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      a._xy = [x, y];
       el.className = `v3d-chip k-${k} ${state}`;
       el.setAttribute('aria-label', k === 'signal' ? `เสา ${text} ${state.startsWith('go') ? 'ทางเปิด' : 'ห้าม'}` : k === 'point' ? `ประแจ ${text} ${subT}` : `ปลายทาง ${text}`);
       if (hinted) { el.classList.add('hint'); hintEl = [x, y, hn.text]; }
