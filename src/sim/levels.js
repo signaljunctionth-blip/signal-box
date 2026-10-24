@@ -1,9 +1,16 @@
 // ชุดด่านจาก JSON (data/levels/*.json): ยุค (กติกาที่เปิดใช้) + รายการด่าน (ผังไหน ตารางขบวนอะไร)
 // schema 1 = ชุดด่านแบบต้นแบบ (history.json), schema 2 = ชุดภารกิจบนแผนที่: ด่านมี id คงที่ + stations[] ลำดับปลดล็อก
 // ตารางขบวนเขียนได้ 3 แบบ (ทุก schema): { pattern, gap, start } | [[วินาที, ชานชาลา, ขอบขาเข้า?], ...] | [{ at | after, from, to, track, type, ... }, ...]
+// type = "local" (ค่าเริ่มต้น) | "express" (ผ่านไม่จอด) | "freight" (ขบวนสินค้า ต้องมี track: จอดทางนั้น หรือ stop: false = ผ่านทางนั้นไม่จอด)
 export const LEVELS_SCHEMA = 2;
 export const LEVELS_SCHEMAS = [1, 2];
+import { TL, STOP_GAP } from './station2.js';
 const DWELL = 2.5;
+// ขบวนสินค้า (type "freight"): วิ่งช้ากว่า จอดนานกว่า ยาวกว่าขบวนโดยสาร
+export const FREIGHT_SPEED = 0.7;     // ความเร็ว = lv.speed × ค่านี้
+export const FREIGHT_DWELL = 5;       // วินาทีที่จอด ถ้าตารางไม่ระบุ dwell
+export const FREIGHT_LEN = TL * 1.5;  // ความยาวขบวนสินค้า (ทางที่จอดหรือผ่านต้องยาวพอ ดู schedOf)
+const TYPES = ['local', 'express', 'freight'];
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isNum = v => typeof v === 'number' && Number.isFinite(v);
 const isStr = v => typeof v === 'string' && v.length > 0;
@@ -35,15 +42,16 @@ function trainsOf(t, at, bad) {
         else if (a.event !== undefined && a.event !== 'cleared') no(`${w}.after.event`, 'รองรับเฉพาะ "cleared" (ท้ายขบวนพ้นจอ)');
         else if (a.delay !== undefined && !(isNum(a.delay) && a.delay >= 0)) no(`${w}.after.delay`, 'ต้องเป็นจำนวนวินาทีตั้งแต่ 0');
       }
-      if (r.type !== undefined && r.type !== 'local' && r.type !== 'express') no(`${w}.type`, 'ต้องเป็น "local" หรือ "express"');
+      if (r.type !== undefined && !TYPES.includes(r.type)) no(`${w}.type`, 'ต้องเป็น "local", "express" หรือ "freight"');
       if (r.stop !== undefined && typeof r.stop !== 'boolean') no(`${w}.stop`, 'ต้องเป็น true หรือ false');
       if (r.dwell !== undefined && !(isNum(r.dwell) && r.dwell >= 0)) no(`${w}.dwell`, 'ต้องเป็นจำนวนวินาทีตั้งแต่ 0');
       if (r.origin === undefined && !isStr(r.from)) no(`${w}.from`, 'ต้องเป็นชื่อขาที่ขบวนเข้ามา (หรือใช้ "origin" สำหรับขบวนต้นทาง)');
       if (r.origin !== undefined && r.from !== undefined) no(`${w}.from`, 'ขบวนต้นทาง (origin) ไม่ต้องมี from');
       if (!isStr(r.to)) no(`${w}.to`, 'ต้องเป็นชื่อขาที่ขบวนจะออก');
-      const exp = r.type === 'express' || r.stop === false;
-      if (!exp && r.origin === undefined && r.track === undefined) no(`${w}.track`, 'ขบวนที่จอดต้องระบุทางจอด (ชื่อบทบาทใน roles หรือเลขทาง)');
-      if (exp && r.origin !== undefined) no(`${w}.origin`, 'ขบวนต้นทางต้องเป็นขบวนธรรมดา');
+      const exp = r.type === 'express' || r.stop === false, fr = r.type === 'freight';
+      if (fr && r.track === undefined) no(`${w}.track`, 'ขบวนสินค้าต้องระบุ track: ทางที่จอด หรือทางที่ผ่าน (ถ้า stop: false)');
+      else if (!exp && r.origin === undefined && r.track === undefined) no(`${w}.track`, 'ขบวนที่จอดต้องระบุทางจอด (ชื่อบทบาทใน roles หรือเลขทาง)');
+      if ((exp || fr) && r.origin !== undefined) no(`${w}.origin`, 'ขบวนต้นทางต้องเป็นขบวนธรรมดา');
     });
     return ok ? t.map(r => ({ ...r })) : null;
   }
@@ -60,13 +68,16 @@ function schedOf(trains, L) {
     if (Array.isArray(r)) {
       if (r[1] !== 0 && !L.plats.includes(r[1])) say(`ตารางขบวนอ้างชานชาลาที่ผัง ${L.id} ไม่มี: ${JSON.stringify(r)}`);
       if (r[2] && !L.entries.includes(r[2])) say(`ตารางขบวนอ้างขาเข้าที่ผัง ${L.id} ไม่มี: ${JSON.stringify(r)}`);
-      return { i, at: r[0], after: null, plat: r[1], exp: r[1] === 0, via: null, entry: r[2] || L.entry, exit: null, from: null, to: null, origin: null, dwell: DWELL };
+      return { i, at: r[0], after: null, plat: r[1], exp: r[1] === 0, kind: r[1] === 0 ? 'express' : 'local', via: null, entry: r[2] || L.entry, exit: null, from: null, to: null, origin: null, dwell: DWELL };
     }
-    const exp = r.type === 'express' || r.stop === false, to = L.portals[r.to];
+    const exp = r.type === 'express' || r.stop === false, to = L.portals[r.to], fr = r.type === 'freight';
+    const kind = fr ? 'freight' : exp ? 'express' : 'local', who = fr ? 'ขบวนสินค้า' : 'ขบวนด่วน';
     if (!to) say(`ผัง ${L.id} ไม่มีขา ${JSON.stringify(r.to)} (มี ${Object.keys(L.portals).join(', ') || 'ไม่มีขาแบบมีชื่อ ต้องใช้ผัง schema 2'})`);
     if (!to.out) say(`ขา ${r.to} เป็นขาเข้าอย่างเดียว ออกไม่ได้`);
     let plat = 0, via = null, origin = null, entry = null;
-    if (r.track !== undefined) { const n = platOf(r.track); if (n === null) say(`ผัง ${L.id} ไม่มีทางจอด ${JSON.stringify(r.track)} (roles: ${Object.keys(L.roles).join(', ') || '-'}; เลขทาง: ${L.plats.join(', ')})`); if (exp) via = n; else plat = n; }
+    if (r.track !== undefined) { const n = platOf(r.track); if (n === null) say(`ผัง ${L.id} ไม่มีทางจอด ${JSON.stringify(r.track)} (roles: ${Object.keys(L.roles).join(', ') || '-'}; เลขทาง: ${L.plats.join(', ')})`); if (exp) via = n; else plat = n;
+      // ขบวนสินค้ายาวกว่า: ทางที่จอดหรือผ่านต้องยาวพอให้ทั้งขบวนอยู่หลังเสาและไม่ล้ำประแจ
+      if (fr) { const len = L.E[L.platEdge[n]].len, need = FREIGHT_LEN + 2 * STOP_GAP; if (len < need) say(`ทาง ${r.track} ยาว ${Math.round(len)} สั้นกว่าขบวนสินค้า ต้องยาวอย่างน้อย ${need}`); } }
     if (r.origin !== undefined) {
       origin = platOf(r.origin); if (origin === null) say(`ผัง ${L.id} ไม่มีทางจอด ${JSON.stringify(r.origin)}`);
       plat = origin;
@@ -76,14 +87,14 @@ function schedOf(trains, L) {
       if (!from) say(`ผัง ${L.id} ไม่มีขา ${JSON.stringify(r.from)} (มี ${Object.keys(L.portals).join(', ') || '-'})`);
       if (!from.in) say(`ขา ${r.from} เป็นขาออกอย่างเดียว เข้าไม่ได้`);
       entry = from.entry;
-      if (exp) { if (!reaches([entry], [to.exit])) say(`ขบวนด่วนจากขา ${r.from} ไปขา ${r.to} ไม่ได้โดยไม่กลับหัว`); if (via !== null && !(reaches([entry], twin(L.platEdge[via])) && reaches(twin(L.platEdge[via]), [to.exit]))) say(`ขบวนด่วนผ่านทาง ${r.track} ไปขา ${r.to} ไม่ได้`); }
+      if (exp) { if (!reaches([entry], [to.exit])) say(`${who}จากขา ${r.from} ไปขา ${r.to} ไม่ได้โดยไม่กลับหัว`); if (via !== null && !(reaches([entry], twin(L.platEdge[via])) && reaches(twin(L.platEdge[via]), [to.exit]))) say(`${who}ผ่านทาง ${r.track} ไปขา ${r.to} ไม่ได้`); }
       else {
         if (!reaches([entry], twin(L.platEdge[plat]))) say(`จากขา ${r.from} เข้าทางจอด ${r.track} ไม่ได้`);
         if (!reaches(twin(L.platEdge[plat]), [to.exit])) say(`จากทางจอด ${r.track} ไปไม่ถึงขา ${r.to}`);
       }
     }
-    return { i, at: r.at ?? null, after: r.after ? { train: r.after.train, delay: r.after.delay ?? 0 } : null, plat, exp, via, entry, exit: to.exit,
-      from: r.from ?? null, to: r.to, origin, dwell: r.dwell ?? DWELL };
+    return { i, at: r.at ?? null, after: r.after ? { train: r.after.train, delay: r.after.delay ?? 0 } : null, plat, exp, kind, via, entry, exit: to.exit,
+      from: r.from ?? null, to: r.to, origin, dwell: r.dwell ?? (fr ? FREIGHT_DWELL : DWELL) };
   });
 }
 
@@ -150,6 +161,8 @@ export function loadLevelPack(j, stations, stationErrors = {}) {
     if (!Array.isArray(l.tips) || !l.tips.every(isStr)) bad(`${at}.tips`, 'ต้องเป็นรายการข้อความ');
     // ห่วงทางสะดวก (M2): ผู้เล่นขอห่วงขาออกและให้ทางขาเข้าเอง ผังต้องมีตอนทางเดี่ยว
     if (l.token !== undefined && typeof l.token !== 'boolean') bad(`${at}.token`, 'ต้องเป็น true หรือ false');
+    // ลำดับความสำคัญ (M5): ค่าปรับรอนานคูณตามชนิดขบวน ด่วน ×2 ธรรมดา ×1 สินค้า ×0.5 ไม่ใส่ = คูณ 1 ทุกขบวน (ด่านเดิมไม่เปลี่ยน)
+    if (l.priority !== undefined && typeof l.priority !== 'boolean') bad(`${at}.priority`, 'ต้องเป็น true หรือ false');
     // การ์ดความรู้ "รู้หรือไม่" หลังชนะ: ข้อเท็จจริงต้องมีแหล่งใน data/sources.md
     if (l.card !== undefined && !(isObj(l.card) && isStr(l.card.title) && isStr(l.card.text) && isStr(l.card.source) && /^https?:\/\//.test(l.card.source)))
       bad(`${at}.card`, 'ต้องเป็น { "title", "text", "source": ลิงก์ http(s) }');

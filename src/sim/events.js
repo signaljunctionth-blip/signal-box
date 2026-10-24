@@ -5,7 +5,7 @@
 //   { type: 'train', what, train }                    what = 'spawn' | 'arrive' | 'reverse' | 'exit'
 //   { type: 'stall', seconds }                        ไม่มีขบวนขยับนานผิดปกติ (ไม่ใช่การแพ้) ให้ UI ขึ้นคำใบ้หรือปุ่มเริ่มใหม่
 //   { type: 'block', portal, state, dir, train, token, ask } สถานะตอนทางเดี่ยวของขาเปลี่ยน (token/ask เฉพาะด่านที่มีห่วง ดู blockState)
-//   msg ที่เป็นการปฏิเสธมี code ด้วย: POINT_NOT_SET | OVERLAP_POINT_NOT_SET | POINT_LOCKED | POINT_OCCUPIED | ROUTE_CONFLICT | OVERLAP_HELD | TRACK_OCCUPIED | BLOCK_NOT_FREE | TOKEN_NEEDED | TOKEN_IN_USE | APPROACH_LOCKED
+//   msg ที่เป็นการปฏิเสธมี code ด้วย: POINT_NOT_SET | OVERLAP_POINT_NOT_SET | POINT_LOCKED | POINT_OCCUPIED | ROUTE_CONFLICT | OVERLAP_HELD | TRACK_OCCUPIED | BLOCK_NOT_FREE | TOKEN_NEEDED | TOKEN_IN_USE | APPROACH_LOCKED | PRIORITY (เตือน: ขบวนด่วนรอขณะมีขบวนสินค้า)
 //   { type: 'win',   score, max, ratio, stars }
 import { T } from './messages.js';
 

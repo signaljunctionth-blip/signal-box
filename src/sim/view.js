@@ -12,7 +12,7 @@ export function trackState(g, track) {
 // ข้อมูลขบวนสำหรับป้ายและแถบคิว
 export function trainInfo(g, t) {
   const e = g.E[t.edge], P = g.L.portals, to = t.exit ? Object.values(P).find(p => p.exit === t.exit) : null;
-  return { id: t.id, plat: t.plat, role: t.plat ? g.L.roleOf[g.L.platEdge[t.plat]] || null : null, express: t.exp, state: t.state, dir: e.dir,
+  return { id: t.id, plat: t.plat, role: t.plat ? g.L.roleOf[g.L.platEdge[t.plat]] || null : null, express: t.exp, kind: t.kind || (t.exp ? 'express' : 'local'), state: t.state, dir: e.dir,
     track: e.track, to: to ? to.id : null, stopped: t.stopped, wait: t.wait, late: t.wait > graceOf(g, t), up: g.L.upDir ? e.dir === g.L.upDir : null,
     token: t.token || null, head: t.trail[t.trail.length - 1], tail: t.trail[0] };
 }
@@ -28,5 +28,5 @@ export function snapshot(g) {
   const overlaps = g.overlaps.map(o => ({ sig: o.sig, from: g.E[o.dest].track, dir: g.E[o.dest].dir, tracks: [...o.tracks], points: [...o.points] }));
   return { overlaps, state: g.state, time: g.time, score: g.score, max: g.max, done: g.done, total: g.lv.sched.length, nxSel: g.nxSel,
     tracks, points, signals, blocks, trains: g.trains.map(t => trainInfo(g, t)),
-    queue: g.pend.map(i => { const sp = g.lv.sched[i]; return { id: i + 1, plat: sp.plat, express: sp.exp, from: sp.from, to: sp.to, at: sp.at }; }) };
+    queue: g.pend.map(i => { const sp = g.lv.sched[i]; return { id: i + 1, plat: sp.plat, express: sp.exp, kind: sp.kind || (sp.exp ? 'express' : 'local'), from: sp.from, to: sp.to, at: sp.at }; }) };
 }

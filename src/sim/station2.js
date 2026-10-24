@@ -88,6 +88,8 @@ export function validateLayout2(L, bad) {
       if (v.dir !== undefined && !['in', 'out', 'both'].includes(v.dir)) bad(`${at}.dir`, 'ต้องเป็น "in", "out" หรือ "both"');
       if (v.runTime !== undefined && !(isNum(v.runTime) && v.runTime >= 0)) bad(`${at}.runTime`, 'ต้องเป็นจำนวนวินาทีตั้งแต่ 0');
       if (v.block !== undefined && typeof v.block !== 'boolean') bad(`${at}.block`, 'ต้องเป็น true หรือ false');
+      // ขาสมมุติ (เช่น ทางแยกที่เกมแต่งเพิ่ม): ตัววาดและหน้าจอใช้บอกผู้เล่นว่าไม่ใช่ของจริง
+      if (v.fictional !== undefined && typeof v.fictional !== 'boolean') bad(`${at}.fictional`, 'ต้องเป็น true หรือ false');
     }
   }
   if (!Array.isArray(buffers)) bad('layout.buffers', 'ต้องเป็นรายการชื่อรางที่ปลายเป็นทางตัน');
@@ -177,7 +179,7 @@ export function expandLayout2(L) {
     const dir = o.dir || 'both';
     portals[k] = { id: k, track: tk, side: east ? 'E' : 'W', entry: edgeOf(tk, east ? 'W' : 'E'), exit: edgeOf(tk, east ? 'E' : 'W'),
       in: dir !== 'out', out: dir !== 'in', label: o.label_th || k, neighbor: o.neighbor || null,
-      block: o.block !== false, runTime: o.runTime ?? 8 };
+      block: o.block !== false, runTime: o.runTime ?? 8, fictional: o.fictional === true };
   }
   const edges = {};
   // ขอบรางที่มาถึงจุดต่อ n จากด้าน mine (รายการรางด้านเดียวกับตัวเอง) ไปต่อที่ด้าน other
