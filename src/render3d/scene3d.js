@@ -16,7 +16,7 @@ const texUrl = name => TEX_URL[`../../assets/textures/${name}.webp`];
 
 const BAL = 0.34, SLT = BAL + 0.05, RB = SLT + 0.02, RT = RB + 0.16;   // ระดับ: หลังหินโรยทาง, หลังหมอน, ฐานราง, สันราง
 const PLAT = 0.55, SIG_SCALE = 1.35;                                   // ความสูงชานชาลา; เสาสัญญาณขยายให้อ่านท่าแขนได้ที่ระยะกล้อง
-const ARM_CLEAR = 0.7;                                                 // มุมแขนหางปลาตอนทางเปิด (ราว 40° ยกเฉียงขึ้น ยังไม่ยืนยันกับแหล่งสาธารณะ)
+const ARM_CLEAR = Math.PI / 4;                                         // มุมแขนหางปลาตอนทางเปิด ยกขึ้น 45° (เจยืนยัน 2026-10-25 ยังไม่มีแหล่งสาธารณะ)
 
 /* ---------- ไฟล์ .hdr แบบไม่บีบอัดที่ tools/build-assets.mjs เขียน ---------- */
 function parseFlatHdr(buf) {
@@ -261,7 +261,9 @@ export async function createScene3D(canvas, opts) {
   }
   function field(x, z) {
     const g = groveF(x, z);
-    const soil = Math.max(smooth(1 - pathDist(x, z) / 1.5), smooth((fbm(x * 0.07 + 31, z * 0.07 + 5) - 0.74) / 0.07) * (1 - g) * 0.75);
+    // หย่อมดินกลางหญ้า: บางลงในแถบหน้ากล้อง (art-director WP10: เด่นกว่าย่านรางในมุมมาตรฐาน ดูเป็นคราบ)
+    const near = 1 - 0.75 * smooth((camSide * (z - farZ) - 8) / 25);
+    const soil = Math.max(smooth(1 - pathDist(x, z) / 1.5), smooth((fbm(x * 0.07 + 31, z * 0.07 + 5) - 0.74) / 0.07) * (1 - g) * 0.75 * near);
     const tall = smooth((fbm(x * 0.03 + 11, z * 0.03 + 3) * 0.7 + fbm(x * 0.11, z * 0.11 + 8) * 0.3 - 0.45) / 0.14) * (1 - soil);
     const dry = smooth((fbm(x * 0.022 + 40, z * 0.022 + 17) - 0.5) / 0.16);
     return [soil, tall, dry, g];
@@ -664,24 +666,25 @@ export async function createScene3D(canvas, opts) {
       m.cy(M.dark, 0.0, 0.11, 0.32, 8, 0, 7.06, 0);
       [-0.19, 0.19].forEach(o => m.bx(M.dark, 0.035, 5.6, 0.035, o, 3.0, -0.3));
       for (let y = 0.5; y < 5.8; y += 0.33) m.bx(M.dark, 0.38, 0.025, 0.025, 0, y, -0.3);
-      m.bx(M.dark, 0.6, 0.04, 0.5, 0, 5.75, -0.2); m.bx(M.dark, 0.22, 0.3, 0.22, -0.3, 5.95, 0.02); m.bx(M.dark, 0.5, 0.06, 0.06, -0.16, 5.83, 0.02);
-      m.bx(M.dark, 0.5, 0.05, 0.05, 0.15, 0.55, 0.14, { rz: 0.35 }); m.cy(M.dark, 0.13, 0.13, 0.1, 10, 0.4, 0.64, 0.14, { rx: Math.PI / 2 });
-      m.bx(M.steel, 0.02, 5.2, 0.02, 0.12, 3.2, 0.14);
+      m.bx(M.dark, 0.6, 0.04, 0.5, 0, 5.75, -0.2); m.bx(M.dark, 0.22, 0.3, 0.22, 0.3, 5.95, 0.02); m.bx(M.dark, 0.5, 0.06, 0.06, 0.16, 5.83, 0.02);
+      m.bx(M.dark, 0.5, 0.05, 0.05, -0.15, 0.55, 0.14, { rz: -0.35 }); m.cy(M.dark, 0.13, 0.13, 0.1, 10, -0.4, 0.64, 0.14, { rx: Math.PI / 2 });
+      m.bx(M.steel, 0.02, 5.2, 0.02, -0.12, 3.2, 0.14);
       const pivot = new THREE.Group(); pivot.position.set(0, 6.0, 0.16); g.add(pivot);
+      // แขนยื่นออกจากราง (-x ของเสา = ซ้ายมือคนขับ, เจยืนยัน 2026-10-25) ทุกชิ้นของหัวเสาจึงกลับข้างจากแบบเดิม และแขนยกด้วยมุม z ติดลบ
       const a = new VMerger();
-      a.bx(M.armRed, 2.0, 0.34, 0.05, 0.85, 0, 0); a.bx(M.white, 0.22, 0.345, 0.056, 1.35, 0, 0);
-      a.bx(M.dark, 0.3, 0.5, 0.04, -0.27, 0.07, -0.05); a.cy(M.dark, 0.07, 0.07, 0.2, 8, 0, 0, -0.05, { rx: Math.PI / 2 });
-      { const c = Math.cos(ARM_CLEAR), sn = Math.sin(ARM_CLEAR), lx = -0.3, ly = -0.03, gx = lx * c + ly * sn, gy = -lx * sn + ly * c;   // จุดที่หมุน ARM_CLEAR แล้วมาอยู่ที่ตำแหน่งโคม
+      a.bx(M.armRed, 2.0, 0.34, 0.05, -0.85, 0, 0); a.bx(M.white, 0.22, 0.345, 0.056, -1.35, 0, 0);
+      a.bx(M.dark, 0.3, 0.5, 0.04, 0.27, 0.07, -0.05); a.cy(M.dark, 0.07, 0.07, 0.2, 8, 0, 0, -0.05, { rx: Math.PI / 2 });
+      { const c = Math.cos(ARM_CLEAR), sn = Math.sin(ARM_CLEAR), lx = 0.3, ly = -0.03, gx = lx * c - ly * sn, gy = lx * sn + ly * c;   // จุดที่หมุน -ARM_CLEAR แล้วมาอยู่ที่ตำแหน่งโคม
         a.cy(M.lensRed, 0.1, 0.1, 0.05, 12, lx, ly, -0.02, { rx: Math.PI / 2 }); a.cy(M.lensGreen, 0.1, 0.1, 0.05, 12, gx, gy, -0.02, { rx: Math.PI / 2 }); }
       a.build(pivot);
-      const lamp = lampAt(k, 'sema', -0.3, 5.97, 0.09, 1.3);   // โคมอยู่หลังเลนส์ (ด้านเสา) ขอบแสงเห็นรอบเลนส์
+      const lamp = lampAt(k, 'sema', 0.3, 5.97, 0.09, 1.3);   // โคมอยู่หลังเลนส์ (ด้านเสา) ขอบแสงเห็นรอบเลนส์
       signals[k] = { kind: 'sema', pivot, lamp, angle: 0, want: 0, aspect: 'R', anchor: new THREE.Vector3(s.x, 9.4 * SIG_SCALE, s.z) };   // ป้ายแตะอยู่เหนือปลายแขนตอนยก ไม่บังท่าแขน
     } else {
       m.bx(M.conc, 0.6, 0.3, 0.6, 0, 0.15, 0); m.cy(M.signalPole, 0.07, 0.09, 4.4, 10, 0, 2.5, 0);
       m.bx(M.black, 0.5, 1.0, 0.18, 0, 4.65, 0.05); m.bx(M.dark, 0.62, 1.15, 0.03, 0, 4.65, -0.06);
       [4.92, 4.42].forEach(y => m.cy(M.dark, 0.17, 0.17, 0.22, 12, 0, y + 0.12, 0.22, { rx: Math.PI / 2 }));
       m.bx(M.relayBox, 0.5, 0.8, 0.4, 0, 0.7, -0.6);
-      const red = lampAt(k, 'red', 0, 4.92, 0.16, 1.4), green = lampAt(k, 'green', 0, 4.42, 0.16, 1.4);
+      const red = lampAt(k, 'red', 0, 4.42, 0.16, 1.4), green = lampAt(k, 'green', 0, 4.92, 0.16, 1.4);   // แดงล่าง เขียวบน (เจยืนยัน 2026-10-25)
       signals[k] = { kind: 'light', red, green, aspect: null, anchor: new THREE.Vector3(s.x, 6.2 * SIG_SCALE, s.z) };
     }
     blob(1.6, s.x, 0.04, s.z);
@@ -698,7 +701,7 @@ export async function createScene3D(canvas, opts) {
   const lampColor = (i, c) => { lamps.setColorAt(i, c); lamps.instanceColor.needsUpdate = true; };
   function setSignal(k, aspect) {
     const o = signals[k]; if (!o || o.aspect === aspect) return; o.aspect = aspect;
-    if (o.kind === 'sema') { o.want = aspect === 'G' ? ARM_CLEAR : 0; lampColor(o.lamp, aspect === 'G' ? LAMP_G : LAMP_R); }
+    if (o.kind === 'sema') { o.want = aspect === 'G' ? -ARM_CLEAR : 0; lampColor(o.lamp, aspect === 'G' ? LAMP_G : LAMP_R); }
     else { lampColor(o.red, aspect === 'G' ? LAMP_OFF : LAMP_R); lampColor(o.green, aspect === 'G' ? LAMP_G : LAMP_OFF); }
   }
 
@@ -1088,7 +1091,9 @@ export async function createScene3D(canvas, opts) {
   }
   function resize(w, h) {
     if (!w || !h) return;
-    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+    renderer.setSize(w, h, false); camera.aspect = w / h;
+    // เลื่อนภาพขึ้นเล็กน้อย (ไม่เปลี่ยนจุดหมุนกล้อง): ย่านสถานีลงมาอยู่ราว 60% จากบน เห็นต้นไม้และเขาด้านหลังแทนหญ้าเปล่าด้านหน้า (art-director WP10)
+    camera.setViewOffset(w, h, 0, -0.11 * h, w, h); camera.updateProjectionMatrix();
     // อยู่มุมมาตรฐาน = จัดมุมใหม่ให้พอดีจอ, ผู้เล่นหมุน/ซูมไว้ = คงมุมของผู้เล่น แค่ไม่ให้ไกลเกินขอบใหม่
     const atHome = !camApi.zoomed; fitCamera();
     if (atHome) reset(); else { home.dist = cam.fitDist; home.el = elFor(); cam.dist = Math.min(cam.dist, cam.fitDist * 1.25); }
