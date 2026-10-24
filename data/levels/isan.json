@@ -1,0 +1,872 @@
+{
+  "schema": 2,
+  "id": "isan",
+  "kind": "career",
+  "line": "northeast",
+  "name_th": "สายอีสาน",
+  "signalling_note_th": "ระบบสัญญาณสมมุติตามขนาดสถานี ไม่ใช่ระบบจริงของสถานีนี้ ชื่อเสาในเกมนี้เกมตั้งเอง เลขทางและตารางเดินรถเป็นของสมมุติ ผังย่อจากข้อมูลสาธารณะ ไม่ใช่วิธีปฏิบัติงานจริง",
+  "eras": [
+    {
+      "name": "ขั้น 3 ไฟสีและวงจรตอนราง",
+      "interlock": true,
+      "sema": false,
+      "tc": true,
+      "nx": false,
+      "approachLock": true
+    },
+    {
+      "name": "ขั้น 4 แผงตั้งทางต้นทาง-ปลายทาง",
+      "interlock": true,
+      "sema": false,
+      "tc": true,
+      "nx": true,
+      "approachLock": true
+    }
+  ],
+  "stations": [
+    {
+      "station": "buri-ram",
+      "tier": 3,
+      "needStars": 0,
+      "note_th": "บุรีรัมย์ในเกมมีทางประธานกับทางหลีก 2 เส้น ผังย่อจากข้อมูล OpenStreetMap ทางแยกเขากระโดง (ขา K) เป็นทางแยกสมมุติของเกมนี้ ใช้กับขบวนสินค้าเท่านั้น"
+    },
+    {
+      "station": "surin",
+      "tier": 3,
+      "needStars": 6,
+      "note_th": "สุรินทร์ในเกมมีทางประธานกับรางย่อย 3 เส้นเรียงขั้นบันได ผังย่อจากข้อมูล OpenStreetMap ทาง 4 เป็นทางสินค้าของเกม ไม่มีชานชาลา"
+    },
+    {
+      "station": "thanon-chira-jn",
+      "tier": 4,
+      "needStars": 15,
+      "note_th": "ชุมทางถนนจิระอยู่ใกล้นครราชสีมา เป็นจุดที่ทางแยกไปขอนแก่นกับอุบลราชธานี ผังย่อจากข้อมูล OpenStreetMap ยังไม่ได้เทียบภาพดาวเทียม ย่านสินค้าย่อเหลือทางตันเส้นเดียว"
+    }
+  ],
+  "levels": [
+    {
+      "id": "br-1",
+      "station": "buri-ram",
+      "era": 0,
+      "name": "ขบวนต้นทาง ขบวนปลายทาง",
+      "teaches": "ขบวนที่เริ่มหรือสุดสายที่สถานีนี้ ต้องจองทางจอดไว้ให้",
+      "goal": "ปล่อยขบวนต้นทาง รับขบวนปลายทาง แล้วส่งอีก 2 ขบวนผ่านสถานี",
+      "card": {
+        "title": "รู้หรือไม่: รถไฟมาถึงบุรีรัมย์เมื่อไร",
+        "text": "ทางรถไฟสายอีสานต่อจากนครราชสีมาไปทีละช่วง ช่วงท่าช้าง–บุรีรัมย์ เปิดเมื่อ 1 เมษายน 1925 (พ.ศ. 2468)",
+        "source": "https://en.wikipedia.org/wiki/Northeastern_Line_(Thailand)"
+      },
+      "speed": 60,
+      "hints": true,
+      "waitGrace": 18,
+      "tips": [
+        "ขบวนต้นทางเที่ยวล่องจอดรออยู่ทาง 2 ครบเวลาก็ตั้งทางให้ออกได้เลย",
+        "ขบวนปลายทางเข้าแล้วกลับออกทางเดิม ทางนั้นจึงว่างช้า",
+        "ในเกมนี้ตารางเดินรถเป็นของสมมุติ"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "origin": "loop1",
+          "to": "W",
+          "dwell": 6
+        },
+        {
+          "at": 4,
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "W",
+          "track": "loop1",
+          "dwell": 10
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        }
+      ]
+    },
+    {
+      "id": "br-2",
+      "station": "buri-ram",
+      "era": 0,
+      "name": "ขบวนสินค้าเข้าทางสินค้า",
+      "teaches": "ขบวนสินค้ายาวและช้า ให้เข้าทาง 3 ที่ไม่มีชานชาลา",
+      "goal": "ส่งขบวนสินค้า 2 ขบวนผ่านทาง 3 โดยไม่ขวางขบวนโดยสาร",
+      "card": {
+        "title": "รู้หรือไม่: ขบวนยาวเกินทางหลีก",
+        "text": "ถ้าขบวนใดยาวเกินทางหลีก ก็อาจต้องรอให้ขบวนที่สวนมาเข้าทางหลีกไปก่อน ขบวนสินค้ามักยาว จึงเจอเรื่องนี้บ่อย",
+        "source": "https://en.wikipedia.org/wiki/Passing_loop"
+      },
+      "speed": 62,
+      "waitGrace": 18,
+      "tips": [
+        "ขบวนสินค้าไปมาทางแยกเขากระโดง (ทางแยกสมมุติในเกมนี้) ส่งเข้าทาง 3 ทุกครั้ง",
+        "ทาง 1 กับทาง 2 เก็บไว้ให้ขบวนโดยสาร",
+        "ขบวนสินค้าวิ่งช้า เปิดเสาให้เร็ว รถจะได้ไม่ต้องหยุด"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        },
+        {
+          "at": 3,
+          "from": "E",
+          "to": "K",
+          "type": "freight",
+          "track": "goods"
+        },
+        {
+          "at": 26,
+          "from": "E",
+          "to": "W",
+          "track": "loop1"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 4
+          },
+          "from": "K",
+          "to": "E",
+          "type": "freight",
+          "track": "goods"
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        }
+      ]
+    },
+    {
+      "id": "br-3",
+      "station": "buri-ram",
+      "era": 0,
+      "name": "หลบสินค้าให้ด่วนผ่าน",
+      "teaches": "ขบวนด่วนสำคัญกว่า ให้ขบวนสินค้ารอในทาง 3 ก่อน",
+      "goal": "ให้ขบวนด่วน 2 ขบวนผ่านโดยไม่ต้องหยุด ขบวนสินค้ารอได้",
+      "speed": 64,
+      "priority": true,
+      "waitGrace": 16,
+      "tips": [
+        "ด่านนี้ขบวนด่วนรอนาน เสียคะแนนสองเท่า ขบวนสินค้าเสียแค่ครึ่ง",
+        "ปล่อยขบวนสินค้าออกก่อน ขบวนด่วนจะติดอยู่ข้างหลังทั้งตอน",
+        "เปิดเสาออกให้ขบวนด่วนตั้งแต่ยังมาไม่ถึง"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "type": "freight",
+          "track": "goods",
+          "dwell": 6
+        },
+        {
+          "at": 6,
+          "from": "E",
+          "to": "W",
+          "track": "loop1"
+        },
+        {
+          "at": 16,
+          "from": "W",
+          "to": "E",
+          "type": "express",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "E",
+          "to": "W",
+          "type": "express",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "K",
+          "type": "freight",
+          "track": "goods"
+        }
+      ]
+    },
+    {
+      "id": "br-4",
+      "station": "buri-ram",
+      "era": 0,
+      "name": "เช้าวันงานที่บุรีรัมย์",
+      "teaches": "รวมทุกอย่าง: ต้นทาง ปลายทาง สินค้า และด่วน ในด่านเดียว",
+      "goal": "ส่ง 7 ขบวนผ่านบุรีรัมย์ ห้ามใครรอเกิน 60 วินาที",
+      "speed": 66,
+      "priority": true,
+      "maxWait": 60,
+      "waitGrace": 6,
+      "tips": [
+        "ขบวนสินค้ารอได้ ขบวนด่วนรอไม่ได้",
+        "ทาง 3 มีทางเดียว ถ้าสินค้าจอดอยู่ อีกขบวนต้องรอนอกเสาเข้า หรือรับเข้าทางอื่นแทน",
+        "วงแหวนรอบเลขขบวนแดงเมื่อเริ่มเสียคะแนน"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "origin": "loop1",
+          "to": "E",
+          "dwell": 4
+        },
+        {
+          "at": 3,
+          "from": "K",
+          "to": "E",
+          "type": "freight",
+          "track": "goods",
+          "dwell": 6
+        },
+        {
+          "at": 8,
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "W",
+          "to": "E",
+          "type": "express",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 4,
+            "event": "cleared",
+            "delay": 4
+          },
+          "from": "E",
+          "to": "W",
+          "type": "express",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 4
+          },
+          "from": "E",
+          "to": "K",
+          "type": "freight",
+          "track": "goods"
+        },
+        {
+          "after": {
+            "train": 5,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "W",
+          "to": "W",
+          "track": "loop1",
+          "dwell": 8
+        }
+      ]
+    },
+    {
+      "id": "sr-1",
+      "station": "surin",
+      "era": 0,
+      "name": "ขบวนสินค้าผ่านไม่จอด",
+      "teaches": "ขบวนสินค้าที่ไม่ได้มาส่งของที่นี่ ให้ผ่านทาง 4 โดยไม่ต้องหยุด",
+      "goal": "ให้ขบวนสินค้าผ่านทาง 4 แล้วรับส่งขบวนโดยสารอีก 3 ขบวน",
+      "speed": 62,
+      "hints": true,
+      "waitGrace": 20,
+      "tips": [
+        "ขบวนสินค้าที่ไม่จอด เปิดเสาออกให้ด้วย รถจะได้ไม่ต้องหยุด",
+        "ในเกมนี้ทาง 4 เป็นทางสินค้า ไม่มีชานชาลา",
+        "ขบวนต้นทางสุรินทร์จอดรอในทาง 3"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "from": "E",
+          "to": "W",
+          "type": "freight",
+          "track": "goods",
+          "stop": false
+        },
+        {
+          "at": 10,
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "origin": "loop2",
+          "to": "E",
+          "dwell": 6
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "W",
+          "track": "loop1"
+        }
+      ]
+    },
+    {
+      "id": "sr-2",
+      "station": "surin",
+      "era": 0,
+      "name": "สินค้าสวนสินค้า",
+      "teaches": "ขบวนสินค้าสองขบวนสวนกันได้ ถ้าให้คันหนึ่งรอในทางหลีก",
+      "goal": "ให้ขบวนสินค้าสองทิศสวนกันที่สุรินทร์ แล้วส่งขบวนโดยสารต่อ",
+      "card": {
+        "title": "รู้หรือไม่: สวนกันบนทางเดี่ยว",
+        "text": "ทางหลีกทำให้ขบวนสวนกันได้ ขบวนที่มาถึงก่อนต้องหยุดหรือวิ่งช้ามาก ส่วนขบวนที่มาทีหลังผ่านด้วยความเร็วได้",
+        "source": "https://en.wikipedia.org/wiki/Passing_loop"
+      },
+      "speed": 64,
+      "waitGrace": 18,
+      "tips": [
+        "คันแรกจอดทาง 4 อีกคันผ่านทาง 3 ได้เลย",
+        "ขบวนสินค้ายาว ดูให้ตอนรางคอสถานีว่างทั้งขบวนก่อน",
+        "ขบวนโดยสารใช้ทาง 1 กับทาง 2"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "type": "freight",
+          "track": "goods",
+          "dwell": 6
+        },
+        {
+          "at": 6,
+          "from": "E",
+          "to": "W",
+          "type": "freight",
+          "track": "loop2",
+          "stop": false
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "W",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 14
+          },
+          "from": "E",
+          "to": "W",
+          "type": "freight",
+          "track": "goods"
+        }
+      ]
+    },
+    {
+      "id": "sr-3",
+      "station": "surin",
+      "era": 0,
+      "name": "ด่วนสองทิศ",
+      "teaches": "กักขบวนสินค้าไว้ แล้วให้ขบวนด่วนสองทิศผ่านก่อน",
+      "goal": "ให้ขบวนด่วน 2 ขบวนผ่านไม่ต้องหยุด ขบวนสินค้ารอได้",
+      "speed": 66,
+      "priority": true,
+      "waitGrace": 16,
+      "tips": [
+        "ขบวนสินค้าจอดทาง 4 แล้ว ยังไม่ต้องรีบปล่อย ให้ขบวนด่วนไปก่อน",
+        "ขบวนด่วนผ่านทาง 1 ขบวนธรรมดาจอดทาง 2 หรือ 3",
+        "ถ้าขบวนด่วนรอ เกมจะเตือน ให้ดูว่าสินค้าขวางอยู่ไหม"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "from": "W",
+          "to": "E",
+          "type": "freight",
+          "track": "goods",
+          "dwell": 6
+        },
+        {
+          "at": 24,
+          "from": "W",
+          "to": "E",
+          "type": "express",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "E",
+          "to": "W",
+          "type": "express",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "W",
+          "track": "loop1"
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "loop2"
+        }
+      ]
+    },
+    {
+      "id": "sr-4",
+      "station": "surin",
+      "era": 0,
+      "name": "ชั่วโมงเร่งด่วนที่สุรินทร์",
+      "teaches": "จัดลำดับ 8 ขบวนสามชนิด ภายใต้เวลารอสูงสุด",
+      "goal": "ส่ง 8 ขบวนผ่านสุรินทร์ ห้ามใครรอเกิน 60 วินาที",
+      "speed": 68,
+      "priority": true,
+      "maxWait": 60,
+      "waitGrace": 12,
+      "tips": [
+        "ขบวนด่วนก่อน ขบวนธรรมดาตาม ขบวนสินค้ารอได้แต่ไม่เกินเวลารอสูงสุด",
+        "ทาง 4 ว่างเมื่อไร รับขบวนสินค้าคันถัดไปได้"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "origin": "loop2",
+          "to": "W",
+          "dwell": 3
+        },
+        {
+          "at": 2,
+          "from": "E",
+          "to": "W",
+          "type": "freight",
+          "track": "goods",
+          "dwell": 6
+        },
+        {
+          "at": 16,
+          "from": "W",
+          "to": "E",
+          "track": "loop1"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "W",
+          "to": "E",
+          "type": "express",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "W",
+          "to": "E",
+          "type": "freight",
+          "track": "loop2",
+          "stop": false
+        },
+        {
+          "after": {
+            "train": 3,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "E",
+          "to": "E",
+          "track": "loop1",
+          "dwell": 8
+        },
+        {
+          "after": {
+            "train": 4,
+            "event": "cleared",
+            "delay": 6
+          },
+          "from": "E",
+          "to": "W",
+          "type": "express",
+          "track": "main"
+        },
+        {
+          "after": {
+            "train": 5,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "W",
+          "to": "E",
+          "track": "main"
+        }
+      ]
+    },
+    {
+      "id": "tc-1",
+      "station": "thanon-chira-jn",
+      "era": 1,
+      "name": "สามขาที่ถนนจิระ",
+      "teaches": "แตะเสาแล้วแตะปลายทาง ระบบตั้งประแจให้ ขาขอนแก่นกับขาอุบลฯ แยกกันที่นี่",
+      "goal": "ส่งขบวนจากแต่ละขาไปยังขาที่ตารางกำหนด",
+      "card": {
+        "title": "รู้หรือไม่: ถนนจิระกลายเป็นชุมทาง",
+        "text": "สถานีนี้เปิดเมื่อ 1 พฤศจิกายน 1922 บนทางไปอุบลราชธานี แล้วกลายเป็นชุมทาง (junction) หลังสร้างทางไปขอนแก่นเสร็จช่วงต้นทศวรรษ 1930",
+        "source": "https://en.wikipedia.org/wiki/Thanon_Chira_Junction_railway_station"
+      },
+      "speed": 66,
+      "hints": true,
+      "waitGrace": 14,
+      "tips": [
+        "แตะเสาเข้า แล้วแตะทางจอดปลายทาง",
+        "ขบวนเที่ยวขึ้นจากนครราชสีมาแยกไปขอนแก่นหรืออุบลฯ ที่นี่ สายขอนแก่นใช้ทาง 1 หรือ 2 (ทาง 3 ไปได้ผ่านทางข้าม)",
+        "ในเกมนี้ยุคนี้สับประแจเองไม่ได้ งานของคุณคือเลือกทางและลำดับ"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "from": "A",
+          "to": "B",
+          "track": "t1"
+        },
+        {
+          "at": 6,
+          "from": "C",
+          "to": "A",
+          "track": "t3"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "B",
+          "to": "A",
+          "track": "t2"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "A",
+          "to": "C",
+          "track": "t3"
+        }
+      ]
+    },
+    {
+      "id": "tc-2",
+      "station": "thanon-chira-jn",
+      "era": 1,
+      "name": "ขอนแก่นกับอุบลฯ มาพร้อมกัน",
+      "teaches": "ทางจากทาง 3 ไปขอนแก่นใช้ทางข้ามร่วมกับสายอุบลฯ ตั้งพร้อมกันไม่ได้",
+      "goal": "ส่ง 6 ขบวนผ่านชุมทาง ให้ขบวนจากสองสายรอกันน้อยที่สุด",
+      "speed": 68,
+      "waitGrace": 12,
+      "tips": [
+        "ขบวนจากทาง 3 ไปขอนแก่นต้องข้ามทางของสายอุบลฯ",
+        "ระบบปฏิเสธเพราะทางขัดกัน ไม่ใช่เพราะคุณกดผิด",
+        "ทาง 3 ใช้ร่วมทั้งขบวนไปขอนแก่นและขบวนจากอุบลฯ ปล่อยให้ว่างเร็ว"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "from": "B",
+          "to": "A",
+          "track": "t2"
+        },
+        {
+          "at": 3,
+          "from": "C",
+          "to": "A",
+          "track": "t3"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "A",
+          "to": "B",
+          "track": "t3"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "A",
+          "to": "B",
+          "track": "t2"
+        },
+        {
+          "after": {
+            "train": 4,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "B",
+          "to": "A",
+          "track": "t2"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 22
+          },
+          "from": "C",
+          "to": "A",
+          "track": "t3"
+        }
+      ]
+    },
+    {
+      "id": "tc-3",
+      "station": "thanon-chira-jn",
+      "era": 1,
+      "name": "ขบวนสินค้าเข้าย่าน",
+      "teaches": "ขบวนสินค้าเข้าทางตันในย่านสินค้า แล้วกลับออกขาเดิม อย่าให้ขวางขบวนด่วน",
+      "goal": "ส่งขบวนสินค้าเข้าและออกย่าน ให้ขบวนด่วน 2 ขบวนผ่านไม่ต้องหยุด",
+      "speed": 70,
+      "priority": true,
+      "waitGrace": 14,
+      "tips": [
+        "ขบวนสินค้ามาจากสายอุบลฯ เข้าย่านแล้วกลับออกขาเดิม ในเกมนี้ขบวนกลับทิศได้ทันที ของจริงต้องสลับหัวรถจักรหรือมีหัวรถจักรสองปลาย",
+        "ขบวนสินค้าออกจากย่านต้องใช้ทางสายอุบลฯ ร่วม ให้ขบวนด่วนไปก่อน"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "from": "C",
+          "to": "C",
+          "type": "freight",
+          "track": "goods",
+          "dwell": 6
+        },
+        {
+          "at": 6,
+          "from": "A",
+          "to": "B",
+          "type": "express",
+          "track": "t1"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "B",
+          "to": "A",
+          "track": "t2"
+        },
+        {
+          "at": 20,
+          "from": "A",
+          "to": "C",
+          "type": "express",
+          "track": "t3"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "A",
+          "to": "C",
+          "type": "freight",
+          "track": "t3",
+          "stop": false
+        }
+      ]
+    },
+    {
+      "id": "tc-4",
+      "station": "thanon-chira-jn",
+      "era": 1,
+      "name": "ชุมทางไม่เคยหลับ",
+      "teaches": "สามขา สามชนิดขบวน และเวลารอสูงสุด รวมกันในด่านเดียว",
+      "goal": "ส่ง 9 ขบวนผ่านชุมทางถนนจิระ ห้ามใครรอเกิน 50 วินาที",
+      "speed": 72,
+      "priority": true,
+      "maxWait": 50,
+      "waitGrace": 8,
+      "tips": [
+        "ดูคันที่รอนานที่สุดก่อน แล้วค่อยดูว่าใครด่วนกว่า",
+        "ขบวนเที่ยวล่องจากขอนแก่นกับอุบลฯ ใช้ขานครราชสีมาร่วมกัน ต้องผลัดกันไป"
+      ],
+      "trains": [
+        {
+          "at": 1,
+          "from": "B",
+          "to": "A",
+          "track": "t2"
+        },
+        {
+          "at": 2,
+          "from": "C",
+          "to": "A",
+          "track": "t3"
+        },
+        {
+          "at": 16,
+          "from": "A",
+          "to": "B",
+          "type": "express",
+          "track": "t3"
+        },
+        {
+          "after": {
+            "train": 1,
+            "event": "cleared",
+            "delay": 2
+          },
+          "from": "A",
+          "to": "B",
+          "track": "t2"
+        },
+        {
+          "after": {
+            "train": 2,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "C",
+          "to": "C",
+          "type": "freight",
+          "track": "goods",
+          "dwell": 6
+        },
+        {
+          "at": 45,
+          "from": "B",
+          "to": "A",
+          "type": "express",
+          "track": "t1"
+        },
+        {
+          "after": {
+            "train": 4,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "B",
+          "to": "A",
+          "type": "freight",
+          "track": "t2",
+          "dwell": 6
+        },
+        {
+          "after": {
+            "train": 5,
+            "event": "cleared",
+            "delay": 3
+          },
+          "from": "A",
+          "to": "C",
+          "track": "t3"
+        },
+        {
+          "after": {
+            "train": 6,
+            "event": "cleared",
+            "delay": 4
+          },
+          "from": "A",
+          "to": "B",
+          "type": "express",
+          "track": "t1"
+        }
+      ]
+    }
+  ]
+}
