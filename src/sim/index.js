@@ -22,3 +22,8 @@ export { hint, nextTarget, idle, wantedRoute, isStatic, escapeRoutes, trapsItsel
 export { trackState, trainInfo, snapshot } from './view.js';
 export { createRng } from './rng.js';
 export { T as MESSAGES, way } from './messages.js';
+export { PLAN_VERSION, GRID, MAX_COLS, MAX_ROWS, emptyPlan, starterPlan, normalizePlan, toggleSeg, toggleSignal, setPlatform, planCount, planCost, planToStation, buildPlan } from './editor.js';
+export { routeTable, conflictOf } from './route-table.js';
+export { encodePlan, decodeShare, shareLink } from './share.js';
+export { botPlay, freePlayPack } from './free-play.js';
+export { STAR_BONUS, budgetOf, mergeBest, payout, earnedOf, UPGRADES, upgradeOf, upgradeCost, PIECE_PRICE, REFUND, layoutCharge } from './economy.js';

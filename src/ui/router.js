@@ -3,15 +3,22 @@
 //   '#map'                     แผนที่
 //   '#map/<stationId>'         แผนที่ + แผ่นข้อมูลสถานี
 //   '#play/<stationId>/<missionId>'  หน้าจอเล่นด่าน
+//   '#build'                   โหมดสร้าง (ตัวแก้ผัง), '#build/play' ทดลองเดินรถบนผังที่สร้าง
+//   '#free/<stationId>'        เดินรถอิสระของสถานีที่ผ่านแล้ว (ระบบสัญญาณตามขั้นที่อัปเกรด)
+//   '#share=<รหัส>'            เปิดโหมดสร้างพร้อมผังที่เพื่อนแชร์ (รหัสจาก src/sim/share.js)
 //   '#dev' และ '#dev/<packId>/<missionId>'  ทางเข้าสำหรับนักพัฒนา: เล่นด่านของชุดด่านใดก็ได้โดยไม่ผ่านการปลดล็อก
 // parseRoute / formatRoute เป็นฟังก์ชันล้วน ทดสอบใน Node ได้
 const ID = /^[a-z0-9-]+$/;
 
 export function parseRoute(hash) {
+  const raw = String(hash || '').replace(/^#\/?/, '');
+  if (raw.startsWith('share=')) return { screen: 'build', share: raw.slice(6).slice(0, 8000) };
   const parts = String(hash || '').replace(/^#\/?/, '').split('/').filter(Boolean);
   const ok = s => typeof s === 'string' && ID.test(s);
   if (parts[0] === 'map') return ok(parts[1]) ? { screen: 'map', stationId: parts[1] } : { screen: 'map' };
   if (parts[0] === 'play' && ok(parts[1]) && ok(parts[2])) return { screen: 'play', stationId: parts[1], missionId: parts[2] };
+  if (parts[0] === 'free' && ok(parts[1])) return { screen: 'free', stationId: parts[1] };
+  if (parts[0] === 'build') return parts[1] === 'play' ? { screen: 'build', play: true } : { screen: 'build' };
   if (parts[0] === 'dev') return ok(parts[1]) && ok(parts[2]) ? { screen: 'dev', packId: parts[1], missionId: parts[2] } : { screen: 'dev' };
   return { screen: 'home' };
 }
@@ -19,6 +26,8 @@ export function formatRoute(r) {
   if (!r || r.screen === 'home') return '';
   if (r.screen === 'map') return r.stationId ? `#map/${r.stationId}` : '#map';
   if (r.screen === 'play') return `#play/${r.stationId}/${r.missionId}`;
+  if (r.screen === 'free') return `#free/${r.stationId}`;
+  if (r.screen === 'build') return r.share ? `#share=${r.share}` : r.play ? '#build/play' : '#build';
   if (r.screen === 'dev') return r.packId ? `#dev/${r.packId}/${r.missionId}` : '#dev';
   return '';
 }

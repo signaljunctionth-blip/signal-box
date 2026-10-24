@@ -19,8 +19,27 @@ export const stars3 = n => `<span class="stars3" role="img" aria-label="${n} จ
 export const starCount = (n, max) => `<span class="starcount" role="img" aria-label="ดาว ${n} จาก ${max}">${starIcon(n > 0)}<span aria-hidden="true">${n}/${max}</span></span>`;
 export const LOCK_ICON = '<svg class="ic-lock" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0110 0v2h1a1 1 0 011 1v9a1 1 0 01-1 1H6a1 1 0 01-1-1v-9a1 1 0 011-1zm2 0h6V8a3 3 0 00-6 0z"/></svg>';
 
-// st = สถานะสถานีจาก computeProgress, info = ข้อมูลสถานีจากไฟล์แผนที่, nameOf = id -> ชื่อไทย
-export function sheetHtml(st, info, progress, nameOf, stationNote = '') {
+// เดินรถอิสระ + อัปเกรดระบบสัญญาณของสถานี (M4) ขึ้นเมื่อผ่านทุกภารกิจของสถานีแล้ว
+// free = { balance, owned, selected, levels: [{ name, cost (ราคาจากขั้นที่มี 0 = ใช้ได้เลย), gain }], msg } | null
+export function freeHtml(free) {
+  if (!free) return '';
+  const lv = free.levels.map((l, i) => {
+    const on = i === free.selected, have = i <= free.owned;
+    return `<li class="fr-lv${on ? ' on' : ''}"><div><b>${esc(l.name)}</b><span>${esc(l.gain)}</span></div>
+      ${on ? '<span class="fr-use">ใช้อยู่</span>' : `<button class="btn sm${have ? '' : ' go'}" type="button" data-act="era" data-level="${i}" ${!have && l.cost > free.balance ? 'disabled' : ''}>${have ? 'ใช้ขั้นนี้' : `อัปเกรด ${l.cost}`}</button>`}</li>`;
+  }).join('');
+  return `
+    <section class="freebox" aria-labelledby="free-title">
+      <h3 id="free-title" class="sheet-sub">เดินรถอิสระ · งบคงเหลือ ${free.balance}</h3>
+      <p class="muted">อัปเกรดใช้กับการเดินรถอิสระของสถานีนี้เท่านั้น ภารกิจสอนใช้ระบบเดิม ถอยกลับขั้นที่ซื้อแล้วได้ฟรี</p>
+      <ol class="fr-levels">${lv}</ol>
+      ${free.msg ? `<p class="fr-msg" role="status">${esc(free.msg)}</p>` : ''}
+      <button class="btn go" type="button" data-act="free">เริ่มเดินรถอิสระ</button>
+    </section>`;
+}
+
+// st = สถานะสถานีจาก computeProgress, info = ข้อมูลสถานีจากไฟล์แผนที่, nameOf = id -> ชื่อไทย, free = ดู freeHtml
+export function sheetHtml(st, info, progress, nameOf, stationNote = '', free = null) {
   const head = `
     <header class="sheet-h">
       <div class="sheet-ht">
@@ -71,5 +90,5 @@ export function sheetHtml(st, info, progress, nameOf, stationNote = '') {
   // วางใต้กล่องล็อก ไม่ใช่ท้ายรายการ: จอ 844×390 ไม่ต้องเลื่อนก็เห็นปุ่ม
   return `${head}${lock}${skip}
     <h3 class="sheet-sub">ภารกิจ ${st.passed}/${st.missions.length} · ชนะได้ 1 ดาวก็เปิดภารกิจถัดไป</h3>
-    <ol class="missions">${rows}</ol>`;
+    <ol class="missions">${rows}</ol>${st.done ? freeHtml(free) : ''}`;
 }

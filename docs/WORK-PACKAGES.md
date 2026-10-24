@@ -103,6 +103,7 @@
   > ทำชุดงาน WP6 ใน docs/WORK-PACKAGES.md อ่าน CLAUDE.md, docs/STATIONS.md, docs/DATA-PIPELINE.md และกติการ่วมในไฟล์นั้นก่อน งานนี้ค้นคว้าอย่างเดียว ไม่แก้โค้ด
 
 ## WP7 M4 งบประมาณ อัปเกรด โหมดสร้าง แชร์ผัง
+- **สถานะ:** ทำครบใน branch `wp7-budget-editor` (2026-10-24) รอ PR/merge: ตัวแก้ผังบนกริด (`src/sim/editor.js`, หน้าจอ `src/ui/screen-build.js` ที่ `#build`), ตารางอินเตอร์ล็อกอัตโนมัติ (`route-table.js` เทสต์เทียบเอนจินทุกคู่), รหัสและลิงก์แชร์ (`share.js`, `#share=`), เดินรถอิสระ (`free-play.js`, `#free/<สถานี>`), งบ/อัปเกรด (`economy.js`, `src/ui/wallet.js`) ตามที่เจเลือกใน DECISIONS ไม่แตะ `src/ui/screen-play.js` (เล่นผ่าน `ctx.game`)
 - **ขึ้นกับ:** WP4
 - **งาน:** ตาม M4 ใน ROADMAP: งบประมาณและดาว (เล่นซ้ำได้งบเฉพาะส่วนที่ดีกว่าเดิม), อัปเกรดระบบสัญญาณต่อสถานี, ตัวแก้ผังบนกริด, ตารางอินเตอร์ล็อกอัตโนมัติ, แชร์ผังด้วยรหัสและลิงก์
 - **ผู้ตรวจ:** game-designer, signalling-engineer, qa-tester
