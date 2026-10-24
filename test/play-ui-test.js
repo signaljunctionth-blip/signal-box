@@ -12,7 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
-const { serveGame } = require('./lib/serve.js');
+const { serveGame, prefer2D } = require('./lib/serve.js');
 
 const root = path.resolve(__dirname, '..'), shots = path.join(__dirname, 'screenshots');
 const src = f => 'file://' + path.join(root, 'src', f).split(path.sep).map(encodeURIComponent).join('/').replace(/%3A/g, ':');
@@ -59,7 +59,7 @@ async function browser() {
   const game = await serveGame(), b = await chromium.launch();
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const open = async (v, scheme, tag) => {
-    const ctx = await b.newContext({ viewport: { width: v.width, height: v.height }, deviceScaleFactor: v.dpr, hasTouch: v.touch, colorScheme: scheme });
+    const ctx = await prefer2D(await b.newContext({ viewport: { width: v.width, height: v.height }, deviceScaleFactor: v.dpr, hasTouch: v.touch, colorScheme: scheme }));   // ตรวจแผงผังเส้น
     const p = await ctx.newPage();
     p.on('pageerror', e => fail(`${tag}: page error: ${e.message}`));
     p.on('console', m => { if (m.type() === 'error') fail(`${tag}: console error: ${m.text()}`); });
@@ -308,7 +308,7 @@ async function browser() {
     }
     // ข้อ 12 (ข): ผู้เล่นทั่วไป (ไม่ใช่เบราว์เซอร์ของเครื่องมือทดสอบ) พิมพ์ #dev แล้วต้องถูกพาไปแผนที่ ใส่ ?dev ก็เปิดไม่ได้ (เปิดได้เฉพาะ dev server)
     {
-      const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, reducedMotion: 'reduce' });
+      const ctx = await prefer2D(await b.newContext({ viewport: { width: 844, height: 390 }, reducedMotion: 'reduce' }));
       await ctx.addInitScript(() => Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false }));
       const p = await ctx.newPage();
       p.on('pageerror', e => fail(`ข้อ 12: page error: ${e.message}`));

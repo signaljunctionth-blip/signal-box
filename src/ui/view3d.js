@@ -6,10 +6,18 @@ import { destinations } from '../render/panel-geom.js';
 import { blockState } from '../sim/index.js';
 import { esc } from './station-sheet.js';
 
-// สถานีที่มีฉาก 3 มิติแล้ว (M1.5 เริ่มที่ท่ากิเลน) สถานีอื่นยังเป็นแผงผังเส้นอย่างเดียว
+// สถานีที่มีฉาก 3 มิติ: ครบ 5 สถานีของเส้นทางสอน (WP10) ผังสมมุติและโหมดประวัติศาสตร์คงเป็นแผงผังเส้น 2 มิติ
 export const SCENE_STATIONS = ['tha-kilen', 'wang-pho', 'nam-tok', 'kanchanaburi', 'nong-pla-duk-jn'];
 export const has3D = id => SCENE_STATIONS.includes(id);
 export const pref3D = () => readPref() || {};
+// เครื่องนี้มี WebGL ไหม (ตรวจครั้งเดียว ไม่โหลด three.js) ใช้ตัดสินค่าเริ่มต้น 3 มิติ
+let glOk = null;
+export function canWebGL() {
+  if (glOk === null) { try { const c = document.createElement('canvas'), gl = c.getContext('webgl2') || c.getContext('webgl'); glOk = !!gl; if (gl) { const x = gl.getExtension('WEBGL_lose_context'); if (x) x.loseContext(); } } catch { glOk = false; } }
+  return glOk;
+}
+// เปิดฉาก 3 มิติตอนเข้าภารกิจไหม: ผู้เล่นเคยเลือกไว้ใช้ค่านั้น ยังไม่เคยเลือก = 3 มิติเมื่อเครื่องรองรับ (WP10)
+export const want3D = () => { const on = pref3D().on; return on === undefined ? canWebGL() : !!on; };
 export const savePref3D = v => writePref(undefined, { ...pref3D(), ...v });
 export { TIERS };
 
@@ -195,7 +203,7 @@ export function mountView3D(board, { stage, getGame, onPress, getHint, say, stat
   cv.addEventListener('pointerdown', onDown); cv.addEventListener('pointermove', onMove);
   cv.addEventListener('pointerup', onUp); cv.addEventListener('pointercancel', onUp); cv.addEventListener('wheel', onWheel, { passive: false }); cv.addEventListener('contextmenu', noMenu);
   chips.addEventListener('pointerdown', onChipDown); chips.addEventListener('pointermove', onChipMove);
-  chips.addEventListener('pointerup', onChipUp); chips.addEventListener('pointercancel', onChipUp);
+  chips.addEventListener('pointerup', onChipUp); chips.addEventListener('pointercancel', onChipUp); chips.addEventListener('wheel', onWheel, { passive: false });   // ล้อเมาส์บนป้ายก็ซูม
   home.addEventListener('click', () => { if (view) { view.camera.reset(); dirty = true; } });
 
   return {

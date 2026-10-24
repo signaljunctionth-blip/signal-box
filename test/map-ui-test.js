@@ -8,7 +8,7 @@ const path = require('path');
 const assert = require('assert');
 
 const root = path.resolve(__dirname, '..'), shots = path.join(__dirname, 'screenshots');
-const { serveGame } = require('./lib/serve.js');
+const { serveGame, prefer2D } = require('./lib/serve.js');
 const MAP = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../data/thailand-map.json'), 'utf8'));
 let URL0 = '';
 const src = f => 'file://' + path.join(root, 'src', f).split(path.sep).map(encodeURIComponent).join('/').replace(/%3A/g, ':');
@@ -141,7 +141,7 @@ async function browser() {
   try {
     for (const v of VIEWS) for (const scheme of ['light', 'dark']) {
       const tag = `${v.name}-${scheme}`, full = scheme === 'light';
-      const ctx = await b.newContext({ viewport: { width: v.width, height: v.height }, deviceScaleFactor: v.dpr, hasTouch: v.touch, colorScheme: scheme });
+      const ctx = await prefer2D(await b.newContext({ viewport: { width: v.width, height: v.height }, deviceScaleFactor: v.dpr, hasTouch: v.touch, colorScheme: scheme }));
       const p = await ctx.newPage();
       p.on('pageerror', e => fail(`${tag}: page error: ${e.message}`));
       p.on('console', m => { if (m.type() === 'error') fail(`${tag}: console error: ${m.text()}`); });
@@ -315,7 +315,7 @@ async function browser() {
 
     // จอเตี้ย: รายการ "สายรถไฟ" เปิดแล้วต้องไม่ทับปุ่มแถบบน ไม่ล้นจอ และแตะแผนที่แล้วปิดเอง ให้ปุ่มสถานีกลับมาแตะได้
     for (const v of VIEWS.filter(x => Math.min(x.width, x.height) < 500)) {
-      const tag = `${v.name} สายรถไฟ`, ctx = await b.newContext({ viewport: { width: v.width, height: v.height }, deviceScaleFactor: v.dpr, hasTouch: true, reducedMotion: 'reduce' }), p = await ctx.newPage();
+      const tag = `${v.name} สายรถไฟ`, ctx = await prefer2D(await b.newContext({ viewport: { width: v.width, height: v.height }, deviceScaleFactor: v.dpr, hasTouch: true, reducedMotion: 'reduce' })), p = await ctx.newPage();
       p.on('pageerror', e => fail(`${tag}: page error: ${e.message}`));
       await p.goto(URL0 + '#map', { waitUntil: 'load' });
       await p.waitForFunction(() => window.__sjApp && window.__sjApp.map && window.__sjApp.map.camera());
@@ -336,7 +336,7 @@ async function browser() {
 
     // จอเล็กกว่า 844×390: ปุ่มของหน้าแผนที่ต้องไม่ซ้อนกัน ทั้งตอนปิดและเปิดแผ่นข้อมูลสถานี
     for (const [w, h] of [[667, 375], [568, 320]]) for (const hash of ['#map', '#map/tha-kilen']) {
-      const tag = `${w}x${h} ${hash}`, ctx = await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, hasTouch: true, reducedMotion: 'reduce' }), p = await ctx.newPage();
+      const tag = `${w}x${h} ${hash}`, ctx = await prefer2D(await b.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, hasTouch: true, reducedMotion: 'reduce' })), p = await ctx.newPage();
       p.on('pageerror', e => fail(`${tag}: page error: ${e.message}`));
       await p.goto(URL0 + hash, { waitUntil: 'load' });
       await p.waitForFunction(() => window.__sjApp && window.__sjApp.map && window.__sjApp.map.camera());
@@ -352,7 +352,7 @@ async function browser() {
 
     // สองแท็บ: แท็บหนึ่งได้ดาว อีกแท็บกลับมาแสดง (visibilitychange) ต้องอ่านเซฟใหม่แล้วป้ายสถานีอัปเดต
     {
-      const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, reducedMotion: 'reduce' }), a = await ctx.newPage(), c = await ctx.newPage();
+      const ctx = await prefer2D(await b.newContext({ viewport: { width: 844, height: 390 }, reducedMotion: 'reduce' })), a = await ctx.newPage(), c = await ctx.newPage();
       for (const p of [a, c]) { await p.goto(URL0 + '#map', { waitUntil: 'load' }); await p.waitForFunction(() => window.__sjApp && window.__sjApp.map && window.__sjApp.map.camera()); }
       await c.evaluate(() => window.__sjApp.career.setStars('tk-1', 3, 450));
       const before = await a.evaluate(() => window.__sjApp.progress().totalStars);
@@ -363,7 +363,7 @@ async function browser() {
     }
 
     // prefers-reduced-motion: กล้องไม่เลื่อนเอง ปุ่มพาไปทันที และเปิดลิงก์ตรงเข้าสถานีได้
-    const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, reducedMotion: 'reduce' });
+    const ctx = await prefer2D(await b.newContext({ viewport: { width: 844, height: 390 }, reducedMotion: 'reduce' }));
     const p = await ctx.newPage();
     p.on('pageerror', e => fail(`reduced-motion: page error: ${e.message}`));
     await p.goto(URL0 + '#map', { waitUntil: 'load' });

@@ -9,6 +9,7 @@ const http = require('http');
 const { chromium } = require('playwright');
 const { playAll, PROTOTYPE_PCT } = require('./lib/bot.js');
 const { nodeHook } = require('./lib/node-hook.js');
+const { prefer2D } = require('./lib/serve.js');
 
 const root = path.resolve(__dirname, '..'), dist = path.join(root, 'dist'), shots = path.join(__dirname, 'screenshots');
 const fails = [];
@@ -39,7 +40,7 @@ const FREEZE = [[0, 180], [2, 420], [4, 300], [7, 560], [11, 700]];
   fs.mkdirSync(shots, { recursive: true });
   const b = await chromium.launch();
   const open = async (url, view, label) => {
-    const ctx = await b.newContext({ viewport: { width: view.width, height: view.height }, deviceScaleFactor: view.dpr });
+    const ctx = await prefer2D(await b.newContext({ viewport: { width: view.width, height: view.height }, deviceScaleFactor: view.dpr }));   // บอทแตะแผงผังเส้น
     const p = await ctx.newPage();
     p.on('pageerror', e => fail(`${label}: page error: ${e.message}`));
     p.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') fail(`${label}: console ${m.type()}: ${m.text()}`); });
