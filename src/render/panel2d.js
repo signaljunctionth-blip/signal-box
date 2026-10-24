@@ -7,8 +7,10 @@ import { trackState, blockState, trainInfo, sigName } from '../sim/index.js';
 import { panelGeom, targetCenter, destinations, along, tokenBoxes } from './panel-geom.js';
 
 const VARS = { board: '--board', track: '--track', route: '--route', occ: '--occ', ink: '--ink', muted: '--muted', paper: '--paper', line: '--line',
-  red: '--red', green: '--green', amber: '--amber', navy: '--navy', lampOff: '--lamp-off', onColor: '--on-color', onAmber: '--on-amber', stripe: '--train-stripe' };
+  red: '--red', green: '--green', amber: '--amber', navy: '--navy', lampOff: '--lamp-off', onColor: '--on-color', onAmber: '--on-amber', stripe: '--train-stripe', freight: '--freight' };
 const TRAIN_VARS = ['--exp', '--t1', '--t2', '--t3'];
+// ป้ายชนิดขบวน: t.kind ('local' | 'express' | 'freight') ส่วน t.exp แปลว่าผ่านไม่จอด (ด่วน หรือสินค้าที่ไม่จอด)
+const KIND_TH = { express: 'ด่วน', freight: 'สินค้า' };
 const MIN_TEXT_PX = 11.5, MAX_SCALE = 1.5;
 
 // cv = canvas, styleEl = element ที่อ่าน CSS variable
@@ -165,7 +167,7 @@ export function createPanel(cv, styleEl = document.documentElement) {
     SPOTS.sort((a, b) => a[2] - b[2]);
     for (const t of g.trains) {
       const tr = t.trail; if (tr.length < 2) continue;
-      const info = trainInfo(g, t), col = trainColor(t.plat);
+      const info = trainInfo(g, t), fr = t.kind === 'freight', col = fr ? C.freight : trainColor(t.plat), kw = KIND_TH[t.kind] || (t.exp ? 'ด่วน' : '');
       const path = () => { cx.beginPath(); tr.forEach((q, i) => (i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y))); };
       cx.strokeStyle = col; cx.lineWidth = 18; cx.lineCap = 'round'; cx.lineJoin = 'round'; path(); cx.stroke();
       cx.strokeStyle = C.stripe; cx.lineWidth = 5; cx.setLineDash([8, 7]); path(); cx.stroke(); cx.setLineDash([]);
@@ -173,10 +175,10 @@ export function createPanel(cv, styleEl = document.documentElement) {
       cx.save(); cx.translate(h.x, h.y); cx.rotate(a);
       cx.fillStyle = C.navy; cx.beginPath(); cx.moveTo(7, 0); cx.lineTo(-4, -6.5); cx.lineTo(-4, 6.5); cx.closePath(); cx.fill(); cx.restore();
       const mid = tr[Math.floor(tr.length / 2)];
-      const want = t.exp ? 'ด่วน' : t.state === 'arriving' ? `เข้าทาง ${t.plat}` : '';
+      const want = t.exp ? kw : t.state === 'arriving' ? `${kw ? `${kw} ` : ''}เข้าทาง ${t.plat}` : '';
       const lab = info.to && L.portals[info.to] ? L.portals[info.to].label : '', to = !lab || /^ไป/.test(lab) ? lab : `ไป${lab}`;
       // ขบวนที่ถือห่วง: เว้นที่หน้าป้ายไว้วาดห่วงเหลือง (ป้ายอยู่ในจอเสมอ แม้ตัวรถยังโผล่ไม่พ้นขอบ)
-      const text = (info.token ? '\u2003\u2002' : '') + `${t.id} · ${t.state === 'arriving' ? want : t.state === 'dwell' ? 'กำลังจอด' : (t.exp ? 'ด่วน ' : '') + (to || 'พร้อมออก')}`;
+      const text = (info.token ? '\u2003\u2002' : '') + `${t.id} · ${t.state === 'arriving' ? want : t.state === 'dwell' ? (fr ? 'สินค้า จอดอยู่' : 'กำลังจอด') : (kw ? `${kw} ` : '') + (to || 'พร้อมออก')}`;
       // ป้ายอยู่เหนือขบวน ถ้าตรงนั้นทับของที่ต้องแตะหรือป้ายอื่น ลองใต้ขบวน แล้วเลื่อนไปตามแนวขบวน เลือกที่ที่ทับน้อยที่สุด
       cx.font = font(12.5, 600); const bw = cx.measureText(text).width + 18, bh = fs(12.5) + 10;
       let bx = mid.x, by = mid.y - 27, bestScore = Infinity;

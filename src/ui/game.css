@@ -5,16 +5,16 @@
   --bg:#EAF5F3; --paper:#FFFDF8; --ink:#22313E; --muted:#5B6E7A; --line:#D2E2DE;
   --navy:#2B3A4A; --cream:#FFE6A8; --red:#E9525A; --amber:#F2A33A; --green:#2FA872;
   --board:#F6FBF9; --track:#8FA3AC; --route:#7FD6A8; --occ:#F59AA0;
-  --t1:#EF7FA9; --t2:#4FA9DE; --t3:#EE9A2E; --exp:#8C7BDB;
+  --t1:#EF7FA9; --t2:#4FA9DE; --t3:#EE9A2E; --exp:#8C7BDB; --freight:#7E6F60;
   --lamp-off:#41505d; --on-color:#fff; --on-amber:#2B3A4A; --train-stripe:rgba(255,255,255,.75);
   --display:"Mitr","Anuphan",system-ui,sans-serif; --body:"Anuphan","Noto Sans Thai",system-ui,sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F;
-  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B; color-scheme:dark}}
+  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B; --freight:#9A8A78; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F;
-  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B; color-scheme:dark}
+  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B; --freight:#9A8A78; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{height:100%;margin:0;background:var(--bg)}

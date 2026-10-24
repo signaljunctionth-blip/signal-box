@@ -11,7 +11,7 @@
   --map-sea:#DCEEF0; --map-land:#FFFDF8; --map-coast:#9DBDB8; --map-prov:#E3EBE6; --map-ink:#22313E; --map-faint:#A9B8BC;
   --ln-northeast:#2FA872; --ln-north:#4FA9DE; --ln-south:#D9960B; --ln-maeklong:#8A979C; --ln-east:#7B52B5; --ln-west:#FFFFFF; --ln-west-edge:#2B3A4A; --ln-other:#B5C0C3;
   --mk-done-bg:#2B3A4A; --mk-done-ink:#FFE6A8; --mk-lock-bg:#EEF2F0;
-  --board:#F6FBF9; --track:#8FA3AC; --route:#7FD6A8; --occ:#F59AA0; --t1:#EF7FA9; --t2:#4FA9DE; --t3:#EE9A2E; --exp:#8C7BDB;
+  --board:#F6FBF9; --track:#8FA3AC; --route:#7FD6A8; --occ:#F59AA0; --t1:#EF7FA9; --t2:#4FA9DE; --t3:#EE9A2E; --exp:#8C7BDB; --freight:#7E6F60;
   --lamp-off:#41505d; --on-color:#fff; --on-amber:#2B3A4A; --train-stripe:rgba(255,255,255,.75);
   --display:"Mitr","Anuphan",system-ui,sans-serif; --body:"Anuphan","Noto Sans Thai",system-ui,sans-serif;
   color-scheme:light;
@@ -21,14 +21,14 @@
   --map-sea:#0F1A1B; --map-land:#1E2E30; --map-coast:#4A6462; --map-prov:#283A3C; --map-ink:#E9F1EF; --map-faint:#56696B;
   --ln-northeast:#4FC08E; --ln-north:#7CC6F0; --ln-south:#F2C14E; --ln-maeklong:#8D9DA1; --ln-east:#A387E0; --ln-west:#F4F7F6; --ln-west-edge:#5A7BA6;
   --ln-other:#5F7377; --mk-done-bg:#FFE6A8; --mk-done-ink:#2B3A4A; --mk-lock-bg:#233436;
-  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B;
+  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B; --freight:#9A8A78;
   color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#13201F; --paper:#1B2A2C; --ink:#E9F1EF; --muted:#9EB2B0; --line:#2C3D3F; --link:#7FD6A8; --star:#F2B24A; --shadow:0 2px 10px rgba(0,0,0,.4);
   --map-sea:#0F1A1B; --map-land:#1E2E30; --map-coast:#4A6462; --map-prov:#283A3C; --map-ink:#E9F1EF; --map-faint:#56696B;
   --ln-northeast:#4FC08E; --ln-north:#7CC6F0; --ln-south:#F2C14E; --ln-maeklong:#8D9DA1; --ln-east:#A387E0; --ln-west:#F4F7F6; --ln-west-edge:#5A7BA6;
   --ln-other:#5F7377; --mk-done-bg:#FFE6A8; --mk-done-ink:#2B3A4A; --mk-lock-bg:#233436;
-  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B;
+  --board:#16292B; --track:#6F878C; --route:#3E9B6C; --occ:#B4545B; --freight:#9A8A78;
   color-scheme:dark}
 
 *{box-sizing:border-box}

@@ -18,7 +18,8 @@ const VIEWS = [
 ];
 const NAMTOK = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/levels/namtok.json'), 'utf8'));
 // เซฟที่ผ่านทุกภารกิจ 3 ดาว: งบ 16 × 190 และทุกสถานีผ่านครบ (เปิดเดินรถอิสระ)
-const RICH = JSON.stringify({ v: 2, packs: { [NAMTOK.id]: { stars: [], best: Object.fromEntries(NAMTOK.levels.map(l => [l.id, { stars: 3, score: 900 }])) } } });
+// เซฟผ่านเส้นทางสอนครบ และเคยเห็นหน้าเลือกสายแล้ว (ไม่ให้หน้าเลือกสายที่เปิดเองครั้งแรกบังแผ่นสถานี)
+const RICH = JSON.stringify({ v: 2, packs: { [NAMTOK.id]: { stars: [], best: Object.fromEntries(NAMTOK.levels.map(l => [l.id, { stars: 3, score: 900 }])) } }, flags: { 'line-pick-seen': true } });
 const LOOP = [[5, 4], [6, 3], [7, 2], [8, 2], [9, 2], [10, 2], [11, 2], [12, 3], [13, 4]];
 
 (async () => {

@@ -9,12 +9,15 @@ export { payout, upgradeOf, upgradeCost, freePlayPack, UPGRADES };
 const KEYS = ['straight', 'diagonal', 'points', 'platformCells', 'signals'];
 const intOr = (v, d) => (Number.isInteger(v) && v >= 0 ? v : d);
 
-// save = src/save, bests() = รายการผลดีสุด [{ stars, score }] ของทุกภารกิจในชุดภารกิจหลัก, starterCounts = ชิ้นส่วนของผังเริ่มต้น (ให้ฟรี)
-export function createWallet(save, bests, starterCounts = planCount(starterPlan())) {
+// save = src/save, bests() = รายการผลดีสุด [{ stars, score }] ของทุกภารกิจในทุกชุดอาชีพ, starterCounts = ชิ้นส่วนของผังเริ่มต้น (ให้ฟรี)
+// baseOf(สถานี) = ขั้นอัปเกรด (ดัชนี UPGRADES) ที่สถานีมีอยู่แล้วตั้งแต่ต้น: สถานีของชุดที่ eras เริ่มที่ยุคสูงกว่า (เช่น สายอีสานเริ่มที่ไฟสี)
+//   ขั้นต่ำกว่านั้นไม่มีให้เลือก และไม่ต้องจ่ายค่าขั้นนั้น
+export function createWallet(save, bests, starterCounts = planCount(starterPlan()), baseOf = () => 0) {
   const flag = (k, d) => (save.getFlag ? save.getFlag(k, d) : d);
   const set = (k, v) => (save.setFlag ? save.setFlag(k, v) : false);
   const spent = () => Math.max(0, Number(flag('budgetSpent', 0)) || 0);
-  const owned = id => Math.min(UPGRADES.length - 1, intOr(flag(`upg:${id}`, 0), 0));
+  const base = id => Math.min(UPGRADES.length - 1, intOr(baseOf(id), 0));
+  const owned = id => Math.max(base(id), Math.min(UPGRADES.length - 1, intOr(flag(`upg:${id}`, 0), 0)));
   const paid = () => {
     const s = flag('layoutPaid', null);
     if (typeof s !== 'string') return { ...starterCounts };
@@ -26,11 +29,11 @@ export function createWallet(save, bests, starterCounts = planCount(starterPlan(
     earned: () => earnedOf(bests()),
     spent,
     balance: () => Math.max(0, w.earned() - spent()), // เซฟที่ถูกแก้ยอดใช้ไปเกินงบ: แสดง 0 ไม่ติดลบ
-    owned,
-    selected: id => Math.min(owned(id), intOr(flag(`era:${id}`, owned(id)), owned(id))),
+    owned, base,
+    selected: id => Math.max(base(id), Math.min(owned(id), intOr(flag(`era:${id}`, owned(id)), owned(id)))),
     // ใช้ขั้น level: ขั้นที่ซื้อแล้ว (หรือต่ำกว่า) เลือกได้ฟรี ขั้นที่สูงกว่าต้องจ่าย คืน { ok, cost, reason }
     choose(id, level) {
-      if (!Number.isInteger(level) || level < 0 || level >= UPGRADES.length) return { ok: false, cost: 0, reason: 'ไม่มีขั้นนี้' };
+      if (!Number.isInteger(level) || level < base(id) || level >= UPGRADES.length) return { ok: false, cost: 0, reason: 'ไม่มีขั้นนี้' };
       const have = owned(id), cost = upgradeCost(have, level);
       if (cost > w.balance()) return { ok: false, cost, reason: `งบไม่พอ ต้องใช้ ${cost} มีอยู่ ${w.balance()}` };
       if (cost > 0) { set('budgetSpent', spent() + cost); set(`upg:${id}`, level); }

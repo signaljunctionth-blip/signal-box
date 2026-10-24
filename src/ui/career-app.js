@@ -3,9 +3,9 @@
 // ดาวอ่าน/เขียนผ่าน src/save ด้วย key = levelKey(lv) ของ sim และสถานะปลดล็อกใช้ unlockState ของ sim: แผนที่กับหน้าเล่นจึงตรงกันเสมอ
 import { createStage, canFullscreen, toggleFullscreen, watchFullscreen } from './stage.js';
 import { createRouter } from './router.js';
-import { computeProgress, canPlay } from './progress.js';
+import { computeCareer, canPlay } from './progress.js';
 import { createCareerSave } from './career-save.js';
-import { CAREER_PACK_ID } from './career-id.js';
+import { CAREER_PACK_ID, CAREER_PACKS } from './career-id.js';
 import { scene } from '../audio/index.js';
 import { installSoundMenu } from '../audio/ui.js';
 
@@ -17,7 +17,9 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
   const stage = createStage($('stage'));
   installSoundMenu(stage);
   const screens = { home: $('s-home'), map: $('s-map'), play: $('s-play'), build: $('s-build') };
-  const career = createCareerSave(save, CAREER_PACK_ID);
+  // ดาวเก็บแยกตาม id ชุด (เซฟเดิมของเส้นทางสอนอยู่ที่ 'namtok' เหมือนเดิม) career = ตัวห่อของเส้นทางสอน
+  const saves = Object.fromEntries(CAREER_PACKS.map(id => [id, createCareerSave(save, id)])), career = saves[CAREER_PACK_ID];
+  const allStars = () => CAREER_PACKS.reduce((n, id) => n + save.totalStars(id), 0);
   const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   const memFlags = {};
@@ -33,14 +35,22 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
   // อ่านเซฟจากที่เก็บใหม่ (อีกแท็บอาจเขียนไปแล้ว) ถ้าอ่านแล้วดาวน้อยกว่าที่มีในหน่วยความจำ แปลว่าที่เก็บใช้ไม่ได้ (โหมดส่วนตัว/เต็ม)
   // ให้คงความคืบหน้าในหน่วยความจำไว้ ไม่งั้นผู้เล่นที่เซฟไม่ได้จะเห็นดาวหายทุกครั้งที่กลับแผนที่
   function reloadSave() {
-    const before = save.totalStars(CAREER_PACK_ID), code = save.exportCode();
+    const before = allStars(), code = save.exportCode();
     save.reload();
-    if (save.totalStars(CAREER_PACK_ID) < before) save.importCode(code);
+    if (allStars() < before) save.importCode(code);
   }
-  const starsOf = lv => career.stars(D.levelKey(lv));
-  // ธง "ข้ามบทสอน" (WP4.5) อยู่ในเซฟ: เปิดทุกสถานีของเส้นทางสอน ไม่ให้ดาว
-  const SKIP_FLAG = 'skipTutorial';
-  const progress = () => computeProgress(D.career, starsOf, D.unlockState, { skip: memFlags[SKIP_FLAG] === true || (!!save.getFlag && save.getFlag(SKIP_FLAG) === true) });
+  const starsOf = (packId, lv) => saves[packId].stars(D.levelKey(lv));
+  // ธง "ข้ามบทสอน" (WP4.5) อยู่ในเซฟ: เปิดทุกสถานีของเส้นทางสอน และเปิดสายถัดไป ไม่ให้ดาว
+  const SKIP_FLAG = 'skipTutorial', LINE_FLAG = 'careerLine';
+  const flagVal = (k, d) => (Object.hasOwn(memFlags, k) ? memFlags[k] : save.getFlag ? save.getFlag(k, d) : d);
+  const putFlag = (k, v) => { memFlags[k] = v; if (save.setFlag) save.setFlag(k, v); };
+  // ความคืบหน้าของทุกชุดอาชีพ (หน้าแผนที่ หน้าเลือกสาย) และของเส้นทางสอนอย่างเดียว (โหมดสร้าง hook เดิมของเทสต์)
+  const careerP = () => computeCareer(D.careers, starsOf, D.unlockState, { skip: flagVal(SKIP_FLAG, false) === true, active: flagVal(LINE_FLAG, null) });
+  const progress = () => careerP().tutorial;
+  const packById = id => D.careers.find(p => p.id === id) || null;
+  const packOfStation = id => packById(careerP().stationPack[id]);
+  // ขั้นอัปเกรดเริ่มต้นของสถานี: ชุดที่มียุคน้อยกว่าขั้นอัปเกรดทั้งหมด เริ่มจากยุคท้าย ๆ (สายอีสานเริ่มที่ไฟสี)
+  const baseOf = id => { const p = D && D.careers.find(x => x.stations.some(s => s.station === id)); return p ? Math.max(0, D.econ.UPGRADES.length - p.eras.length) : 0; };
 
   function closePlay() { if (play) { play.destroy(); play = null; } screens.play.innerHTML = ''; }
   function showOnly(name) {
@@ -56,7 +66,7 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
   }
   function paintHome() {
     const b = $('b-map');
-    if (b) b.textContent = save.hasProgress(CAREER_PACK_ID) ? 'เล่นต่อ' : 'เริ่มเล่น';
+    if (b) b.textContent = CAREER_PACKS.some(id => save.hasProgress(id)) ? 'เล่นต่อ' : 'เริ่มเล่น';
   }
 
   // โหลดของเกมครั้งเดียว: ไฟล์แผนที่ หน้าแผนที่ ข้อมูลผัง+ชุดด่าน (ผ่านตัวตรวจของ sim) และหน้าจอเล่น
@@ -65,14 +75,16 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
     loading ||= Promise.all([loadMap(), import('./screen-map.js'), import('./career-data.js'), import('./screen-play.js'), import('./wallet.js')]).then(([data, mapMod, dataMod, playMod, walletMod]) => {
       mapData = data; D = dataMod.loadCareer(); D.mountPlay = mountPlay || playMod.mountPlay;
       if (!D.career) throw new Error(`ชุดภารกิจ ${CAREER_PACK_ID} ใช้ไม่ได้: ${(D.packErrors[CAREER_PACK_ID] || ['ไม่พบไฟล์'])[0]}`);
-      // กระเป๋างบกลาง (WP7): งบที่ได้คิดจากผลดีสุดของทุกภารกิจในชุดหลักทุกครั้ง
+      // กระเป๋างบกลาง (WP7): งบที่ได้คิดจากผลดีสุดของทุกภารกิจในทุกชุดอาชีพทุกครั้ง
       D.econ = walletMod;
-      D.wallet = walletMod.createWallet(save, () => D.career.levels.map(l => save.getBest(CAREER_PACK_ID, D.levelKey(l))));
+      D.wallet = walletMod.createWallet(save, () => D.careers.flatMap(p => p.levels.map(l => save.getBest(p.id, D.levelKey(l)))), undefined, baseOf);
       screens.map.classList.remove('loading');
       mapScreen = mapMod.createMapScreen({
-        root: screens.map, stage, map: data, pack: D.career, getProgress: progress, reducedMotion: () => motion.matches,
+        root: screens.map, stage, map: data, packs: D.careers, geo: D.geo, getProgress: careerP, reducedMotion: () => motion.matches,
         // ธงเล็ก ๆ ในเซฟ (เช่น เคยดูกล้องเลื่อนเข้าเส้นทางสอนแล้ว) ถ้า src/save ยังไม่มี getFlag/setFlag จะจำแค่ในหน่วยความจำ
-        flags: { get: k => (save.getFlag ? !!save.getFlag(k) : !!memFlags[k]), set: k => { memFlags[k] = true; if (save.setFlag) save.setFlag(k, true); } },
+        flags: { get: k => !!flagVal(k, false), set: k => putFlag(k, true) },
+        // เลือกสายในหน้าเลือกสาย: จำไว้เป็นสายที่เล่นอยู่ (ปุ่มบนสุดของแผนที่พาไปสายนี้)
+        onLine: packId => putFlag(LINE_FLAG, packId),
         onHome: () => router.go({ screen: 'home' }),
         onStation: id => {
           const cur = router.current();
@@ -80,11 +92,11 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
           else if (cur.stationId) router.back({ screen: 'map' });
         },
         onPlay: (stationId, missionId) => router.go({ screen: 'play', stationId, missionId }),
-        onSkip: () => { memFlags[SKIP_FLAG] = true; if (save.setFlag) save.setFlag(SKIP_FLAG, true); },
+        onSkip: () => putFlag(SKIP_FLAG, true),
         // เดินรถอิสระและอัปเกรดระบบสัญญาณของสถานีที่ผ่านครบแล้ว
         getFree: (id, msg) => freeInfo(id, msg),
         onEra: (id, level) => {
-          const r = D.wallet.choose(id, level), name = D.career.eras[level].name;
+          const r = D.wallet.choose(id, level), era = packOfStation(id).eras[level - D.wallet.base(id)], name = era ? era.name : '';
           return r.ok ? (r.cost ? `อัปเกรดเป็น${name}แล้ว ใช้งบ ${r.cost}` : `เปลี่ยนเป็น${name}แล้ว`) : r.reason;
         },
         onFree: id => router.go({ screen: 'free', stationId: id }),
@@ -101,15 +113,15 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
   }
 
   function stationInfo(id) {
-    const s = mapData && mapData.namtok.stations.find(x => x.id === id), p = D.career.stations.findIndex(x => x.station === id), L = D.stations[id];
-    return { id, name_th: s ? s.name_th : L ? L.name : id, name_en: s ? s.name_en : '', tier: p < 0 ? null : D.career.stations[p].tier, order: p + 1 };
+    const s = (mapData && mapData.namtok.stations.find(x => x.id === id)) || D.geo[id], pk = packOfStation(id), p = pk ? pk.stations.findIndex(x => x.station === id) : -1, L = D.stations[id];
+    return { id, name_th: s ? s.name_th : L ? L.name : id, name_en: s ? s.name_en : '', tier: p < 0 ? null : pk.stations[p].tier, order: p + 1 };
   }
   const base = () => ({ stage, reducedMotion: () => motion.matches });
 
   // ภารกิจของแผนที่: ต้องปลดล็อกแล้ว ถ้ายังไม่มีข้อมูลเล่นจริง หน้าจอเล่นขึ้น "กำลังสร้าง" เอง
   function openPlay({ stationId, missionId }) {
-    const P = progress(), pack = D.career;
-    if (!canPlay(P, stationId, missionId)) return router.replace({ screen: 'map', stationId: P.byId[stationId] ? stationId : undefined });
+    const CP = careerP(), packId = CP.stationPack[stationId], P = CP.packs[packId], pack = packById(packId);
+    if (!P || !canPlay(P, stationId, missionId)) return router.replace({ screen: 'map', stationId: CP.byId[stationId] ? stationId : undefined });
     showOnly('play'); closePlay();
     const index = pack.levels.findIndex(l => D.levelKey(l) === missionId), lv = pack.levels[index];
     const ctx = {
@@ -117,15 +129,16 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
       game: !lv || lv.error ? null : { pack, index }, stationNote: (pack.stations.find(s => s.station === stationId) || {}).note_th || '',
       finish({ stars = 0, score = 0 } = {}) {
         // งบจ่ายเฉพาะส่วนที่ดีกว่าผลดีสุดเดิม คิดก่อนบันทึกผลรอบนี้ (0 ดาวไม่ได้งบ)
-        const pay = D.econ.payout(save.getBest(CAREER_PACK_ID, missionId), { stars, score });
+        const pay = D.econ.payout(save.getBest(packId, missionId), { stars, score });
         const note = stars > 0 ? (pay > 0 ? `ได้งบ +${pay} (ส่วนที่ดีกว่าผลเดิม)` : 'งบเท่าเดิม ได้งบเพิ่มเมื่อทำได้ดีกว่าผลเดิม') : '';
-        const before = progress(), saved = stars > 0 ? career.setStars(missionId, stars, score) : true, after = progress();
+        const before = careerP(), saved = stars > 0 ? saves[packId].setStars(missionId, stars, score) : true, after = careerP(), mineP = after.packs[packId];
         paintHome();
         if (mapScreen) mapScreen.refresh();
         // ภารกิจถัดไปที่เสนอ: อันถัดไปในสถานีเดียวกันถ้าเปิดแล้ว ไม่งั้นอันแรกที่ยังไม่ผ่านของทั้งเส้นทาง
         const mine = after.byId[stationId].missions, at = mine.findIndex(m => m.id === missionId), nx = mine[at + 1];
-        const next = nx && nx.unlocked ? { stationId, missionId: nx.id } : after.next && after.next.missionId !== missionId ? after.next : null;
-        return { saved, next, note, newlyUnlocked: after.stations.filter(s => s.unlocked && !before.byId[s.id].unlocked).map(s => ({ id: s.id, name: stationInfo(s.id).name_th })) };
+        const next = nx && nx.unlocked ? { stationId, missionId: nx.id } : mineP.next && mineP.next.missionId !== missionId ? mineP.next : null;
+        // สถานีที่เพิ่งเปิดของทุกสาย (ผ่านน้ำตกครบ = สถานีแรกของสายอีสานเปิดด้วย)
+        return { saved, next, note, newlyUnlocked: Object.values(after.byId).filter(s => s.unlocked && before.byId[s.id] && !before.byId[s.id].unlocked).map(s => ({ id: s.id, name: stationInfo(s.id).name_th })) };
       },
       // กลับไปแผ่นข้อมูลของสถานีของภารกิจนี้เสมอ: ถ้าหน้าก่อนในประวัติคือแผ่นของสถานีนี้ ถอย 1 ขั้น ไม่งั้น (เช่น มาจาก "ภารกิจถัดไป" ข้ามสถานี) แทนที่หน้า
       exit: () => (sheetStation === stationId ? router.back({ screen: 'map', stationId }) : router.replace({ screen: 'map', stationId })),
@@ -151,7 +164,7 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
       station: { id: lv.station, name_th: L ? L.name : lv.station, name_en: '', tier: st ? st.tier : null, order: 0 },
       finish({ stars = 0, score = 0 } = {}) {
         // ชุดภารกิจจริงของแผนที่: ทางเข้านักพัฒนาไม่เขียนเซฟ (ข้ามการปลดล็อกมาได้ ดาวจึงไม่นับ) ชุดทดสอบอื่นเก็บแยกตาม id ของชุดนั้น
-        const real = packId === CAREER_PACK_ID, saved = real || stars <= 0 ? true : save.setBest(packId, missionId, { stars, score }), nx = pack.levels[index + 1];
+        const real = CAREER_PACKS.includes(packId), saved = real || stars <= 0 ? true : save.setBest(packId, missionId, { stars, score }), nx = pack.levels[index + 1];
         return { saved, note: real ? 'เข้าทางนักพัฒนา ดาวของภารกิจนี้ไม่ถูกบันทึก' : '', newlyUnlocked: [], next: nx && !nx.error ? { stationId: null, missionId: D.levelKey(nx) } : null };
       },
       exit: () => router.back({ screen: 'dev' }),
@@ -161,27 +174,28 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
   }
 
   // ข้อมูลกล่องเดินรถอิสระบนแผ่นสถานี (station-sheet.js freeHtml)
+  // ขั้นอัปเกรด = ดัชนี UPGRADES (ทั้งเกม) ยุคที่เลือกได้ = eras ของชุดของสถานี เริ่มที่ขั้น base ของสถานี
   function freeInfo(id, msg = '') {
-    const W = D.wallet, owned = W.owned(id);
+    const W = D.wallet, owned = W.owned(id), base = W.base(id), pk = packOfStation(id);
     return { balance: W.balance(), owned, selected: W.selected(id), msg,
-      levels: D.career.eras.map((e, i) => ({ name: e.name, cost: D.econ.upgradeCost(owned, i), gain: (D.econ.UPGRADES[i] || {}).gain || '' })) };
+      levels: pk.eras.map((e, i) => ({ level: base + i, name: e.name, cost: D.econ.upgradeCost(owned, base + i), gain: (D.econ.UPGRADES[base + i] || {}).gain || '' })) };
   }
   // เดินรถอิสระของสถานีที่ผ่านครบ: ระบบสัญญาณตามขั้นที่เลือก ตารางขบวนเกมจัดให้ ไม่นับดาวและงบ (อัปเกรดไม่แตะภารกิจสอน)
   function openFree({ stationId }) {
-    const st = progress().byId[stationId], L = D.stations[stationId];
-    if (!st || !st.done || !L) return router.replace({ screen: 'map', stationId: st ? stationId : undefined });
-    const era = D.wallet.selected(stationId), up = D.econ.upgradeOf(era);
-    const r = D.econ.freePlayPack(L, D.career.eras, { era, speed: up.speed, grace: up.grace });
+    const st = careerP().byId[stationId], L = D.stations[stationId], pk = packOfStation(stationId);
+    if (!st || !st.done || !L || !pk) return router.replace({ screen: 'map', stationId: st ? stationId : undefined });
+    const level = D.wallet.selected(stationId), up = D.econ.upgradeOf(level), era = Math.min(pk.eras.length - 1, level - D.wallet.base(stationId));
+    const r = D.econ.freePlayPack(L, pk.eras, { era, speed: up.speed, grace: up.grace });
     if (!r.ok) return router.replace({ screen: 'map', stationId });
     showOnly('play'); closePlay();
     const pack = r.pack, lv = pack.levels[0];
     const ctx = {
       // dev: true ทำให้ปุ่มท้ายด่านเขียนว่า "กลับ" ชุดด่านนี้ไม่มี note จึงไม่มีผลอื่น
-      ...base(), dev: true, pack, game: { pack, index: 0 }, stationNote: (D.career.stations.find(s => s.station === stationId) || {}).note_th || '',
-      mission: { id: 'free', name: `เดินรถอิสระ · ${D.career.eras[era].name}`, teaches: lv.teaches || '', stars: 0 },
+      ...base(), dev: true, pack, game: { pack, index: 0 }, stationNote: (pk.stations.find(s => s.station === stationId) || {}).note_th || '',
+      mission: { id: 'free', name: `เดินรถอิสระ · ${pk.eras[era].name}`, teaches: lv.teaches || '', stars: 0 },
       station: stationInfo(stationId),
       finish: ({ score = 0, stars = 0 } = {}) => {
-        const rec = stars > 0 ? D.wallet.freeRecord(stationId, era, score) : null;
+        const rec = stars > 0 ? D.wallet.freeRecord(stationId, level, score) : null;
         const best = rec ? (rec.isNew ? ` · สถิติใหม่ของขั้นนี้ ${rec.best}` : ` · สถิติดีสุดของขั้นนี้ ${rec.best}`) : '';
         return { saved: true, note: `เดินรถอิสระไม่นับดาวและงบ${best}`, newlyUnlocked: [], next: null };
       },
@@ -243,7 +257,7 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
       if (r.screen === 'build') return openBuild(r);
       if (r.screen === 'free') return openFree(r);
       if (r.screen === 'dev') return devAllowed() ? openDev(r) : router.replace({ screen: 'map' });
-      if (r.stationId && !progress().byId[r.stationId]) return router.replace({ screen: 'map' });
+      if (r.stationId && !careerP().byId[r.stationId]) return router.replace({ screen: 'map' });
       reloadSave(); // อีกแท็บอาจเพิ่งได้ดาว: อ่านเซฟล่าสุดทุกครั้งที่กลับเข้าแผนที่
       sheetStation = r.stationId || null;
       showOnly('map');
@@ -281,9 +295,10 @@ export function startCareerApp({ save, loadMap, mountPlay = null }) {
   //   __sjApp.play                                  hook ของด่านที่เปิดอยู่: g, snapshot(), start(), step(วินาที), press(target), nextTarget(), hint(), targetClient(target), hitTest(x, y)
   const settle = () => new Promise(r => setTimeout(r, 0));
   return {
-    stage, router, save, career,
+    stage, router, save, career, careers: saves,
     ready: () => ensureGame(),
     progress: () => (D ? progress() : null),
+    careerProgress: () => (D ? careerP() : null),
     get data() { return D; }, get pack() { return D && D.career; },
     get map() { return mapScreen && mapScreen.debug; },
     get play() { return play && play.api ? play.api : null; },
