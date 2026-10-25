@@ -3,6 +3,7 @@ import { posAt } from './geometry.js';
 import { T, way } from './messages.js';
 import { msg, fail, addScore, emit } from './events.js';
 import { TL, STOP_GAP } from './station2.js';
+import { DEFAULT_KIND } from './consists.js';
 import { blockEnter, blockLeave, tokenMode, hasToken, takeToken } from './block.js';
 import { walk } from './interlocking.js';
 
@@ -16,16 +17,17 @@ const DWELL = 2.5; // วินาทีที่ขบวนธรรมดา�
 
 // plat = ชานชาลาปลายทาง, 0 = ขบวนด่วนผ่าน; entry = ขอบรางขาเข้า
 // เลขขบวน (id) = ลำดับในตารางขบวน เริ่มที่ 1
-// sp = แถวในตารางขบวนที่แปลงแล้ว (lv.sched) ถ้ามี: กำหนดขาออก (exit) เวลาจอด (dwell) ทางที่ด่วนควรผ่าน (via) และขบวนต้นทาง (origin)
+// sp = แถวในตารางขบวนที่แปลงแล้ว (lv.sched) ถ้ามี: กำหนดขาออก (exit) เวลาจอด (dwell) ทางที่ด่วนควรผ่าน (via) ขบวนต้นทาง (origin) และชนิดขบวน (kind, len)
 export function spawn(g, plat, entry = g.L.entry, sp = null) {
   const t = { id: sp ? sp.i + 1 : g.nid++, plat, exp: sp ? sp.exp : plat === 0, entry, edge: entry, s: 0, state: (sp ? sp.exp : plat === 0) ? 'through' : 'arriving',
     dwell: 0, wait: 0, stopped: false, delayed: false, trail: [],
-    exit: sp ? sp.exit : null, via: sp ? sp.via : null, dwellT: sp ? sp.dwell : DWELL, origin: false };
+    exit: sp ? sp.exit : null, via: sp ? sp.via : null, dwellT: sp ? sp.dwell : DWELL, origin: false,
+    kind: sp ? sp.kind : DEFAULT_KIND, len: sp ? sp.len : TL };
   if (sp && sp.origin !== null) { // ขบวนต้นทาง: ตั้งอยู่ที่ทางจอดแล้ว หันไปทางที่ไปถึงขาออกได้ รอครบเวลาจอดแล้วพร้อมออก
     const fw = g.L.platEdge[sp.origin], bw = g.E[fw].rev, want = sp.exit ? [sp.exit] : g.L.exits;
     const edge = [fw, bw].find(k => k && want.some(x => g.L.reach[k].has(x))) || fw, e = g.E[edge];
     Object.assign(t, { entry: null, edge, s: e.len - STOP_GAP, state: 'dwell', dwell: sp.dwell, origin: true, stopped: true });
-    for (let d = TL; d >= 0; d -= 0.8) { const p = posAt(e, t.s - d); t.trail.push({ x: p.x, y: p.y, e: edge }); }
+    for (let d = t.len; d >= 0; d -= 0.8) { const p = posAt(e, t.s - d); t.trail.push({ x: p.x, y: p.y, e: edge }); }
     msg(g, T.originReady(t.id, sp.origin));
   } else { const p = posAt(g.E[entry], 0); t.trail.push({ x: p.x, y: p.y, e: entry }); }
   g.trains.push(t); g.spawned++;
@@ -37,7 +39,7 @@ export function spawn(g, plat, entry = g.L.entry, sp = null) {
 export function reverseTrain(g, t) {
   const e = g.E[t.edge], rev = e.rev;
   if (!rev || t.trail.some(p => g.E[p.e].track !== e.track)) return false;
-  t.s = e.len - Math.max(0, t.s - TL); t.edge = rev;
+  t.s = e.len - Math.max(0, t.s - t.len); t.edge = rev;
   t.trail = t.trail.reverse().map(p => ({ x: p.x, y: p.y, e: rev }));
   msg(g, T.reversed(t.id)); emit(g, { type: 'train', what: 'reverse', train: t.id });
   return true;
@@ -74,8 +76,8 @@ function stopLimit(g, t) {
   if (e.buffer) lim = Math.min(lim, e.len - STOP_GAP); // ทางตัน
   if (t.edge === t.entry) for (const o of g.trains) { // ต่อคิวรอนอกสถานี ไม่ชนท้ายคันหน้า
     if (o === t) continue;
-    if (o.edge === t.entry && o.s > t.s) lim = Math.min(lim, o.s - TL - 14);
-    if (o.edge === E[t.entry].next) lim = Math.min(lim, E[t.entry].len + o.s - TL - 14);
+    if (o.edge === t.entry && o.s > t.s) lim = Math.min(lim, o.s - o.len - 14);
+    if (o.edge === E[t.entry].next) lim = Math.min(lim, E[t.entry].len + o.s - o.len - 14);
   }
   return lim;
 }
@@ -129,7 +131,7 @@ export function moveTrain(g, t, dt) {
   let L = 0;
   for (let i = t.trail.length - 1; i > 0; i--) {
     L += Math.hypot(t.trail[i].x - t.trail[i - 1].x, t.trail[i].y - t.trail[i - 1].y);
-    if (L >= TL) { t.trail.splice(0, i - 1); break; }
+    if (L >= t.len) { t.trail.splice(0, i - 1); break; }
   }
   const e = g.E[t.edge], atEnd = t.stopped && e.plat && t.s >= e.len - 7;
   if (t.state === 'arriving' && atEnd) {
