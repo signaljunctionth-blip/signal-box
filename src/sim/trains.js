@@ -41,6 +41,7 @@ export function reverseTrain(g, t) {
   if (!rev || t.trail.some(p => g.E[p.e].track !== e.track)) return false;
   t.s = e.len - Math.max(0, t.s - t.len); t.edge = rev;
   t.trail = t.trail.reverse().map(p => ({ x: p.x, y: p.y, e: rev }));
+  t.rev = !t.rev; // ตัวรถเรียงกลับด้าน (ตัววาดใช้วางหัวรถจักรไว้ท้ายขบวน)
   msg(g, T.reversed(t.id)); emit(g, { type: 'train', what: 'reverse', train: t.id });
   return true;
 }

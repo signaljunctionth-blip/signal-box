@@ -3,7 +3,7 @@
 // เส้นทางที่ล็อก การครอบครอง (ยุคที่มีวงจรตอนราง) ขบวนพร้อมทิศและปลายทาง และคำใบ้ทุกชนิด (ประแจ เสา ทางจอด ป้ายขา รางปลายทาง)
 // ตำแหน่งของทุกชิ้นมาจาก panel-geom.js ชุดเดียวกับตัวหาเป้าแตะ สีทุกสีอ่านจาก CSS variable (โหมดมืด)
 // (โหมดประวัติศาสตร์ยังใช้ canvas2d.js ตัวเดิม เพราะมีเทสต์เทียบภาพกับต้นแบบ v2 ทีละพิกเซล)
-import { trackState, blockState, trainInfo, sigName } from '../sim/index.js';
+import { trackState, blockState, trainInfo, sigName, CARS, COUPLER, M_PER_UNIT } from '../sim/index.js';
 import { panelGeom, targetCenter, destinations, along, tokenBoxes } from './panel-geom.js';
 
 const VARS = { board: '--board', track: '--track', route: '--route', occ: '--occ', ink: '--ink', muted: '--muted', paper: '--paper', line: '--line',
@@ -163,12 +163,31 @@ export function createPanel(cv, styleEl = document.documentElement) {
     const SPOTS = [];
     for (const dy of [27, 50, 73]) for (const dx of [0, 46, 92, 138, 184]) for (const sy of [-1, 1]) for (const sx of dx ? [-1, 1] : [1]) SPOTS.push([sx * dx, sy * dy, Math.hypot(dx, dy - 27)]);
     SPOTS.sort((a, b) => a[2] - b[2]);
+    // รอยต่อตัวรถ (WP11): ขีดสีพื้นขวางตัวขบวนทุกรอยต่อ นับจากหัวไปท้ายตามความยาวตัวรถจริงของชนิดขบวน
+    const carJoints = (tr, cars) => {
+      if (!cars || cars.length < 2) return;
+      let i = tr.length - 1, acc = 0, want = 0;
+      cx.strokeStyle = C.board; cx.lineWidth = 3; cx.lineCap = 'butt';
+      for (let c = 0; c < cars.length - 1; c++) {
+        want += (CARS[cars[c]] + COUPLER) / M_PER_UNIT;
+        for (; i > 0; i--) {
+          const a = tr[i], b = tr[i - 1], d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (acc + d < want) { acc += d; continue; }
+          const f = (want - acc) / d, x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f, nx = -(b.y - a.y) / d * 10, ny = (b.x - a.x) / d * 10;
+          cx.beginPath(); cx.moveTo(x - nx, y - ny); cx.lineTo(x + nx, y + ny); cx.stroke();
+          break;
+        }
+        if (i <= 0) break;
+      }
+      cx.lineCap = 'round';
+    };
     for (const t of g.trains) {
       const tr = t.trail; if (tr.length < 2) continue;
       const info = trainInfo(g, t), col = trainColor(t.plat);
       const path = () => { cx.beginPath(); tr.forEach((q, i) => (i ? cx.lineTo(q.x, q.y) : cx.moveTo(q.x, q.y))); };
       cx.strokeStyle = col; cx.lineWidth = 18; cx.lineCap = 'round'; cx.lineJoin = 'round'; path(); cx.stroke();
       cx.strokeStyle = C.stripe; cx.lineWidth = 5; cx.setLineDash([8, 7]); path(); cx.stroke(); cx.setLineDash([]);
+      carJoints(tr, info.cars);
       const h = tr[tr.length - 1], h2 = tr[Math.max(0, tr.length - 4)], a = Math.atan2(h.y - h2.y, h.x - h2.x);
       cx.save(); cx.translate(h.x, h.y); cx.rotate(a);
       cx.fillStyle = C.navy; cx.beginPath(); cx.moveTo(7, 0); cx.lineTo(-4, -6.5); cx.lineTo(-4, 6.5); cx.closePath(); cx.fill(); cx.restore();

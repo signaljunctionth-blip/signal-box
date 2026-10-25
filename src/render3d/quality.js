@@ -1,8 +1,8 @@
 // ระดับคุณภาพของฉาก 3 มิติ (docs/ART-3D.md ข้อ 5) และตัวคุมเฟรมเรต — ฟังก์ชันล้วน ทดสอบใน Node ได้
 export const TIERS = [
-  { id: 'high', name: 'สูง', ratio: 2, shadow: 2048, shadowEvery: 1, tufts: 1600, near: 170, far: 190, bushes: 70, fasteners: true, mask: 512 },
-  { id: 'mid', name: 'กลาง', ratio: 1.5, shadow: 1024, shadowEvery: 2, tufts: 700, near: 110, far: 110, bushes: 45, fasteners: false, mask: 384 },
-  { id: 'low', name: 'ประหยัด', ratio: 1, shadow: 0, shadowEvery: 0, tufts: 0, near: 60, far: 50, bushes: 20, fasteners: false, mask: 256 },
+  { id: 'high', name: 'สูง', ratio: 2, shadow: 2048, shadowEvery: 1, tufts: 1600, stones: 1600, near: 170, far: 190, bushes: 70, fasteners: true, mask: 512 },
+  { id: 'mid', name: 'กลาง', ratio: 1.5, shadow: 1024, shadowEvery: 2, tufts: 700, stones: 500, near: 110, far: 110, bushes: 45, fasteners: false, mask: 384 },
+  { id: 'low', name: 'ประหยัด', ratio: 1, shadow: 0, shadowEvery: 0, tufts: 0, stones: 0, near: 60, far: 50, bushes: 20, fasteners: false, mask: 256 },
 ];
 export const tierOf = id => TIERS.find(t => t.id === id) || TIERS[1];
 const KEY = 'sj.view3d';

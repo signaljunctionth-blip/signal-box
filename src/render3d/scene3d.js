@@ -5,7 +5,8 @@
 //   view.update(g, dt)  view.render()  view.resize(w, h)  view.anchors() -> [{ target, pos: [x,y,z] }]
 //   view.project([x,y,z]) -> { x, y, on }   view.camera: pan(dx, dy, h) orbit(dx, dy, h) zoom(k) reset() zoomed   view.setTier(id)   view.setColors(c)   view.dispose()
 import * as THREE from 'three';
-import { world3d, trailPoint, carSpan, GAUGE, CAR_LEN } from './layout3d.js';
+import { world3d, trailPoint, pathAt, GAUGE, KX } from './layout3d.js';
+import { CARS, KINDS, DEFAULT_KIND, COUPLER } from '../sim/consists.js';
 import { tierOf } from './quality.js';
 
 // ชิ้นงาน CC0 (ดู assets/ASSETS.md) Vite แปลงเป็น URL ของไฟล์ตอน build
@@ -77,7 +78,7 @@ export async function createScene3D(canvas, opts) {
   const paint = (color, o) => keep(new THREE.MeshStandardMaterial(Object.assign({ color: new THREE.Color(color), roughness: 0.62, metalness: 0, normalMap: lowTex() ? null : T.metal_n, roughnessMap: T.metal_r, normalScale: new THREE.Vector2(0.35, 0.35) }, o || {})));
   const C = (r, g, b) => new THREE.Color(r, g, b);
   const M = {
-    ballast: pbr('rock', { vertexColors: true, roughness: 0.96, normalScale: new THREE.Vector2(1.5, 1.5) }),
+    ballast: null,                                  // หินโรยทาง: พื้นผิววาดด้วยโค้ด ดูหัวข้อ "หินโรยทาง"
     ballastLoad: pbr('rock', { color: C(0.8, 0.78, 0.74) }),
     sleeper: pbr('wood', { vertexColors: true }),
     woodWall: keep(new THREE.MeshStandardMaterial({ color: new THREE.Color(0xd8c79c), normalMap: lowTex() ? null : T.wood_n, roughnessMap: T.wood_arm, roughness: 1, normalScale: new THREE.Vector2(1.6, 1.6) })),
@@ -353,22 +354,65 @@ export async function createScene3D(canvas, opts) {
     for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], d = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.abs(a[0]) > 220 && Math.abs(b[0]) > 220 ? 1 : Math.max(1, Math.ceil(d / 4)); for (let j = 1; j <= n; j++) out.push([a[0] + (b[0] - a[0]) * j / n, a[1] + (b[1] - a[1]) * j / n]); }
     return out;
   };
+  // หินโรยทาง (WP11): หินแกรนิตย่อยสีเทา พื้นผิววาดด้วยโค้ด (ก้อนหินเหลี่ยมหลายเฉดบนร่องเงา ต่อขอบได้) ใช้ normal ของหิน CC0 เดิมให้ผิวขรุขระ
+  // หน้าตัด: บ่าหินเสมอหลังหมอน ลาดไหล่ทางลงถึงตีนลาดที่จมดินเล็กน้อย สีไหล่ทางหม่นลงเพราะฝุ่นดิน ใช้สุ่มชุดของตัวเอง ไม่กระทบตำแหน่งต้นไม้
+  let bseed = 911; const brnd = () => (bseed = (bseed * 16807) % 2147483647) / 2147483647;
+  const ballastTex = canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#3c3f42'; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 700; i++) {
+      const x = brnd() * w, y = brnd() * h, r = 4.5 + brnd() * 6.5, n = 5 + Math.floor(brnd() * 3), a0 = brnd() * 6.28;
+      const v = 92 + brnd() * 92, warm = (brnd() - 0.5) * 14, pts = [];
+      for (let k = 0; k < n; k++) { const a = a0 + k / n * 6.28, rk = r * (0.7 + brnd() * 0.45); pts.push([Math.cos(a) * rk, Math.sin(a) * rk * (0.75 + brnd() * 0.3)]); }
+      const speck = brnd() < 0.5;
+      for (const ox of [-w, 0, w]) for (const oy of [-h, 0, h]) {
+        if (x + ox < -12 || x + ox > w + 12 || y + oy < -12 || y + oy > h + 12) continue;
+        const shape = d => { g.beginPath(); pts.forEach(([px, py], k) => (k ? g.lineTo : g.moveTo).call(g, x + ox + px * d, y + oy + py * d)); g.closePath(); };
+        g.fillStyle = 'rgba(30,32,35,0.45)'; g.save(); g.translate(1.2, 1.4); shape(1.02); g.fill(); g.restore();   // เงาใต้ก้อน
+        g.fillStyle = `rgb(${v + warm | 0},${v + warm * 0.4 | 0},${v - warm * 0.3 + 3 | 0})`; shape(1); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.13)'; g.save(); g.translate(-0.8, -0.9); shape(0.55); g.fill(); g.restore();   // หน้าหินรับแสง
+        if (speck) { g.fillStyle = 'rgba(25,25,28,0.5)'; g.fillRect(x + ox - 0.6, y + oy + 0.4, 1.2, 1.2); }   // เม็ดแร่สีเข้มของหินแกรนิต
+      }
+    }
+  });
+  ballastTex.wrapS = ballastTex.wrapT = THREE.RepeatWrapping;
+  M.ballast = keep(new THREE.MeshStandardMaterial({ map: ballastTex, normalMap: lowTex() ? null : T.rock_n, normalScale: new THREE.Vector2(1.1, 1.1), vertexColors: true, roughness: 0.95, metalness: 0 }));
   {
     const pos = [], col = [], uv = [], nor = [], idx = []; let base = 0;
-    const PR = [[-2.45, 0, 1, -0.66], [-1.5, BAL, 1, 0], [-0.62, BAL, 0.98, 0], [0, BAL - 0.012, 0.66, 0], [0.62, BAL, 0.98, 0], [1.5, BAL, 1, 0], [2.45, 0, 1, 0.66]];
-    for (const ln of LINES) {
-      const fr = frames(dense(ln.pts));
-      fr.forEach(f => PR.forEach(([o, y, c, nz]) => {
+    // [ระยะจากศูนย์กลางราง, ความสูง, ความสว่าง, ลาดของ normal, ฝุ่นดิน 0..1]
+    const PR = [[-3.1, -0.03, 0.62, -0.5, 1], [-2.55, 0.1, 0.8, -0.55, 0.6], [-1.68, BAL - 0.02, 0.96, -0.2, 0.15], [-1.45, BAL, 1, 0, 0], [-0.62, BAL, 0.98, 0, 0], [0, BAL - 0.012, 0.7, 0, 0],
+      [0.62, BAL, 0.98, 0, 0], [1.45, BAL, 1, 0, 0], [1.68, BAL - 0.02, 0.96, 0.2, 0.15], [2.55, 0.1, 0.8, 0.55, 0.6], [3.1, -0.03, 0.62, 0.5, 1]];
+    LINES.forEach((ln, li) => {
+      const fr = frames(dense(ln.pts)), lift = li * 0.004;   // รางขนานกันไหล่ทางซ้อนกัน: ยกทีละนิดกันผิวกะพริบ
+      fr.forEach(f => PR.forEach(([o, y, c, nz, dust]) => {
         const x = f.x + f.nx * o, z = f.z + f.nz * o, j = 0.9 + vnoise(x * 0.37, z * 0.5) * 0.2, cc = c * j;
-        pos.push(x, y + (o === -2.45 || o === 2.45 ? groundH(x, z) * 0 : 0), z); col.push(cc, cc * (0.93 + c * 0.07), cc * (0.86 + c * 0.14)); uv.push(x / 3.2, z / 3.2);
-        nor.push(f.nx * nz, nz ? 0.75 : 1, f.nz * nz);
+        pos.push(x, y + lift, z);
+        // เทาเย็นเล็กน้อยบนบ่าหิน ไหล่ทางผสมสีฝุ่นดินลูกรัง
+        col.push(cc * (0.9 + dust * 0.12), cc * 0.91, cc * (0.93 - dust * 0.12)); uv.push(x / 1.25, z / 1.25);
+        nor.push(f.nx * nz, 1, f.nz * nz);
       }));
-      for (let i = 0; i < fr.length - 1; i++) for (let k = 0; k < PR.length - 1; k++) { const a = base + i * PR.length + k, b = a + 1, c = a + PR.length, d = c + 1; idx.push(a, c, b, b, c, d); }
+      // หันหน้าขึ้น (เดิมเรียงจุดกลับด้าน หน้าหินหันลงดินจึงถูกตัดทิ้ง เห็นแต่ดินลูกรังข้างใต้)
+      for (let i = 0; i < fr.length - 1; i++) for (let k = 0; k < PR.length - 1; k++) { const a = base + i * PR.length + k, b = a + 1, c = a + PR.length, d = c + 1; idx.push(a, b, c, b, d, c); }
       base += fr.length * PR.length;
-    }
+    });
     const g = keep(new THREE.BufferGeometry()); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setIndex(idx);
     const m = new THREE.Mesh(g, M.ballast); m.receiveShadow = true; scene.add(m);
+  }
+  // เม็ดหินบนไหล่ทาง: ก้อนเหลี่ยม (icosahedron) instanced เดียว กระจายบนลาดและตีนลาดในย่านสถานี ระดับคุณภาพคุมจำนวนด้วย count
+  let stoneInst = null;
+  {
+    const geo = keep(new THREE.IcosahedronGeometry(1, 0)), spots = [];
+    const near = LINES.map(ln => frames(dense(ln.pts)).filter(f => f.x > B.x0 - 60 && f.x < B.x1 + 60));
+    const total = near.reduce((n, l) => n + l.length, 0);
+    for (let k = 0; k < 2400 && total; k++) {
+      let r = Math.floor(brnd() * total), l = 0; while (r >= near[l].length) r -= near[l++].length;
+      const f = near[l][r], side = brnd() < 0.5 ? -1 : 1, o = side * (1.6 + brnd() * 1.6), t = (Math.abs(o) - 1.6) / 1.55;
+      const y = t < 0.6 ? BAL - 0.02 - t / 0.6 * (BAL - 0.12) : 0.1 - (t - 0.6) / 0.4 * 0.13, a = brnd() * 6.28, along = (brnd() - 0.5) * 4;
+      spots.push([f.x + f.nx * o + f.tx * along, y, f.z + f.nz * o + f.tz * along, 0.035 + brnd() * 0.05, a, brnd()]);
+    }
+    const inst = new THREE.InstancedMesh(geo, keep(new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, flatShading: true })), Math.max(1, spots.length)), d = new THREE.Object3D(), c = new THREE.Color();
+    spots.forEach(([x, y, z, s_, a, v], i) => { d.position.set(x, y, z); d.rotation.set(a, a * 1.7, a * 0.6); d.scale.set(s_ * 1.2, s_ * 0.75, s_); d.updateMatrix(); inst.setMatrixAt(i, d.matrix); const g_ = 0.26 + v * 0.22; inst.setColorAt(i, c.setRGB(g_ * 1.01, g_, g_ * 1.03)); });
+    inst.receiveShadow = true; inst.frustumCulled = false; scene.add(inst); stoneInst = inst; inst.userData.max = spots.length;
   }
   // ราง: หน้าตัดตัวไอ (ฐาน เอว หัว) ลากตามแนวราง หัวรางมันวาว ข้างรางสีสนิม
   const SIDE = [[-0.075, 0], [-0.075, 0.018], [-0.014, 0.04], [-0.014, 0.112], [-0.038, 0.122], [-0.038, 0.15]];
@@ -722,88 +766,185 @@ export async function createScene3D(canvas, opts) {
     if (key === 'occ') { o.mat.color.copy(stripCol.occ); o.mat.opacity = 0.85; } else if (key === 'route') { o.mat.color.copy(stripCol.route); o.mat.opacity = 0.85; } else if (key === 'ovl') { o.mat.color.copy(stripCol.route); o.mat.opacity = 0.4; }
   }
 
-  /* ================= ขบวนรถ: รถดีเซลราง 1 คัน (แบบกลาง ๆ ไม่อิงรุ่นจริง ไม่มีตัวอักษรหรือตรา) ================= */
+  /* ================= ขบวนรถ (WP11): ตัวรถ 4 ชนิดสร้างด้วยโค้ด แบบกลาง ๆ ไม่อิงรุ่นจริง ไม่มีตัวอักษรหรือตรา =================
+     ชนิดขบวนและลำดับตัวรถมาจาก sim/consists.js ตัวรถแต่ละคันวางตามทางวิ่งแยกกัน จึงโค้งตามรางและประแจได้
+     ตัวรถชนิดเดียวกันสีเดียวกันรวมเป็น InstancedMesh เดียว (draw call ไม่เพิ่มตามจำนวนคัน) */
   const WR = 0.42, AX = RT + WR;
-  const wheelGeo = keep(new THREE.CylinderGeometry(WR, WR, 0.12, 18)), flangeGeo = keep(new THREE.CylinderGeometry(WR + 0.035, WR + 0.035, 0.03, 18));
-  function bogie(m, x, wb) {
-    [-wb, wb].forEach(dx => { [-1, 1].forEach(s => { m.add(wheelGeo.clone(), M.wheel, mtx(x + dx, AX, s * (GAUGE / 2 + 0.04), Math.PI / 2)); m.add(flangeGeo.clone(), M.wheel, mtx(x + dx, AX, s * (GAUGE / 2 - 0.035), Math.PI / 2));
+  const wheelGeo = keep(new THREE.CylinderGeometry(WR, WR, 0.12, 12)), flangeGeo = keep(new THREE.CylinderGeometry(WR + 0.035, WR + 0.035, 0.03, 12, 1, true));
+  function bogie(m, x, wb, axles = 2) {
+    const xs = axles === 3 ? [-wb, 0, wb] : [-wb, wb];
+    xs.forEach(dx => { [-1, 1].forEach(s => { m.add(wheelGeo.clone(), M.wheel, mtx(x + dx, AX, s * (GAUGE / 2 + 0.04), Math.PI / 2)); m.add(flangeGeo.clone(), M.wheel, mtx(x + dx, AX, s * (GAUGE / 2 - 0.035), Math.PI / 2));
         m.bx(M.dark, 0.34, 0.3, 0.14, x + dx, AX, s * 0.74); m.bx(M.dark, 0.2, 0.32, 0.1, x + dx, AX + 0.3, s * 0.74); });
       m.cy(M.dark, 0.06, 0.06, 1.4, 6, x + dx, AX, 0, { rx: Math.PI / 2 }); });
     [-1, 1].forEach(s => m.bx(M.dark, wb * 2 + 0.9, 0.2, 0.12, x, AX + 0.2, s * 0.74)); m.bx(M.dark, 0.55, 0.3, 1.5, x, AX + 0.2, 0);
   }
-  // ตัวถังรวมทุกวัสดุเป็นเรขาคณิตเดียว (สีที่จุดยอด) แถบสีขบวนเป็นสีที่จุดยอดชุดเฉพาะของแต่ละขบวน กระจกแยก 1 mesh
-  const BODY = new THREE.Color(0xcfc4a6), BANDC = new THREE.Color(1, 0, 1);
+  // สีตัวถังธรรมชาติ (DECISIONS: ใช้สีแบรนด์เป็นแถบคาดเท่านั้น) แถบสีขบวนเป็นสีที่จุดยอดชุดเฉพาะ (BANDC) แทนที่ด้วยสีขบวนทีหลัง
+  const BODY = new THREE.Color(0xcfc4a6), COACH = new THREE.Color(0xd8d0bb), LOCO = new THREE.Color(0x58625f), LOCO_HI = new THREE.Color(0xc9b98f), VAN = new THREE.Color(0x7d5642), BANDC = new THREE.Color(1, 0, 1);
   const bodyMat = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.12, normalMap: lowTex() ? null : T.metal_n, normalScale: new THREE.Vector2(0.3, 0.3) }));
   const tag = c => ({ color: c, userData: { vc: c } });
-  const car = (() => {
-    const m = new VMerger(), gl = new Merger(), L_ = CAR_LEN, hw = 1.36, y0 = 1.17, y1 = 3.4, B_ = tag(BODY), BAND = tag(BANDC);
+  const geoOf = (e, uv) => { const g = keep(new THREE.BufferGeometry()); g.setAttribute('position', new THREE.Float32BufferAttribute(e.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(e.n, 3)); if (uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(e.u, 2)); return g; };
+  // ปิดงานตัวรถ 1 แบบ: เรขาคณิตตัวถัง กระจก ป้ายเลขทาง (ถ้ามี) และตำแหน่งสีแถบในอาร์เรย์สี
+  function finish(m, gl, pl, len) {
+    const body = m.geometry(), col = body.attributes.color.array, band = [];
+    for (let i = 0; i < col.length; i += 3) if (col[i] === 1 && col[i + 1] === 0 && col[i + 2] === 1) band.push(i);
+    const ge = gl.b.get(M.glass), pe = pl && pl.b.get('_p');
+    return { len, body, band, glass: ge ? geoOf(ge) : null, plates: pe ? geoOf(pe, true) : null };
+  }
+  // ป้ายเลขทางข้างตู้ 4 ป้าย + บนหลังคา 1 ป้าย (มองจากมุมสูงก็รู้ว่าขบวนไปทางไหน)
+  function sidePlates(L_, hw, y, roofY) {
+    const pl = new Merger();
+    [-1, 1].forEach(s => [-1, 1].forEach(e => pl.add(new THREE.PlaneGeometry(0.62, 0.62), '_p', mtx(e * (L_ / 2 - 2.9), y, s * (hw + 0.022), 0, s > 0 ? 0 : Math.PI, 0))));
+    pl.add(new THREE.PlaneGeometry(1.25, 1.25), '_p', mtx(0, roofY, 0, -Math.PI / 2, 0, 0));
+    return pl;
+  }
+  // ตัวถังรถโดยสาร (รถดีเซลรางและตู้โดยสาร): หน้าตัดมุมมน หลังคาโค้ง แถบสี หน้าต่างเรียง ประตูใกล้หัวท้าย
+  function shell(m, gl, L_, B_, nW, sp) {
+    const hw = 1.36, y0 = 1.17, y1 = 3.4, BAND = tag(BANDC);
     m.add(prism(rrShape(hw, y0, y1, 0.1, 0.06), L_ - 0.6), B_, null, 0.5);
     [-1, 1].forEach(e => m.add(prism(rrShape(hw - 0.02, y0, y1 - 0.02, 0.1, 0.2), 0.4), B_, mtx(e * (L_ / 2 - 0.4), 0, 0), 0.5));
     m.add(prism(archShape(hw + 0.03, y1 - 0.02, 0.5), L_ - 0.4, 10), M.roofGrey, null, 0.5);
     m.bx(BAND, L_ - 0.1, 0.2, hw * 2 + 0.024, 0, 1.92, 0);
-    m.bx(M.dark, L_ - 0.8, 0.16, 2.3, 0, y0 - 0.06, 0); m.bx(M.dark, 2.4, 0.5, 1.7, 0.6, 0.86, 0); m.bx(M.dark, 1.2, 0.4, 0.6, -2.2, 0.9, 0.6);
-    const nW = 7, sp = 1.42, x0 = -(nW - 1) * sp / 2;
+    m.bx(M.dark, L_ - 0.8, 0.16, 2.3, 0, y0 - 0.06, 0); m.bx(M.dark, 2.4, 0.5, 1.7, 0.6, 0.86, 0);
+    const x0 = -(nW - 1) * sp / 2;
     [-1, 1].forEach(s => {
       for (let i = 0; i < nW; i++) { const x = x0 + i * sp; m.bx(M.frame, 1.1, 0.92, 0.03, x, 2.68, s * (hw + 0.003)); gl.bx(M.glass, 0.98, 0.8, 0.03, x, 2.68, s * (hw + 0.012)); m.bx(M.frame, 0.98, 0.035, 0.035, x, 2.74, s * (hw + 0.015)); }
       [-1, 1].forEach(e => { const x = e * (L_ / 2 - 1.75); m.bx(M.dark, 0.86, 2.02, 0.03, x, 2.26, s * (hw + 0.004)); m.bx(B_, 0.74, 1.9, 0.03, x, 2.26, s * (hw + 0.012)); gl.bx(M.glass, 0.46, 0.6, 0.03, x, 2.72, s * (hw + 0.02));
         m.bx(M.dark, 0.8, 0.05, 0.3, x, y0 - 0.2, s * (hw - 0.05)); m.bx(M.steel, 0.03, 0.9, 0.03, x + e * -0.46, 2.3, s * (hw + 0.04)); });
     });
-    [-1, 1].forEach(e => {                         // ห้องขับหัวท้าย: กระจกหน้า กันชน ไฟท้าย (ดับ)
+    const nv = Math.max(2, Math.round(L_ / 3.6));
+    for (let i = 0; i < nv; i++) m.bx(M.roofGrey, 0.7, 0.1, 0.45, (i - (nv - 1) / 2) * 2.8, y1 + 0.49, 0);
+    bogie(m, -L_ / 2 + 3.2, 1.0); bogie(m, L_ / 2 - 3.2, 1.0);
+    return { hw, y0, y1 };
+  }
+  // ขอพ่วงและกันชนที่ปลายตัวรถ (ทุกชนิด)
+  const coupler = (m, L_, e) => { m.bx(M.dark, 0.25, 0.3, 2.3, e * (L_ / 2 + 0.05), 1.15, 0); m.bx(M.dark, 0.5, 0.2, 0.22, e * (L_ / 2 + 0.25), 1.12, 0); };
+  function buildDmu() {                             // รถดีเซลราง: ห้องขับทั้งสองปลาย กระจกหน้า ไฟท้าย
+    const m = new VMerger(), gl = new Merger(), L_ = CARS.dmu, B_ = tag(BODY), { hw } = shell(m, gl, L_, B_, 7, 1.42);
+    m.bx(M.dark, 1.2, 0.4, 0.6, -2.2, 0.9, 0.6);
+    [-1, 1].forEach(e => {
       const xe = e * (L_ / 2 - 0.02);
       gl.bx(M.glass, 0.04, 0.7, 2.1, xe, 2.75, 0); m.bx(M.frame, 0.05, 0.08, 2.2, xe, 3.12, 0); m.bx(M.frame, 0.05, 0.06, 2.2, xe, 2.38, 0);
-      m.bx(M.dark, 0.25, 0.3, 2.3, e * (L_ / 2 + 0.05), 1.15, 0); m.bx(M.dark, 0.5, 0.2, 0.22, e * (L_ / 2 + 0.25), 1.12, 0);
-      if (e < 0) [0.55, -0.55].forEach(z => m.add(new THREE.SphereGeometry(0.11, 8, 6), M.lampOff, mtx(xe - 0.03, 1.7, z, 0, 0, 0, 0.4, 1, 1)));
+      coupler(m, L_, e);
+      [0.55, -0.55].forEach(z => m.add(new THREE.SphereGeometry(0.11, 8, 6), M.lampOff, mtx(xe - e * 0.03, 1.7, z, 0, 0, 0, 0.4, 1, 1)));
     });
-    for (let i = -2; i <= 2; i++) m.bx(M.roofGrey, 0.7, 0.1, 0.45, i * 2.8, y1 + 0.49, 0);
-    bogie(m, -L_ / 2 + 3.2, 1.0); bogie(m, L_ / 2 - 3.2, 1.0);
-    const body = m.geometry(), glass = (() => { const e = gl.b.get(M.glass), g = keep(new THREE.BufferGeometry()); g.setAttribute('position', new THREE.Float32BufferAttribute(e.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(e.n, 3)); return g; })();
-    const col = body.attributes.color.array, band = [];
-    for (let i = 0; i < col.length; i += 3) if (col[i] === 1 && col[i + 1] === 0 && col[i + 2] === 1) band.push(i);
-    const pl = new Merger(), P_ = {};                // ป้ายเลขชานชาลา: ข้างตู้ 4 ป้าย + บนหลังคา 1 ป้าย
-    [-1, 1].forEach(s => [-1, 1].forEach(e => pl.add(new THREE.PlaneGeometry(0.62, 0.62), P_, mtx(e * (L_ / 2 - 2.9), 2.62, s * (hw + 0.022), 0, s > 0 ? 0 : Math.PI, 0))));
-    pl.add(new THREE.PlaneGeometry(1.25, 1.25), P_, mtx(0, 3.93, 0, -Math.PI / 2, 0, 0));
-    const pe = pl.b.get(P_), plates_ = keep(new THREE.BufferGeometry()); plates_.setAttribute('position', new THREE.Float32BufferAttribute(pe.p, 3)); plates_.setAttribute('normal', new THREE.Float32BufferAttribute(pe.n, 3)); plates_.setAttribute('uv', new THREE.Float32BufferAttribute(pe.u, 2));
-    const lm = new Merger(), LM = {}; [0.55, -0.55].forEach(z => lm.add(new THREE.SphereGeometry(0.11, 10, 8), LM, mtx(L_ / 2 + 0.03, 1.7, z, 0, 0, 0, 0.4, 1, 1)));
-    const le = lm.b.get(LM), lamps = keep(new THREE.BufferGeometry()); lamps.setAttribute('position', new THREE.Float32BufferAttribute(le.p, 3)); lamps.setAttribute('normal', new THREE.Float32BufferAttribute(le.n, 3));
-    return { body, glass, band, plates: plates_, lamps };
-  })();
-  const bodies = {};                                // เรขาคณิตตัวถังต่อสีขบวน (ใช้ตำแหน่งร่วมกัน สีที่จุดยอดแยก)
-  function bodyFor(n) {
-    if (bodies[n]) return bodies[n];
-    const g = keep(new THREE.BufferGeometry()); for (const a of ['position', 'normal', 'uv']) g.setAttribute(a, car.body.attributes[a]);
-    const c = car.body.attributes.color.array.slice(), bc = new THREE.Color(brand(n));
-    for (const i of car.band) { c[i] = bc.r; c[i + 1] = bc.g; c[i + 2] = bc.b; }
-    g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); return (bodies[n] = g);
+    return finish(m, gl, sidePlates(L_, hw, 2.62, 3.93), L_);
+  }
+  function buildCoach() {                           // ตู้โดยสาร: หน้าต่างถี่กว่า ปลายตู้มีทางเดินเชื่อมระหว่างตู้ (ผ้าใบสีเข้ม) ไม่มีห้องขับ
+    const m = new VMerger(), gl = new Merger(), L_ = CARS.coach, B_ = tag(COACH), { hw, y0 } = shell(m, gl, L_, B_, 9, 1.38);
+    [-1, 1].forEach(e => {
+      const xe = e * (L_ / 2 + 0.08);
+      m.bx(M.dark, 0.2, 2.1, 1.1, xe, y0 + 1.15, 0); m.bx(B_, 0.04, 1.9, 0.9, e * (L_ / 2 - 0.01), y0 + 1.0, 0);
+      coupler(m, L_, e);
+    });
+    m.bx(M.dark, 3.2, 0.42, 1.6, -3.4, 0.88, 0);
+    return finish(m, gl, sidePlates(L_, hw, 2.62, 3.93), L_);
+  }
+  function buildLoco() {                            // หัวรถจักรดีเซลแบบฝากระโปรง: ห้องขับค่อนไปทางหน้า (+x) ฝาเครื่องยาวด้านหลัง จมูกสั้นด้านหน้า โบกี้ 3 เพลา
+    const m = new VMerger(), gl = new Merger(), L_ = CARS.loco, B_ = tag(LOCO), H_ = tag(LOCO_HI), BAND = tag(BANDC);
+    const deck = 1.42, cab0 = L_ / 2 - 4.3, cab1 = L_ / 2 - 1.7, hood = 1.05, cabW = 1.38;
+    m.bx(M.dark, L_ - 0.2, 0.34, 2.75, 0, deck - 0.17, 0);                     // โครงล่าง
+    m.bx(H_, L_ - 0.2, 0.08, 2.8, 0, deck + 0.02, 0);                           // ขอบพื้นสีอ่อน
+    const hl = cab0 - (-L_ / 2 + 0.5);                                         // ฝาเครื่องยาว
+    m.add(prism(rrShape(hood, deck, 3.3, 0.04, 0.22), hl), B_, mtx(-L_ / 2 + 0.5 + hl / 2, 0, 0), 0.5);
+    m.bx(BAND, hl + 0.02, 0.22, hood * 2 + 0.024, -L_ / 2 + 0.5 + hl / 2, 2.0, 0);
+    for (let i = 0; i < 4; i++) [-1, 1].forEach(s => m.bx(M.dark, 1.3, 0.9, 0.03, -L_ / 2 + 1.6 + i * 2.15, 2.65, s * (hood + 0.005)));   // ช่องลมข้างฝาเครื่อง
+    m.cy(M.dark, 0.2, 0.22, 0.35, 10, -L_ / 2 + 3.2, 3.45, 0); m.bx(M.roofGrey, 2.2, 0.12, 1.5, -L_ / 2 + 5.6, 3.36, 0);   // ปล่องไอเสีย พัดลมหลังคา
+    m.add(prism(rrShape(cabW, deck, 3.75, 0.04, 0.16), cab1 - cab0), B_, mtx((cab0 + cab1) / 2, 0, 0), 0.5);   // ห้องขับ
+    m.bx(M.roofGrey, cab1 - cab0 + 0.1, 0.1, cabW * 2 + 0.1, (cab0 + cab1) / 2, 3.8, 0);
+    m.bx(BAND, cab1 - cab0 + 0.02, 0.22, cabW * 2 + 0.024, (cab0 + cab1) / 2, 2.0, 0);
+    [-1, 1].forEach(s => { gl.bx(M.glass, 1.2, 0.75, 0.03, (cab0 + cab1) / 2 + 0.3, 3.0, s * (cabW + 0.012)); m.bx(M.dark, 0.7, 1.5, 0.03, cab0 + 0.55, 2.3, s * (cabW + 0.006)); });
+    [-1, 1].forEach(e => gl.bx(M.glass, 0.03, 0.62, 1.05, e > 0 ? cab1 + 0.01 : cab0 - 0.01, 3.1, 0));   // กระจกหน้าห้องขับ (และด้านหลัง)
+    const nl = L_ / 2 - 0.35 - cab1;                                           // จมูกสั้น
+    m.add(prism(rrShape(0.95, deck, 2.55, 0.04, 0.18), nl), B_, mtx(cab1 + nl / 2, 0, 0), 0.5);
+    m.bx(H_, 0.04, 0.5, 1.6, L_ / 2 - 0.33, 1.95, 0);
+    [-1, 1].forEach(s => { m.bx(M.steel, L_ - 0.8, 0.035, 0.035, 0, deck + 0.95, s * 1.36); for (let i = 0; i < 7; i++) m.bx(M.steel, 0.035, 0.95, 0.035, -L_ / 2 + 0.6 + i * (L_ - 1.2) / 6, deck + 0.48, s * 1.36); });   // ราวจับข้างทางเดิน
+    m.bx(M.dark, 3.6, 0.7, 1.8, 0, 0.95, 0);                                   // ถังน้ำมัน
+    [-1, 1].forEach(e => coupler(m, L_, e));
+    bogie(m, -L_ / 2 + 3.1, 1.25, 3); bogie(m, L_ / 2 - 3.1, 1.25, 3);
+    return finish(m, gl, null, L_);
+  }
+  function buildWagon() {                           // ตู้สินค้าแบบตู้ปิด: ตู้ไม้สีน้ำตาลแดง ซี่เสริมแนวตั้ง ประตูเลื่อนกลางตู้ แถบสีขบวนเส้นบางล่าง
+    const m = new VMerger(), gl = new Merger(), L_ = CARS.wagon, B_ = tag(VAN), BAND = tag(BANDC), hw = 1.38, y0 = 1.2, y1 = 3.3;
+    m.bx(M.dark, L_ - 0.3, 0.3, 2.5, 0, y0 - 0.12, 0);
+    m.bx(B_, L_ - 0.2, y1 - y0, hw * 2, 0, (y0 + y1) / 2, 0);
+    m.add(prism(archShape(hw + 0.04, y1, 0.32), L_ - 0.1, 8), M.roofGrey, null, 0.5);
+    m.bx(BAND, L_ - 0.18, 0.14, hw * 2 + 0.024, 0, y0 + 0.22, 0);
+    [-1, 1].forEach(s => {
+      for (let i = 0; i <= 8; i++) m.bx(M.dark, 0.08, y1 - y0, 0.04, -L_ / 2 + 0.15 + i * (L_ - 0.3) / 8, (y0 + y1) / 2, s * (hw + 0.01));
+      m.bx(B_, 2.0, y1 - y0 - 0.25, 0.06, 0, (y0 + y1) / 2 - 0.05, s * (hw + 0.04)); m.bx(M.dark, 2.2, 0.08, 0.08, 0, y1 - 0.1, s * (hw + 0.06));
+    });
+    [-1, 1].forEach(e => coupler(m, L_, e));
+    bogie(m, -L_ / 2 + 2.2, 0.85); bogie(m, L_ / 2 - 2.2, 0.85);
+    return finish(m, gl, null, L_);
+  }
+  const CAR3D = { dmu: buildDmu(), coach: buildCoach(), loco: buildLoco(), wagon: buildWagon() };
+  const bodies = {};                                // เรขาคณิตตัวถังต่อชนิดรถ × สีขบวน (ใช้ตำแหน่งร่วมกัน สีที่จุดยอดแยก)
+  const paintBand = (type, n, attr) => { const c = attr.array, bc = new THREE.Color(brand(n)); for (const i of CAR3D[type].band) { c[i] = bc.r; c[i + 1] = bc.g; c[i + 2] = bc.b; } attr.needsUpdate = true; };
+  function bodyFor(type, n) {
+    const k = `${type}|${n}`; if (bodies[k]) return bodies[k];
+    const src = CAR3D[type].body, g = keep(new THREE.BufferGeometry()); for (const a of ['position', 'normal', 'uv']) g.setAttribute(a, src.attributes[a]);
+    g.setAttribute('color', new THREE.Float32BufferAttribute(src.attributes.color.array.slice(), 3)); paintBand(type, n, g.attributes.color);
+    g.userData = { type, n }; return (bodies[k] = g);
   }
   const headLamp = keep(new THREE.MeshStandardMaterial({ color: 0x332200, emissive: new THREE.Color(0xffe9a0), emissiveIntensity: 3.2 }));
-  function makeTrain(info) {
-    const n = info.express ? 0 : info.plat || 0, g = new THREE.Group();
-    const body = new THREE.Mesh(bodyFor(n), bodyMat), glass = new THREE.Mesh(car.glass, M.glass), plates_ = new THREE.Mesh(car.plates, plateMat(n)), lamps = new THREE.Mesh(car.lamps, headLamp);
-    body.castShadow = body.receiveShadow = true; glass.receiveShadow = true;
-    g.add(body, glass, plates_, lamps);
-    // แผ่นเงาใต้รถใช้เฉพาะระดับที่ไม่มีเงาจริง, ไฟหน้ารถเปิดเฉพาะพลบค่ำ (ประหยัด draw call ต่อขบวน สถานีใหญ่มีหลายขบวนพร้อมกัน)
-    const shade = pad(CAR_LEN + 1.6, 4.3, 0, SLT + 0.03, 0, g); shade.visible = !(tier.shadow > 0); lamps.visible = dusk();
-    scene.add(g);
-    return { g, n, shade, lamps };
+  const headGeo = (() => { const lm = new Merger(); [0.55, -0.55].forEach(z => lm.add(new THREE.SphereGeometry(0.11, 10, 8), '_l', mtx(0.03, 1.7, z, 0, 0, 0, 0.4, 1, 1))); return geoOf(lm.b.get('_l')); })();
+  // กองของ InstancedMesh: key = ชนิดชิ้น|ชนิดรถ|สี ใช้ซ้ำทุกเฟรม (count = จำนวนคันที่วาดเฟรมนี้)
+  const CAP = 40, pools = new Map();
+  function pool(key, geo, mat, o = {}) {
+    let p = pools.get(key);
+    if (!p) {
+      p = new THREE.InstancedMesh(geo, mat, CAP); p.frustumCulled = false; p.castShadow = !!o.cast; p.receiveShadow = o.receive !== false; p.count = 0;
+      if (o.order) p.renderOrder = o.order; p.userData.kind = o.kind || 'train'; scene.add(p); pools.set(key, p);
+    }
+    return p;
   }
-  const trains = new Map();
+  const _tm = new THREE.Matrix4(), _tp = new THREE.Vector3(), _tq = new THREE.Quaternion(), _ts = new THREE.Vector3(1, 1, 1), _ty = new THREE.Vector3(0, 1, 0);
+  function put(p, x, y, z, ry, sx = 1, sz = 1) {
+    if (p.count >= CAP) return;
+    _tp.set(x, y, z); _tq.setFromAxisAngle(_ty, ry); _ts.set(sx, 1, sz);
+    p.setMatrixAt(p.count++, _tm.compose(_tp, _tq, _ts));
+  }
+  const trains = new Map();                         // id -> { path, cars, rev, n, ghost } ขบวนที่ออกพ้นผังแล้ววาดต่ออีกครู่ (ghost) ไม่ให้หายวับกลางจอ
   const dusk = () => (parseFloat(colors['--scene-sun']) || 1) < 0.8;
-  function setTrains(game) {
+  let trainGame = null, trainCount = 0, lampCount = 0;
+  // วางตัวรถทุกคันของขบวน o ตามทางวิ่ง: คันแรกต่อจากหัว ระยะห่างตามความยาวตัวรถ + ข้อต่อ
+  function placeTrain(o, shift) {
+    const list = o.rev ? [...o.cars].reverse() : o.cars;
+    let d = -shift;
+    list.forEach((type, i) => {
+      const c = CAR3D[type], a = pathAt(o.path, d), b = pathAt(o.path, d + c.len);
+      d += c.len + COUPLER;
+      const dx = a[0] - b[0], dz = a[1] - b[1], ry = Math.atan2(-dz, dx) + (o.rev ? Math.PI : 0), cx = (a[0] + b[0]) / 2, cz = (a[1] + b[1]) / 2;
+      put(pool(`b|${type}|${o.n}`, bodyFor(type, o.n), bodyMat, { cast: true }), cx, 0, cz, ry);
+      if (c.glass) put(pool(`g|${type}`, c.glass, M.glass), cx, 0, cz, ry);
+      if (c.plates) put(pool(`p|${type}|${o.n}`, c.plates, plateMat(o.n)), cx, 0, cz, ry);
+      if (!(tier.shadow > 0)) put(pool('shade', planeY, padMat, { order: 2, receive: false }), cx, SLT + 0.03, cz, ry, c.len + 1.6, 4.3);
+      if (i === 0 && dusk()) { put(pool('lamp', headGeo, headLamp, { receive: false }), a[0], 0, a[1], Math.atan2(-dz, dx)); lampCount++; }
+    });
+    trainCount++;
+  }
+  function setTrains(game, dt = 0) {
+    if (game !== trainGame) { trains.clear(); trainGame = game; }
+    for (const p of pools.values()) p.count = 0;
+    trainCount = lampCount = 0;
     const seen = new Set();
     for (const t of game.trains) {
       if (t.trail.length < 2) continue;
       seen.add(t.id);
-      let o = trains.get(t.id);
-      const n = t.exp ? 0 : t.plat || 0;
-      if (!o || o.n !== n) { if (o) scene.remove(o.g); o = makeTrain({ express: t.exp, plat: t.plat }); trains.set(t.id, o); }
-      const path = t.trail.map(q => trailPoint(W, L, q)), sp = carSpan(path, CAR_LEN);
-      if (!sp) continue;
-      const [hx, hz] = sp.head, [tx, tz] = sp.tail, len = Math.hypot(hx - tx, hz - tz) || 1;
-      const dx = (hx - tx) / len, dz = (hz - tz) / len;
-      o.g.position.set(hx - dx * CAR_LEN / 2, 0, hz - dz * CAR_LEN / 2);
-      o.g.rotation.y = Math.atan2(-dz, dx);
+      const kind = KINDS[t.kind] ? t.kind : DEFAULT_KIND;
+      const o = { path: t.trail.map(q => trailPoint(W, L, q)), cars: KINDS[kind].cars, rev: !!t.rev, n: t.exp ? 0 : t.plat || 0, ghost: 0 };
+      trains.set(t.id, o);
+      placeTrain(o, 0);
     }
-    for (const [id, o] of trains) if (!seen.has(id)) { scene.remove(o.g); trains.delete(id); }
+    // ขบวนที่ออกพ้นผัง: วิ่งต่อตามแนวรางด้วยความเร็วของภารกิจจนพ้นสายตา (ราว 6 วินาที) แล้วจึงลบ
+    const v = (game.lv && game.lv.speed ? game.lv.speed : 56) * KX;
+    for (const [id, o] of trains) {
+      if (seen.has(id)) continue;
+      o.ghost += v * dt;
+      if (game.state !== 'play' && game.state !== 'win' || o.ghost > 120) { trains.delete(id); continue; }
+      placeTrain(o, o.ghost);
+    }
+    for (const p of pools.values()) { p.visible = p.count > 0; p.instanceMatrix.needsUpdate = true; }
   }
 
   /* ================= ต้นไม้และกอหญ้า จาก atlas ใบไม้ CC0 ================= */
@@ -989,13 +1130,13 @@ export async function createScene3D(canvas, opts) {
     if (sun.castShadow !== shadows) { sun.castShadow = shadows; scene.traverse(o => { if (o.material) [].concat(o.material).forEach(m => { m.needsUpdate = true; }); }); }
     if (shadows && sun.shadow.mapSize.x !== tier.shadow) { sun.shadow.mapSize.set(tier.shadow, tier.shadow); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
     tuftInst.count = Math.min(tuftInst.userData.max, tier.tufts); tuftInst.visible = tuftInst.count > 0;
+    stoneInst.count = Math.min(stoneInst.userData.max, tier.stones || 0); stoneInst.visible = stoneInst.count > 0;
     for (const t of treeInst) {
       const lim = t.v === 5 ? tier.far : t.v === 4 ? tier.bushes : Math.round(tier.near * t.list.length / Math.max(1, treeInst.filter(o => o.v < 4).reduce((s, o) => s + o.list.length, 0)) * 1.0 + 4);
       t.inst.count = Math.min(t.list.length, Math.max(0, lim));
     }
     fillBlobs();
     for (const s of sleeperSets) s.inst.visible = s.mode === 'all' ? !tier.fasteners : tier.fasteners;
-    for (const o of trains.values()) o.shade.visible = !shadows;
     shadowDirty = true;
   }
   applyTier();
@@ -1045,13 +1186,12 @@ export async function createScene3D(canvas, opts) {
     Object.assign(colors, c);
     const exp = parseFloat(colors['--scene-exposure']) || 0.96, fogK = parseFloat(colors['--scene-fog']) || 0.86, sunK = parseFloat(colors['--scene-sun']) || 1, envK = parseFloat(colors['--scene-env']) || 1;
     renderer.toneMappingExposure = exp; sun.intensity = 2.5 * sunK; scene.environmentIntensity = envK; scene.backgroundIntensity = envK;
-    for (const o of trains.values()) o.lamps.visible = dusk();
     scene.fog.color.copy(displayColor(HORIZON.clone().multiplyScalar(fogK)));   // ค่าดิบ = สีบนจอก่อนเข้ารหัส sRGB (หมอกผสมหลังแปลงสี)
     const tint = colors['--scene-tint']; if (tint) scene.fog.color.lerp(new THREE.Color(tint), 0.35);
     stripCol = { route: new THREE.Color(colors['--route'] || '#2FA872'), occ: new THREE.Color(colors['--occ'] || '#E9525A') };
     for (const k in strips) strips[k].state = '__';
     Object.values(plates).forEach(paintPlate);
-    for (const n in bodies) { const c = bodies[n].attributes.color, bc = new THREE.Color(brand(+n)); for (const i of car.band) { c.array[i] = bc.r; c.array[i + 1] = bc.g; c.array[i + 2] = bc.b; } c.needsUpdate = true; }
+    for (const k in bodies) paintBand(bodies[k].userData.type, bodies[k].userData.n, bodies[k].attributes.color);
     const glow = exp < 0.7;                        // พลบค่ำ: ไฟหน้าต่างและโคมชานชาลาเรือง (ชื่อห้ามซ้ำ dusk() ด้านนอกที่เรียกไว้ด้านบน)
     M.lampOff.emissive.set(glow ? 0xffd27a : 0x000000); M.lampOff.emissiveIntensity = glow ? 1.6 : 0;
     M.glass.emissive.set(glow ? 0x3a2a12 : 0x000000);
@@ -1071,8 +1211,8 @@ export async function createScene3D(canvas, opts) {
     }
     const st = []; for (const id in strips) { const s = trackState(game, id); setStrip(id, s); st.push(strips[id].state); }
     const key = st.join(); if (key !== lastStates) lastStates = key;
-    setTrains(game);
-    if (game.trains.length) shadowDirty = true;
+    setTrains(game, dt);
+    if (trains.size) shadowDirty = true;
   }
   // trackState แบบเบา (ไม่ import sim ทั้งก้อนเข้ามาในไฟล์วาด): ใช้ข้อมูลเดียวกับ sim/view.js
   const trackState = (game, id) => ({ locked: game.lockOf[id] ? 1 : null, overlap: game.ovlOf[id] ? 1 : null, occupied: game.trains.some(t => t.trail.some(q => L.E[q.e] && L.E[q.e].track === id)) });
@@ -1114,7 +1254,7 @@ export async function createScene3D(canvas, opts) {
       const list = []; scene.traverseVisible(o => { if (!o.isMesh) return; const g = o.geometry, n = (g.index ? g.index.count : g.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1); list.push([o.material.type + (o.isInstancedMesh ? '×' + o.count : ''), Math.round(n)]); });
       out.top = list.sort((a, b) => b[1] - a[1]).slice(0, 14); out.meshes = list.length;
       const cast = []; scene.traverseVisible(o => { if (o.isMesh && o.castShadow) cast.push(o.parent && o.parent !== scene ? (o.parent.userData.kind || 'group') : o.material.type); }); out.casters = cast.reduce((m, k) => ((m[k] = (m[k] || 0) + 1), m), {});
-      out.lamps = [...trains.values()].filter(o => o.lamps.visible).length; out.trains = trains.size;
+      out.lamps = lampCount; out.trains = trainCount; out.cars = [...pools.entries()].filter(([k]) => k[0] === 'b').reduce((n, [, p]) => n + p.count, 0);
     }
     return out;
   }
