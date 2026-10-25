@@ -64,7 +64,9 @@ function schedOf(trains, L, kind0 = DEFAULT_KIND) {
     if (Array.isArray(r)) {
       if (r[1] !== 0 && !L.plats.includes(r[1])) say(`ตารางขบวนอ้างชานชาลาที่ผัง ${L.id} ไม่มี: ${JSON.stringify(r)}`);
       if (r[2] && !L.entries.includes(r[2])) say(`ตารางขบวนอ้างขาเข้าที่ผัง ${L.id} ไม่มี: ${JSON.stringify(r)}`);
-      return { i, at: r[0], after: null, plat: r[1], exp: r[1] === 0, via: null, entry: r[2] || L.entry, exit: null, from: null, to: null, origin: null, dwell: DWELL, kind: kind0, len: kindLen(kind0) };
+      const len = kindLen(kind0);
+      if (r[1] && L.platFit && len > L.platFit[r[1]]) say(`${KINDS[kind0].name} ยาว ${len} จอดทาง ${r[1]} ไม่พอ (รับได้ ${L.platFit[r[1]]})`);
+      return { i, at: r[0], after: null, plat: r[1], exp: r[1] === 0, via: null, entry: r[2] || L.entry, exit: null, from: null, to: null, origin: null, dwell: DWELL, kind: kind0, len };
     }
     const exp = r.type === 'express' || r.stop === false, to = L.portals[r.to];
     if (!to) say(`ผัง ${L.id} ไม่มีขา ${JSON.stringify(r.to)} (มี ${Object.keys(L.portals).join(', ') || 'ไม่มีขาแบบมีชื่อ ต้องใช้ผัง schema 2'})`);
@@ -88,6 +90,8 @@ function schedOf(trains, L, kind0 = DEFAULT_KIND) {
     }
     // ขบวนต้องจอดได้ทั้งขบวนในทางที่จอดหรือผ่าน (ท้ายไม่ค้างคอสถานี) ดู platFit ใน station.js
     const kind = r.kind ?? kind0, len = kindLen(kind), at = origin ?? (exp ? via : plat);
+    // ขบวนด่วนที่ไม่กำหนดทางผ่าน: ต้องมีอย่างน้อย 1 ทางที่จอดได้ทั้งขบวน (ถูกกักหน้าเสาออกแล้วท้ายไม่ค้างคอสถานีจนติดตาย)
+    if (!at && L.platFit && len > Math.max(...Object.values(L.platFit))) say(`${KINDS[kind].name} ยาว ${len} ไม่มีทางไหนในผังจอดได้ทั้งขบวน`);
     if (at && L.platFit && len > L.platFit[at]) say(`${KINDS[kind].name} ยาว ${len} จอดทาง ${r.origin ?? r.track} ไม่พอ (รับได้ ${L.platFit[at]})`);
     return { i, at: r.at ?? null, after: r.after ? { train: r.after.train, delay: r.after.delay ?? 0 } : null, plat, exp, via, entry, exit: to.exit,
       from: r.from ?? null, to: r.to, origin, dwell: r.dwell ?? DWELL, kind, len };

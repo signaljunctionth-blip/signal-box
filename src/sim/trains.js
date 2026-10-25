@@ -79,6 +79,8 @@ function stopLimit(g, t) {
     if (o === t) continue;
     if (o.edge === t.entry && o.s > t.s) lim = Math.min(lim, o.s - o.len - 14);
     if (o.edge === E[t.entry].next) lim = Math.min(lim, E[t.entry].len + o.s - o.len - 14);
+    const ts = g.L.bidir && o.edge !== t.entry && tailOn(g, o, t.entry); // ขบวนหน้ายาวกว่ารางขาเข้า: หัวพ้นไปหลายรางแล้วแต่ท้ายยังอยู่บนรางนี้
+    if (ts !== null && ts !== false && ts > t.s) lim = Math.min(lim, ts - 14);
   }
   return lim;
 }
@@ -94,7 +96,11 @@ function passEdge(g, t) {
     if (e.plat) t.state = 'leaving';
   }
   if (e.exit) {
-    g.trains = g.trains.filter(x => x !== t); g.done++; g.cleared[t.id] = g.time;
+    // หัวขบวนพ้นขอบผัง = ส่งออกแล้ว (คะแนน เวลา cleared และตอนทางเดี่ยวคิดตอนนี้เหมือนเดิม)
+    // แต่ขบวนยาวกว่ารางขาออก ท้ายยังทับประแจอยู่: ขบวนยังอยู่ในผัง (gone) วิ่งต่อนอกขอบจนท้ายเข้ารางขาออกทั้งขบวน จึงลบ
+    // ผัง schema 1 (โหมดประวัติศาสตร์) ลบทันทีเหมือนต้นแบบ
+    if (!g.L.bidir || t.s - t.len >= 0) g.trains = g.trains.filter(x => x !== t); else { t.gone = true; t.state = 'gone'; }
+    g.done++; g.cleared[t.id] = g.time;
     emit(g, { type: 'train', what: 'exit', train: t.id });
     if (e.portal) blockLeave(g, e.portal, t);
     if (g.state !== 'play') return false;
@@ -121,7 +127,45 @@ function passEdge(g, t) {
   return true;
 }
 
+// จุดบนขอบราง e ที่ระยะ s ต่อเลยปลายขอบเป็นเส้นตรงตามท่อนสุดท้าย (ขบวนที่ออกพ้นผังแล้วแต่ท้ายยังอยู่ในผัง)
+function pastEnd(e, s) {
+  if (s <= e.len) return posAt(e, s);
+  const q = e.seg[e.seg.length - 1], f = (s - e.len) / q.l;
+  return { x: q.x1 + (q.x1 - q.x0) * f, y: q.y1 + (q.y1 - q.y0) * f };
+}
+// ระยะตามขอบราง e ของจุด p (ฉายลงท่อนที่ใกล้ที่สุด)
+function sOn(e, p) {
+  let best = Infinity, at = 0;
+  for (const q of e.seg) {
+    const dx = q.x1 - q.x0, dy = q.y1 - q.y0, f = Math.max(0, Math.min(1, ((p.x - q.x0) * dx + (p.y - q.y0) * dy) / (q.l * q.l)));
+    const d = Math.hypot(p.x - q.x0 - dx * f, p.y - q.y0 - dy * f);
+    if (d < best) { best = d; at = q.s0 + q.l * f; }
+  }
+  return at;
+}
+// ท้ายขบวน o อยู่บนขอบ edge ที่ระยะเท่าไร (null = ท้ายไม่ได้อยู่บนขอบนั้น)
+export function tailOn(g, o, edge) {
+  const q = o.trail[0];
+  return q && q.e === edge ? sOn(g.E[edge], q) : null;
+}
+// ขบวนที่หัวออกพ้นผังแล้ว วิ่งต่อจนท้ายเข้ารางขาออกทั้งขบวน (ยังครอบครองรางและชนได้)
+function moveGone(g, t, dt) {
+  const e = g.E[t.edge];
+  t.s += g.lv.speed * dt; t.stopped = false;
+  t.trail.push({ ...pastEnd(e, t.s), e: t.edge });
+  trimTrail(t);
+  if (t.s - t.len >= 0) g.trains = g.trains.filter(x => x !== t);
+}
+function trimTrail(t) {
+  let L = 0;
+  for (let i = t.trail.length - 1; i > 0; i--) {
+    L += Math.hypot(t.trail[i].x - t.trail[i - 1].x, t.trail[i].y - t.trail[i - 1].y);
+    if (L >= t.len) { t.trail.splice(0, i - 1); break; }
+  }
+}
+
 export function moveTrain(g, t, dt) {
+  if (t.gone) return moveGone(g, t, dt);
   const lim = stopLimit(g, t);
   let ns = t.s + g.lv.speed * dt;
   if (ns >= lim) { ns = Math.max(t.s, lim); t.stopped = true; } else t.stopped = false;
@@ -129,11 +173,7 @@ export function moveTrain(g, t, dt) {
   while (t.s > g.E[t.edge].len) if (!passEdge(g, t)) return;
   const p = posAt(g.E[t.edge], t.s), last = t.trail[t.trail.length - 1];
   if (Math.hypot(p.x - last.x, p.y - last.y) > 0.5) t.trail.push({ x: p.x, y: p.y, e: t.edge });
-  let L = 0;
-  for (let i = t.trail.length - 1; i > 0; i--) {
-    L += Math.hypot(t.trail[i].x - t.trail[i - 1].x, t.trail[i].y - t.trail[i - 1].y);
-    if (L >= t.len) { t.trail.splice(0, i - 1); break; }
-  }
+  trimTrail(t);
   const e = g.E[t.edge], atEnd = t.stopped && e.plat && t.s >= e.len - 7;
   if (t.state === 'arriving' && atEnd) {
     t.state = 'dwell'; t.dwell = t.dwellT;

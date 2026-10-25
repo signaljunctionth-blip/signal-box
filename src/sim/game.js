@@ -1,6 +1,6 @@
 // สถานะเกม 1 ด่าน และการเดินเวลา — ไม่มีตัวแปร global: ทุกอย่างอยู่ในอ็อบเจกต์ g ที่ createGame คืนมา
 import { createRng } from './rng.js';
-import { spawn, moveTrain, checkCollisions } from './trains.js';
+import { spawn, moveTrain, checkCollisions, tailOn } from './trains.js';
 import { occEdges, release, edgeOccupied, stepOverlaps, stepCancels } from './interlocking.js';
 import { isStatic, escapeRoutes, cannotReceive } from './hint.js';
 import { createBlocks, blockState, requestPermit, stepBlocks, tokenMode, askPermit } from './block.js';
@@ -63,7 +63,7 @@ function spawnDue(g) {
     const b = sp.from !== null ? g.block[sp.from] : null;
     if (!b) {
       if (queueBlocked) continue;
-      if (due !== null && g.time >= due && !g.trains.some(t => t.edge === sp.entry && t.s < t.len + 24)) go(); else queueBlocked = true;
+      if (due !== null && g.time >= due && !g.trains.some(t => (t.edge === sp.entry && t.s < t.len + 24) || (g.L.bidir && (tailOn(g, t, sp.entry) ?? Infinity) < 24))) go(); else queueBlocked = true;
       continue;
     }
     if (b.in === idx) { if (g.time >= b.inAt) { b.in = null; b.inTrain = go(); if (tokenMode(g)) b.inTrain.token = sp.from; } continue; }

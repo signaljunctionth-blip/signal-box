@@ -358,10 +358,10 @@ export async function createScene3D(canvas, opts) {
   // หน้าตัด: บ่าหินเสมอหลังหมอน ลาดไหล่ทางลงถึงตีนลาดที่จมดินเล็กน้อย สีไหล่ทางหม่นลงเพราะฝุ่นดิน ใช้สุ่มชุดของตัวเอง ไม่กระทบตำแหน่งต้นไม้
   let bseed = 911; const brnd = () => (bseed = (bseed * 16807) % 2147483647) / 2147483647;
   const ballastTex = canvasTex(256, 256, (g, w, h) => {
-    g.fillStyle = '#3c3f42'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#46464a'; g.fillRect(0, 0, w, h);
     for (let i = 0; i < 700; i++) {
       const x = brnd() * w, y = brnd() * h, r = 4.5 + brnd() * 6.5, n = 5 + Math.floor(brnd() * 3), a0 = brnd() * 6.28;
-      const v = 92 + brnd() * 92, warm = (brnd() - 0.5) * 14, pts = [];
+      const v = 100 + brnd() * 62, warm = (brnd() - 0.5) * 14, pts = [];
       for (let k = 0; k < n; k++) { const a = a0 + k / n * 6.28, rk = r * (0.7 + brnd() * 0.45); pts.push([Math.cos(a) * rk, Math.sin(a) * rk * (0.75 + brnd() * 0.3)]); }
       const speck = brnd() < 0.5;
       for (const ox of [-w, 0, w]) for (const oy of [-h, 0, h]) {
@@ -375,7 +375,7 @@ export async function createScene3D(canvas, opts) {
     }
   });
   ballastTex.wrapS = ballastTex.wrapT = THREE.RepeatWrapping;
-  M.ballast = keep(new THREE.MeshStandardMaterial({ map: ballastTex, normalMap: lowTex() ? null : T.rock_n, normalScale: new THREE.Vector2(1.1, 1.1), vertexColors: true, roughness: 0.95, metalness: 0 }));
+  M.ballast = keep(new THREE.MeshStandardMaterial({ map: ballastTex, normalMap: lowTex() ? null : T.rock_n, normalScale: new THREE.Vector2(0.75, 0.75), vertexColors: true, roughness: 0.95, metalness: 0 }));
   {
     const pos = [], col = [], uv = [], nor = [], idx = []; let base = 0;
     // [ระยะจากศูนย์กลางราง, ความสูง, ความสว่าง, ลาดของ normal, ฝุ่นดิน 0..1]
@@ -387,7 +387,7 @@ export async function createScene3D(canvas, opts) {
         const x = f.x + f.nx * o, z = f.z + f.nz * o, j = 0.9 + vnoise(x * 0.37, z * 0.5) * 0.2, cc = c * j;
         pos.push(x, y + lift, z);
         // เทาเย็นเล็กน้อยบนบ่าหิน ไหล่ทางผสมสีฝุ่นดินลูกรัง
-        col.push(cc * (0.9 + dust * 0.12), cc * 0.91, cc * (0.93 - dust * 0.12)); uv.push(x / 1.25, z / 1.25);
+        col.push(cc * (0.9 + dust * 0.12), cc * 0.91, cc * (0.9 - dust * 0.12)); uv.push(x / 1.25, z / 1.25);
         nor.push(f.nx * nz, 1, f.nz * nz);
       }));
       // หันหน้าขึ้น (เดิมเรียงจุดกลับด้าน หน้าหินหันลงดินจึงถูกตัดทิ้ง เห็นแต่ดินลูกรังข้างใต้)
@@ -779,9 +779,10 @@ export async function createScene3D(canvas, opts) {
     [-1, 1].forEach(s => m.bx(M.dark, wb * 2 + 0.9, 0.2, 0.12, x, AX + 0.2, s * 0.74)); m.bx(M.dark, 0.55, 0.3, 1.5, x, AX + 0.2, 0);
   }
   // สีตัวถังธรรมชาติ (DECISIONS: ใช้สีแบรนด์เป็นแถบคาดเท่านั้น) แถบสีขบวนเป็นสีที่จุดยอดชุดเฉพาะ (BANDC) แทนที่ด้วยสีขบวนทีหลัง
-  const BODY = new THREE.Color(0xcfc4a6), COACH = new THREE.Color(0xd8d0bb), LOCO = new THREE.Color(0x58625f), LOCO_HI = new THREE.Color(0xc9b98f), VAN = new THREE.Color(0x7d5642), BANDC = new THREE.Color(1, 0, 1);
+  const BODY = new THREE.Color(0xb8bec0), COACH = new THREE.Color(0xd8d0bb), LOCO = new THREE.Color(0x58625f), LOCO_HI = new THREE.Color(0xc9b98f), VAN = new THREE.Color(0x7d5642), BANDC = new THREE.Color(1, 0, 1);
   const bodyMat = keep(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.12, normalMap: lowTex() ? null : T.metal_n, normalScale: new THREE.Vector2(0.3, 0.3) }));
   const tag = c => ({ color: c, userData: { vc: c } });
+  const DMU_ROOF = tag(new THREE.Color(0x5d6266));   // หลังคารถดีเซลรางเข้มกว่าตู้โดยสาร มองจากมุมสูงก็แยกออก
   const geoOf = (e, uv) => { const g = keep(new THREE.BufferGeometry()); g.setAttribute('position', new THREE.Float32BufferAttribute(e.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(e.n, 3)); if (uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(e.u, 2)); return g; };
   // ปิดงานตัวรถ 1 แบบ: เรขาคณิตตัวถัง กระจก ป้ายเลขทาง (ถ้ามี) และตำแหน่งสีแถบในอาร์เรย์สี
   function finish(m, gl, pl, len) {
@@ -791,19 +792,20 @@ export async function createScene3D(canvas, opts) {
     return { len, body, band, glass: ge ? geoOf(ge) : null, plates: pe ? geoOf(pe, true) : null };
   }
   // ป้ายเลขทางข้างตู้ 4 ป้าย + บนหลังคา 1 ป้าย (มองจากมุมสูงก็รู้ว่าขบวนไปทางไหน)
-  function sidePlates(L_, hw, y, roofY) {
+  // xs = ตำแหน่งตามยาวของป้ายข้างตู้, roofX = ตำแหน่งป้ายบนหลังคา (ทุกชนิดรถมีเลขทาง ไม่ใช้สีแถบอย่างเดียวบอกทาง)
+  function sidePlates(L_, hw, y, roofY, xs = [-(L_ / 2 - 2.9), L_ / 2 - 2.9], roofX = 0) {
     const pl = new Merger();
-    [-1, 1].forEach(s => [-1, 1].forEach(e => pl.add(new THREE.PlaneGeometry(0.62, 0.62), '_p', mtx(e * (L_ / 2 - 2.9), y, s * (hw + 0.022), 0, s > 0 ? 0 : Math.PI, 0))));
-    pl.add(new THREE.PlaneGeometry(1.25, 1.25), '_p', mtx(0, roofY, 0, -Math.PI / 2, 0, 0));
+    [-1, 1].forEach(s => xs.forEach(x => pl.add(new THREE.PlaneGeometry(0.62, 0.62), '_p', mtx(x, y, s * (hw + 0.022), 0, s > 0 ? 0 : Math.PI, 0))));
+    pl.add(new THREE.PlaneGeometry(1.25, 1.25), '_p', mtx(roofX, roofY, 0, -Math.PI / 2, 0, 0));
     return pl;
   }
   // ตัวถังรถโดยสาร (รถดีเซลรางและตู้โดยสาร): หน้าตัดมุมมน หลังคาโค้ง แถบสี หน้าต่างเรียง ประตูใกล้หัวท้าย
-  function shell(m, gl, L_, B_, nW, sp) {
+  function shell(m, gl, L_, B_, nW, sp, roof = M.roofGrey) {
     const hw = 1.36, y0 = 1.17, y1 = 3.4, BAND = tag(BANDC);
     m.add(prism(rrShape(hw, y0, y1, 0.1, 0.06), L_ - 0.6), B_, null, 0.5);
     [-1, 1].forEach(e => m.add(prism(rrShape(hw - 0.02, y0, y1 - 0.02, 0.1, 0.2), 0.4), B_, mtx(e * (L_ / 2 - 0.4), 0, 0), 0.5));
-    m.add(prism(archShape(hw + 0.03, y1 - 0.02, 0.5), L_ - 0.4, 10), M.roofGrey, null, 0.5);
-    m.bx(BAND, L_ - 0.1, 0.2, hw * 2 + 0.024, 0, 1.92, 0);
+    m.add(prism(archShape(hw + 0.03, y1 - 0.02, 0.5), L_ - 0.4, 10), roof, null, 0.5);
+    m.bx(BAND, L_ - 0.1, 0.32, hw * 2 + 0.024, 0, 1.92, 0);
     m.bx(M.dark, L_ - 0.8, 0.16, 2.3, 0, y0 - 0.06, 0); m.bx(M.dark, 2.4, 0.5, 1.7, 0.6, 0.86, 0);
     const x0 = -(nW - 1) * sp / 2;
     [-1, 1].forEach(s => {
@@ -819,11 +821,12 @@ export async function createScene3D(canvas, opts) {
   // ขอพ่วงและกันชนที่ปลายตัวรถ (ทุกชนิด)
   const coupler = (m, L_, e) => { m.bx(M.dark, 0.25, 0.3, 2.3, e * (L_ / 2 + 0.05), 1.15, 0); m.bx(M.dark, 0.5, 0.2, 0.22, e * (L_ / 2 + 0.25), 1.12, 0); };
   function buildDmu() {                             // รถดีเซลราง: ห้องขับทั้งสองปลาย กระจกหน้า ไฟท้าย
-    const m = new VMerger(), gl = new Merger(), L_ = CARS.dmu, B_ = tag(BODY), { hw } = shell(m, gl, L_, B_, 7, 1.42);
+    const m = new VMerger(), gl = new Merger(), L_ = CARS.dmu, B_ = tag(BODY), WARN = tag(new THREE.Color(0xf2a33a)), { hw } = shell(m, gl, L_, B_, 7, 1.42, DMU_ROOF);
     m.bx(M.dark, 1.2, 0.4, 0.6, -2.2, 0.9, 0.6);
     [-1, 1].forEach(e => {
       const xe = e * (L_ / 2 - 0.02);
       gl.bx(M.glass, 0.04, 0.7, 2.1, xe, 2.75, 0); m.bx(M.frame, 0.05, 0.08, 2.2, xe, 3.12, 0); m.bx(M.frame, 0.05, 0.06, 2.2, xe, 2.38, 0);
+      m.bx(WARN, 0.05, 0.9, 2.4, e * (L_ / 2 + 0.005), 1.65, 0);   // แผ่นหน้าห้องขับสีเหลืองเตือน (แยกรถดีเซลรางจากตู้โดยสาร)
       coupler(m, L_, e);
       [0.55, -0.55].forEach(z => m.add(new THREE.SphereGeometry(0.11, 8, 6), M.lampOff, mtx(xe - e * 0.03, 1.7, z, 0, 0, 0, 0.4, 1, 1)));
     });
@@ -846,12 +849,12 @@ export async function createScene3D(canvas, opts) {
     m.bx(H_, L_ - 0.2, 0.08, 2.8, 0, deck + 0.02, 0);                           // ขอบพื้นสีอ่อน
     const hl = cab0 - (-L_ / 2 + 0.5);                                         // ฝาเครื่องยาว
     m.add(prism(rrShape(hood, deck, 3.3, 0.04, 0.22), hl), B_, mtx(-L_ / 2 + 0.5 + hl / 2, 0, 0), 0.5);
-    m.bx(BAND, hl + 0.02, 0.22, hood * 2 + 0.024, -L_ / 2 + 0.5 + hl / 2, 2.0, 0);
+    m.bx(BAND, hl + 0.02, 0.32, hood * 2 + 0.024, -L_ / 2 + 0.5 + hl / 2, 2.0, 0);
     for (let i = 0; i < 4; i++) [-1, 1].forEach(s => m.bx(M.dark, 1.3, 0.9, 0.03, -L_ / 2 + 1.6 + i * 2.15, 2.65, s * (hood + 0.005)));   // ช่องลมข้างฝาเครื่อง
     m.cy(M.dark, 0.2, 0.22, 0.35, 10, -L_ / 2 + 3.2, 3.45, 0); m.bx(M.roofGrey, 2.2, 0.12, 1.5, -L_ / 2 + 5.6, 3.36, 0);   // ปล่องไอเสีย พัดลมหลังคา
     m.add(prism(rrShape(cabW, deck, 3.75, 0.04, 0.16), cab1 - cab0), B_, mtx((cab0 + cab1) / 2, 0, 0), 0.5);   // ห้องขับ
     m.bx(M.roofGrey, cab1 - cab0 + 0.1, 0.1, cabW * 2 + 0.1, (cab0 + cab1) / 2, 3.8, 0);
-    m.bx(BAND, cab1 - cab0 + 0.02, 0.22, cabW * 2 + 0.024, (cab0 + cab1) / 2, 2.0, 0);
+    m.bx(BAND, cab1 - cab0 + 0.02, 0.32, cabW * 2 + 0.024, (cab0 + cab1) / 2, 2.0, 0);
     [-1, 1].forEach(s => { gl.bx(M.glass, 1.2, 0.75, 0.03, (cab0 + cab1) / 2 + 0.3, 3.0, s * (cabW + 0.012)); m.bx(M.dark, 0.7, 1.5, 0.03, cab0 + 0.55, 2.3, s * (cabW + 0.006)); });
     [-1, 1].forEach(e => gl.bx(M.glass, 0.03, 0.62, 1.05, e > 0 ? cab1 + 0.01 : cab0 - 0.01, 3.1, 0));   // กระจกหน้าห้องขับ (และด้านหลัง)
     const nl = L_ / 2 - 0.35 - cab1;                                           // จมูกสั้น
@@ -861,21 +864,21 @@ export async function createScene3D(canvas, opts) {
     m.bx(M.dark, 3.6, 0.7, 1.8, 0, 0.95, 0);                                   // ถังน้ำมัน
     [-1, 1].forEach(e => coupler(m, L_, e));
     bogie(m, -L_ / 2 + 3.1, 1.25, 3); bogie(m, L_ / 2 - 3.1, 1.25, 3);
-    return finish(m, gl, null, L_);
+    return finish(m, gl, sidePlates(L_, cabW, 2.35, 3.33, [cab1 - 0.5], -L_ / 2 + 2.2), L_);
   }
   function buildWagon() {                           // ตู้สินค้าแบบตู้ปิด: ตู้ไม้สีน้ำตาลแดง ซี่เสริมแนวตั้ง ประตูเลื่อนกลางตู้ แถบสีขบวนเส้นบางล่าง
     const m = new VMerger(), gl = new Merger(), L_ = CARS.wagon, B_ = tag(VAN), BAND = tag(BANDC), hw = 1.38, y0 = 1.2, y1 = 3.3;
     m.bx(M.dark, L_ - 0.3, 0.3, 2.5, 0, y0 - 0.12, 0);
     m.bx(B_, L_ - 0.2, y1 - y0, hw * 2, 0, (y0 + y1) / 2, 0);
     m.add(prism(archShape(hw + 0.04, y1, 0.32), L_ - 0.1, 8), M.roofGrey, null, 0.5);
-    m.bx(BAND, L_ - 0.18, 0.14, hw * 2 + 0.024, 0, y0 + 0.22, 0);
+    m.bx(BAND, L_ - 0.18, 0.24, hw * 2 + 0.024, 0, y0 + 0.45, 0);
     [-1, 1].forEach(s => {
       for (let i = 0; i <= 8; i++) m.bx(M.dark, 0.08, y1 - y0, 0.04, -L_ / 2 + 0.15 + i * (L_ - 0.3) / 8, (y0 + y1) / 2, s * (hw + 0.01));
       m.bx(B_, 2.0, y1 - y0 - 0.25, 0.06, 0, (y0 + y1) / 2 - 0.05, s * (hw + 0.04)); m.bx(M.dark, 2.2, 0.08, 0.08, 0, y1 - 0.1, s * (hw + 0.06));
     });
     [-1, 1].forEach(e => coupler(m, L_, e));
     bogie(m, -L_ / 2 + 2.2, 0.85); bogie(m, L_ / 2 - 2.2, 0.85);
-    return finish(m, gl, null, L_);
+    return finish(m, gl, sidePlates(L_, hw + 0.03, 2.5, 3.66), L_);
   }
   const CAR3D = { dmu: buildDmu(), coach: buildCoach(), loco: buildLoco(), wagon: buildWagon() };
   const bodies = {};                                // เรขาคณิตตัวถังต่อชนิดรถ × สีขบวน (ใช้ตำแหน่งร่วมกัน สีที่จุดยอดแยก)
