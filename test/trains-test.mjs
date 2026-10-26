@@ -67,5 +67,13 @@ for (const id of ['tha-kilen', 'wang-pho', 'nam-tok', 'kanchanaburi', 'nong-pla-
   ok(g.state === 'win', 'ขบวนยาวสองขบวนเข้าจากขาเดียวกันเล่นจบ', `${g.state} ${g.result && g.result.code}`);
   ok(minGap >= 10, 'ขบวนที่สองไม่เกิดซ้อนท้ายขบวนแรก', minGap.toFixed(1));
 }
+// 6) ภารกิจสอนตามที่เจเลือก (ตัวเลือก 1 ไล่ระดับ 2026-10-26): ภารกิจแรกความยาวเดิม สถานีหลังมีขบวนยาวหลายชนิด
+{
+  const r = sim.loadLevelPack(readJson('data/levels/namtok.json'), stations, errors), L = r.pack.levels, by = id => L.find(l => l.id === id);
+  ok(by('tk-1').sched.every(s => s.len === sim.TL), 'tk-1 ใช้รถดีเซลราง 1 คันทุกขบวน');
+  ok(L.every(l => !l.error), 'ทุกภารกิจผ่านตัวตรวจความยาว', L.filter(l => l.error).map(l => l.id + ': ' + l.error).join(' | '));
+  for (const st of ['nam-tok', 'kanchanaburi', 'nong-pla-duk-jn']) ok(L.some(l => l.station === st && l.sched.some(s => s.kind === 'local')), `${st} มีขบวนธรรมดาหัวรถจักร`);
+  ok(new Set(L.flatMap(l => l.sched.map(s => s.len))).size >= 4, 'ภารกิจสอนมีขบวนอย่างน้อย 4 ความยาว');
+}
 console.log(fails ? `\nไม่ผ่าน ${fails}/${checks}` : `ขบวนยาวตามชนิด: ผ่าน ${checks} ข้อ`);
 process.exit(fails ? 1 : 0);
