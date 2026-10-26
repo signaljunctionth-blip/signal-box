@@ -7,6 +7,7 @@ import { nextTarget } from './hint.js';
 import { press } from './control.js';
 
 const BOT_DT = 0.05, BOT_STEPS = 12000;
+const KIND_CYCLE = ['local', 'railcar2', 'freight', 'railcar3'];
 const BASE_SPEED = 56; // ใกล้ภารกิจสอนของน้ำตก (54–58) ผังของผู้เล่นจึงไม่เร็วกว่าภารกิจตอนยังไม่อัปเกรด
 
 // บอทตามคำใบ้แบบเดียวกับ test/lib/bot.js คืน 'win' | 'fail' | 'timeout'
@@ -46,15 +47,19 @@ export function freePlayPack(station, eras, { era = 2, count = 4, speed = 1, gra
   for (const a of ins) for (const b of outs) if (a.id !== b.id) pairs.push([a.id, b.id]);
   if (!pairs.length) for (const a of ins) pairs.push([a.id, a.id]);
   const order = [pairs[0], ...pairs.slice(1).filter(([a, b]) => a === pairs[0][1] && b === pairs[0][0]), ...pairs.slice(1)];
-  for (let n = Math.min(count, 6); n >= 1; n--) {
+  // จำนวนขบวนมากก่อน แต่ละจำนวนลองชนิดขบวนสลับกันก่อน (WP11) ถ้าบอทเล่นไม่จบ ลองด้วยรถดีเซลราง 1 คันทั้งหมด (ความยาวเดิมของเกม)
+  for (let n = Math.min(count, 6); n >= 1; n--) for (const cycle of [KIND_CYCLE, ['railcar']]) {
     const trains = [];
     for (let i = 0; i < n; i++) {
       const [from, to] = order[i % Math.min(order.length, 2)];
       // ขบวนแรกสองขบวนเข้ามาใกล้กัน (ได้หลีกกันถ้าผังมีทางหลีก) ขบวนถัดไปตามหลังเมื่อขบวนก่อนหน้าพ้นจอ
       const when = i < 2 ? { at: 1 + 2 * i } : { after: { train: i - 1, event: 'cleared', delay: 3 } };
-      const pick = [...plats.slice(i % plats.length), ...plats.slice(0, i % plats.length)].find(no => packOf(station, eras, era, [...trains, { ...when, from, to, track: no }], mul));
-      if (pick === undefined) break;
-      trains.push({ ...when, from, to, track: pick });
+      // ชนิดขบวนสลับกัน (WP11) ถ้าทางจอดสั้นรับขบวนยาวไม่ได้ ลดเป็นขบวนที่สั้นกว่า
+      const tracks = [...plats.slice(i % plats.length), ...plats.slice(0, i % plats.length)], kinds = [...new Set([cycle[i % cycle.length], 'railcar2', 'railcar'])].slice(0, cycle.length > 1 ? 3 : 1);
+      let row = null;
+      for (const kind of kinds) { const no = tracks.find(n => packOf(station, eras, era, [...trains, { ...when, from, to, track: n, kind }], mul)); if (no !== undefined) { row = { ...when, from, to, track: no, kind }; break; } }
+      if (!row) break;
+      trains.push(row);
     }
     if (trains.length < n) continue;
     const pack = packOf(station, eras, era, trains, mul);

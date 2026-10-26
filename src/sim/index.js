@@ -21,6 +21,7 @@ export { press, routeTo, needsDestination } from './control.js';
 export { hint, nextTarget, idle, wantedRoute, isStatic, escapeRoutes, trapsItself, cannotReceive } from './hint.js';
 export { trackState, trainInfo, snapshot } from './view.js';
 export { createRng } from './rng.js';
+export { M_PER_UNIT, COUPLER, CARS, KINDS, DEFAULT_KIND, kindLen } from './consists.js';
 export { T as MESSAGES, way } from './messages.js';
 export { PLAN_VERSION, GRID, MAX_COLS, MAX_ROWS, emptyPlan, starterPlan, normalizePlan, toggleSeg, toggleSignal, setPlatform, planCount, planCost, planToStation, buildPlan } from './editor.js';
 export { routeTable, conflictOf } from './route-table.js';

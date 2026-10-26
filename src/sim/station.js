@@ -2,7 +2,7 @@
 // schema อธิบายไว้ที่ data/stations/README.md
 // schema 1 = ผังทิศเดียวแบบต้นแบบ v2 (โหมดประวัติศาสตร์), schema 2 = รางสองทิศ หลายขา ทางตัน (ดู station2.js)
 import { prepEdges } from './geometry.js';
-import { validateLayout2, expandLayout2, checkLayout2 } from './station2.js';
+import { validateLayout2, expandLayout2, checkLayout2, STOP_GAP, FOUL_CLEAR } from './station2.js';
 
 export const STATION_SCHEMA = 2;           // schema ล่าสุดที่ควรใช้เขียนผังใหม่
 export const STATION_SCHEMAS = [1, 2];     // schema ที่ยังโหลดได้
@@ -175,6 +175,13 @@ function buildStation(j) {
 
   const plats = L.platforms.map(p => p.no), platEdge = {}, platSig = {};
   for (const p of L.platforms) { platEdge[p.no] = p.edge; platSig[p.no] = E[p.edge].sig; }
+  // platFit[เลขทาง] = ขบวนยาวสุดที่จอดได้ทั้งขบวน (หน่วยผัง) ทั้งสองทิศ: หัวหยุดก่อนเสา STOP_GAP
+  // ท้ายต้องพ้นปลายรางอีกด้าน STOP_GAP หรือพ้นหลักเขตปลอดภัย FOUL_CLEAR ถ้าปลายนั้นเป็นประแจ
+  const platFit = {}, pointEnd = n => !!n && typeof n === 'object'; // next เป็นอ็อบเจกต์ = ปลายนั้นเป็นประแจ
+  for (const p of L.platforms) {
+    const e = E[p.edge], ends = [e.next, e.rev && E[e.rev] ? E[e.rev].next : null];
+    platFit[p.no] = Math.floor(e.len - STOP_GAP - Math.max(...ends.map(n => (pointEnd(n) ? FOUL_CLEAR : STOP_GAP))));
+  }
   const routes = {}, REQ = {};
   for (const k in S) {
     routes[k] = routesFrom(E, k, S[k].edge);
@@ -199,7 +206,7 @@ function buildStation(j) {
     id: j.id, name: j.name_th || j.id, fictional: j.fictional, verified: { ...j.verified }, sources: [...j.sources],
     schema: j.schema, bidir, upDir: j.upDir || null,
     size: L.size ? [...L.size] : [960, 480],
-    E, edgeCount: Object.keys(E).length, P, S, plats, platEdge, platSig, routes, REQ, reach,
+    E, edgeCount: Object.keys(E).length, P, S, plats, platEdge, platSig, platFit, routes, REQ, reach,
     entries: [...L.entries], exits: [...L.exits],
     portals: bidir ? L.portals : {}, buffers: bidir ? L.buffers : [], sections: bidir ? L.sections : {}, sectionOf: bidir ? L.sectionOf : {},
     roles, roleOf, rolePlat, noPlatform,
